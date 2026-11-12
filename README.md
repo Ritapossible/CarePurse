@@ -43,4 +43,7 @@ Before writing code, run Koxy's workshop kit once (see `library.md`, section 5),
 
 ## Team
 
-Gloria & Rita
+| Name | GitHub |
+|---|---|
+| Rita | [@Ritapossible](https://github.com/Ritapossible) |
+| Gloria | added after her first push |
