@@ -81,19 +81,23 @@ Mama        Mhasibu (web/agent)          Gateway                    Facilitator 
 
 ### Why fixed price tiers
 
-The kit's `@x402/express` setup gives each route a fixed price. To keep that simple, each top-up size is its own route with its own price:
+The kit's `@x402/express` setup gives each route a fixed price. To keep that simple, each top-up size is its own route with its own price. **Every utility starts at ₦500**, and the same tiers apply to electricity, airtime and data:
 
-| Utility | Route | Naira | USDC (demo rate, set in `.env`) |
-|---|---|---|---|
-| Electricity | `/paid/topup/electricity/2000` | ₦2,000 | 1.36 |
-| Electricity | `/paid/topup/electricity/5000` | ₦5,000 | 3.40 |
-| Electricity | `/paid/topup/electricity/10000` | ₦10,000 | 6.80 |
-| Airtime | `/paid/topup/airtime/500` | ₦500 | 0.34 |
-| Airtime | `/paid/topup/airtime/1000` | ₦1,000 | 0.68 |
-| Data | `/paid/topup/data/1000` | ₦1,000 bundle | 0.68 |
-| Data | `/paid/topup/data/2000` | ₦2,000 bundle | 1.36 |
+| Tier (naira) | Route example | USDC (demo rate, set in `.env`) |
+|---|---|---|
+| ₦500 | `/paid/topup/electricity/500` | 0.34 |
+| ₦1,000 | `/paid/topup/airtime/1000` | 0.68 |
+| ₦2,000 | `/paid/topup/data/2000` | 1.36 |
+| ₦5,000 | `/paid/topup/electricity/5000` | 3.40 |
+| ₦10,000 | `/paid/topup/electricity/10000` | 6.80 |
+
+Small amounts are fine for x402: a ₦500 top-up (0.34 USDC) settles exactly like a large one, because the Stellar fee is a tiny fraction of a cent.
+
+**The daughter's limits decide which tiers Mama sees.** `GET /v1/options` returns only the tiers that fit every limit she set and the purse balance. Example: if she sets airtime to at most 0.68 USDC (₦1,000) per top-up, Mama is offered ₦500 and ₦1,000 only. If she raises it, the bigger tiers appear. Below ₦500 is never offered.
 
 The demo rate (`NGN_PER_USDC`) is a single number in `.env`. If `@x402/express` supports a price computed per request, we can drop the tiers later.
+
+**Check with the provider:** some electricity distribution companies set their own minimum purchase, which can be above ₦500. If a meter's company refuses ₦500, the gateway hides that tier for that meter.
 
 ### What the gateway checks before delivering
 

@@ -49,6 +49,7 @@ Example values. The daughter picks her own, and any box can be left empty for "n
 | Data | 3 USDC | 3 USDC | 6 USDC | 15 USDC |
 | **Whole purse** | | | | **60 USDC** |
 
+- **Smallest top-up: ₦500** for every utility (about 0.34 USDC). Mama is offered fixed sizes from ₦500 upward (₦500, ₦1,000, ₦2,000, ₦5,000, ₦10,000), but **only the sizes that fit the limits the daughter set**. If she allows more, bigger sizes appear.
 - **At a cap:** Mhasibu explains politely in Mama's language and notifies the daughter, who can raise it.
 - **No borrowing:** Mhasibu can't move budget between utilities or raise a cap.
 - **Duplicate check:** the same utility asked for again within 30 minutes makes Mhasibu ask "Do you want more?".
