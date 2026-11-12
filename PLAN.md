@@ -37,7 +37,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 
 ### Step 1: The paid gateway (14–16 Nov), Must have
 - [ ] Copy the kit's `server.mjs` pattern into `services/gateway`.
-- [ ] `GET /v1/options?utility=` returns the price tiers from ₦500 upward that fit the daughter's limits and the purse balance (free).
+- [ ] `GET /v1/options?utility=` returns the price tiers (from ₦500 for electricity, from ₦100 for airtime and data) that fit the daughter's limits and the purse balance (free).
 - [ ] `POST /v1/orders` creates an order (free).
 - [ ] `GET /paid/topup/:utility/:tier` priced with x402. It answers 402 until paid.
 - [ ] After payment: check the order, call the sandbox provider, return the token.

@@ -81,19 +81,25 @@ Mama        Mhasibu (web/agent)          Gateway                    Facilitator 
 
 ### Why fixed price tiers
 
-The kit's `@x402/express` setup gives each route a fixed price. To keep that simple, each top-up size is its own route with its own price. **Every utility starts at ₦500**, and the same tiers apply to electricity, airtime and data:
+The kit's `@x402/express` setup gives each route a fixed price. To keep that simple, each top-up size is its own route with its own price. **Electricity starts at ₦500. Airtime and data start at ₦100.**
 
-| Tier (naira) | Route example | USDC (demo rate, set in `.env`) |
-|---|---|---|
-| ₦500 | `/paid/topup/electricity/500` | 0.34 |
-| ₦1,000 | `/paid/topup/airtime/1000` | 0.68 |
-| ₦2,000 | `/paid/topup/data/2000` | 1.36 |
-| ₦5,000 | `/paid/topup/electricity/5000` | 3.40 |
-| ₦10,000 | `/paid/topup/electricity/10000` | 6.80 |
+| Tier (naira) | Electricity | Airtime | Data | USDC (demo rate, set in `.env`) |
+|---|---|---|---|---|
+| ₦100 | | ✓ | ✓ | about 0.07 |
+| ₦200 | | ✓ | ✓ | about 0.14 |
+| ₦500 | ✓ | ✓ | ✓ | 0.34 |
+| ₦1,000 | ✓ | ✓ | ✓ | 0.68 |
+| ₦2,000 | ✓ | ✓ | ✓ | 1.36 |
+| ₦5,000 | ✓ | ✓ | ✓ | 3.40 |
+| ₦10,000 | ✓ | | | 6.80 |
 
-Small amounts are fine for x402: a ₦500 top-up (0.34 USDC) settles exactly like a large one, because the Stellar fee is a tiny fraction of a cent.
+Route pattern: `/paid/topup/:utility/:tier`, for example `/paid/topup/airtime/100` or `/paid/topup/electricity/5000`.
 
-**The daughter's limits decide which tiers Mama sees.** `GET /v1/options` returns only the tiers that fit every limit she set and the purse balance. Example: if she sets airtime to at most 0.68 USDC (₦1,000) per top-up, Mama is offered ₦500 and ₦1,000 only. If she raises it, the bigger tiers appear. Below ₦500 is never offered.
+Small amounts are fine for x402: a ₦100 airtime top-up (about 0.07 USDC) settles exactly like a large one, because the Stellar fee is a tiny fraction of a cent. The gateway works out the exact price in USDC base units (7 decimals) from `NGN_PER_USDC`, so nothing is rounded away.
+
+**The daughter's limits decide which tiers Mama sees.** `GET /v1/options` returns only the tiers that fit every limit she set and the purse balance. Example: if she sets airtime to at most 0.34 USDC (₦500) per top-up, Mama is offered ₦100, ₦200 and ₦500 only. If she raises it, the bigger tiers appear. Nothing below the minimum (₦500 electricity, ₦100 airtime and data) is ever offered.
+
+**Data bundles:** data is sold as fixed bundles by network, not by any amount. Each naira tier maps to the closest bundle the provider sells (for example ₦100 → the network's smallest daily bundle). The provider's sandbox catalogue gives the real bundle list.
 
 The demo rate (`NGN_PER_USDC`) is a single number in `.env`. If `@x402/express` supports a price computed per request, we can drop the tiers later.
 
