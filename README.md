@@ -11,9 +11,10 @@ Built for **EmpowerHer: Building the Agent Economy**. Stellar **testnet** only.
 Read these in order:
 
 1. **[MEMORY.md](MEMORY.md)**: everything we decided (users, sign-up, limits, wording).
-2. **[ARCHITECTURE.md](ARCHITECTURE.md)**: the parts, the flows, the contract and the API.
-3. **[PLAN.md](PLAN.md)**: what to build, in what order, and who does it.
-4. **[library.md](library.md)**: workshop materials and Stellar x402 docs (temporary).
+2. **[SIGNUP.md](SIGNUP.md)**: how Mama and her daughter join, screen by screen.
+3. **[ARCHITECTURE.md](ARCHITECTURE.md)**: the parts, the flows, the contract and the API.
+4. **[PLAN.md](PLAN.md)**: what to build, in what order, and who does it.
+5. **[library.md](library.md)**: workshop materials and Stellar x402 docs (temporary).
 
 ## How it works
 

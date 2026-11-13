@@ -30,6 +30,9 @@ Mama in Nigeria asks for electricity, airtime or data in a chat. Our AI agent, *
 - **Testnet only.** Stellar testnet USDC.
 
 ### Sign-up and identity
+- **The daughter starts and does the setup; Mama does one step** (tap the link, type the code). Mama can also start first and send her child a link. Full plan: `SIGNUP.md`.
+- **Invite links** work once and expire after 7 days. If Mama didn't use hers, the daughter can make a new one any time; the new link cancels the old one.
+- **Limit presets** for the daughter: Light, Standard or Custom, shown in naira.
 - **Mama:** phone number plus a one-time code. No email, no wallet, no seed phrase. For the demo, show the code on screen instead of sending an SMS. An optional 4-digit PIN protects purchases.
 - **Daughter:** a **Privy** embedded wallet (email or Google login, no seed phrase). Privy lists Stellar among its supported chains. **Check first** how it signs Stellar transactions; the fallback is Stellar Wallets Kit (Freighter and others).
 - **Mhasibu:** its own server-held Stellar keypair (the agent wallet), as in the workshop kit. It never holds more than the purchase in progress.

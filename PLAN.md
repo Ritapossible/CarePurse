@@ -52,17 +52,23 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] **Test:** "Abeg, light don almost finish" → options → "1" → paid on testnet → token.
 
 ### Step 3: Mama's chat (18–20 Nov), Must have
-- [ ] Phone + code login (code shown on screen).
+- [ ] Welcome screen with two buttons: "I'm setting this up for my mum" / "I'm Mama / I have a link" (`SIGNUP.md`).
+- [ ] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome.
+- [ ] Backup path: Mama starts first, shares a link with her child, waits.
+- [ ] "Add to home screen" prompt.
 - [ ] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction.
 - [ ] English and Pidgin replies.
 - [ ] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
 
 ### Step 4: Daughter's dashboard (19–22 Nov), Should have
-- [ ] Privy login.
-- [ ] Invite link from Mama → daughter becomes guardian.
+- [ ] Setup steps D1 to D6 from `SIGNUP.md`, with a progress bar and saved progress.
+- [ ] Privy login; the daughter becomes guardian.
+- [ ] About Mama: name, phone, language.
 - [ ] Add Mama's meter (with the owner name check) and phone number.
-- [ ] Set limits per utility, plus the purse monthly cap.
-- [ ] Fund the purse with USDC.
+- [ ] Limits: Light / Standard / Custom presets in naira.
+- [ ] Fund the purse with USDC (address, QR, testnet USDC button).
+- [ ] Invite Mama: WhatsApp share and copy link. One use, 7-day expiry.
+- [ ] Invite status on the dashboard, and **[Send a new invite]** that cancels the old link.
 - [ ] Receipts: every top-up with its Stellar transaction link.
 
 ### Step 5: Limits on-chain (20–24 Nov), Should have

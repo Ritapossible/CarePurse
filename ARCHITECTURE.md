@@ -45,13 +45,28 @@ The gateway follows Koxy's workshop kit (`src/server.mjs`), and the agent's payi
 
 ## Flow 1: Setting up a purse
 
-1. **Mama signs up:** she enters her phone number and code, and picks English or Pidgin. The backend creates her account and a purse record, then gives her an **invite link**.
-2. **Mama shares the link** with her daughter.
-3. **The daughter opens it** and signs in with Privy. She becomes the purse's **guardian**.
-4. **She enters Mama's meter number.** The gateway looks up the owner's name ("NGOZI OKAFOR, IKEDC prepaid") and she confirms. She adds Mama's phone number for airtime and data.
-5. **She sets the limits** for each utility, plus the whole-purse monthly cap.
-6. **She funds the purse** with testnet USDC.
-7. **Mama sees a welcome message** in her language, with her saved meter and phone shown read-only.
+**The daughter sets everything up, and Mama does one step.** Full screen-by-screen plan: [SIGNUP.md](SIGNUP.md).
+
+1. **The daughter signs in with Privy** and becomes the purse's **guardian**.
+2. **She enters Mama's details:** name, phone number and language.
+3. **She enters Mama's meter number.** The gateway looks up the owner's name ("NGOZI OKAFOR, IKEDC prepaid") and she confirms. Airtime and data go to Mama's phone by default.
+4. **She picks limits:** Light, Standard or Custom.
+5. **She funds the purse** with testnet USDC.
+6. **She invites Mama** with a WhatsApp share or a copied link. Each link works once and expires after 7 days. She can make a new link any time Mama hasn't joined, which cancels the old one.
+7. **Mama taps the link,** confirms the code sent to her number, and the chat opens with a welcome in her language. Her saved meter and phone are shown read-only.
+
+**Backup path:** Mama can start first with her phone number and send her child a link. Her chat stays in "waiting for your child" until the child finishes steps 1 to 5.
+
+### Invite links (stored in the database)
+
+| Field | Notes |
+|---|---|
+| `token` | Random, single use. Stored hashed. |
+| `purse_id`, `created_by` | Daughter or Mama |
+| `expires_at` | 7 days after creation |
+| `used_at`, `cancelled_at` | Creating a new link sets `cancelled_at` on the old one |
+
+The one-time code is only ever sent to the phone number already saved for Mama, so a forwarded link alone can't claim the purse.
 
 ## Flow 2: A top-up (the golden path)
 
