@@ -29,7 +29,10 @@ export const config = {
   pursesFile: path.resolve(repoRoot, env("PURSES_FILE", ".data/purses.json")),
   llm: {
     // Claude understands Mama's message. Without a key, the built-in scripted parser does it.
+    // LLM_BASE_URL points the Anthropic SDK at another Messages-compatible host, e.g. OpenServ
+    // (https://inference-api.openserv.ai, model IDs with dots: claude-opus-5.5). Empty = Anthropic.
     apiKey: env("LLM_API_KEY") || env("ANTHROPIC_API_KEY"),
+    baseURL: env("LLM_BASE_URL") || undefined,
     model: env("LLM_MODEL", "claude-opus-5-5"),
   },
   maxModelSteps: 8,

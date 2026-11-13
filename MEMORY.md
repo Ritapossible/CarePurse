@@ -104,3 +104,9 @@ At sign-up she picks one of two presets, shown in naira. The app converts to USD
 - `library.md`: workshop materials and Stellar x402 docs (temporary)
 - `PLAN.md`: what we build, in what order, and who does it
 - `ARCHITECTURE.md`: how the parts fit together
+
+## Agent reasoning provider (13 Nov)
+
+- We use **OpenServ** for Mhasibu's reasoning: Claude Opus 5.5 through its Anthropic-compatible `/v1/messages`, so the code stays on the Anthropic SDK and only `LLM_BASE_URL` changes.
+- Opus over Sonnet: in our test Sonnet read "give my neighbour airtime" as a buy. Opus sent it to the guardian. The code also sends such requests to the guardian whatever the model says.
+- NEAR AI Cloud (private inference) is a later option if privacy of Mama's messages becomes a judging point.

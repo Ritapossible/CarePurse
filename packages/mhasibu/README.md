@@ -24,7 +24,7 @@ The demo purse is Mama Ngozi (Pidgin), guardian Adaeze, meter `45012345678`, pho
 
 | Mode | When | How |
 |---|---|---|
-| **Claude** | `LLM_API_KEY` (or `ANTHROPIC_API_KEY`) is set | `claude-opus-5-5` (or `LLM_MODEL`), effort `low`, structured output with a fixed schema: `intent`, `utility`, `choice` |
+| **Claude** | `LLM_API_KEY` (or `ANTHROPIC_API_KEY`) is set | Claude Opus 5.5 through OpenServ (`LLM_BASE_URL=https://inference-api.openserv.ai`, `LLM_MODEL=claude-opus-5.5`), or Anthropic directly with `LLM_BASE_URL` empty and `claude-opus-5-5`. Effort `low`, structured output with a fixed schema: `intent`, `utility`, `choice` |
 | **Scripted** | No key, or Claude fails or refuses | Keyword rules for English and Pidgin ("light don finish", "my data don finish", "recharge my line") |
 
 One model call per message, well under the workshop kit's cap of 8 steps.
@@ -35,7 +35,7 @@ Run before ordering, and again with the real 402 before signing:
 
 1. **Allowlist:** the 402 comes from our gateway's host, pays `GATEWAY_RECIPIENT`, in testnet USDC, on `stellar:testnet`.
 2. **Quoted price:** the 402 amount equals the order's amount. On top of that, the x402 client's own `policies` filter refuses any other offer at signing time.
-3. **Destination:** only the meter or phone the guardian saved. Any other 10 to 13 digit number in a message is treated as a change request and forwarded to the guardian, whatever the AI understood.
+3. **Destination:** only the meter or phone the guardian saved. Any other 10 to 13 digit number, or a request for someone else ("my neighbour", "send ... to", "raise my limit"), is treated as a change request and forwarded to the guardian, whatever the AI understood.
 4. **Paused:** the guardian paused the purse.
 5. **Limits:** per top-up, per day (airtime, data), per week (electricity), the calculated purse monthly cap, and the purse balance. Periods follow Lagos time, and weeks start on Monday.
 6. **Mama said yes:** she picked a numbered option. Options expire after 10 minutes, and silence means no.

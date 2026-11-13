@@ -52,7 +52,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] Claude (or the scripted parser) turns Mama's message into an intent; the code does everything else. Replies are fixed templates in English and Pidgin.
 - [x] A scripted fallback with no LLM; one model call per message.
 - [x] **Test:** "Abeg, light don almost finish" → options → "1" → paid on Stellar testnet → token, live via `npm run chat`. 12 offline tests (`npm test`).
-- [ ] Try Claude live once an `LLM_API_KEY` is in `.env` (tested only with a fake client so far).
+- [x] Claude live through OpenServ (`LLM_BASE_URL`, model `claude-opus-5.5`): about 2 s per message, Pidgin understood, injection attempt classed as unknown. Tested 13 Nov.
 - [ ] Have a native speaker check the Pidgin replies in `src/replies.mjs`.
 
 ### Step 3: Mama's chat (18–20 Nov), Must have

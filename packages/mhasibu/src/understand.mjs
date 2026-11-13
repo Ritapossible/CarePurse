@@ -59,7 +59,7 @@ intent:
 utility: electricity (light, NEPA, current, meter, token, units), airtime (credit, recharge, call), data (internet, MB, GB, browse), or null.
 choice: the number she picked, or null.`;
 
-export function createClaudeUnderstander({ apiKey, model }, client = new Anthropic({ apiKey })) {
+export function createClaudeUnderstander({ apiKey, baseURL, model }, client = new Anthropic({ apiKey, baseURL })) {
   return async function understandWithClaude(text) {
     const response = await client.messages.parse({
       model,

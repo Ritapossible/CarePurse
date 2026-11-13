@@ -12,7 +12,7 @@ import { config as defaultConfig, explorer } from "./config.mjs";
 import { checkPurchase, headroom } from "./limits.mjs";
 import { createPurseStore } from "./purses.mjs";
 import { createWallet } from "./wallet.mjs";
-import { createUnderstander } from "./understand.mjs";
+import { createUnderstander, understandScripted } from "./understand.mjs";
 import { say } from "./replies.mjs";
 
 const MINUTE = 60_000;
@@ -106,16 +106,18 @@ export function createMhasibu({
     },
   };
 
-  // Any phone or meter number in the message must be one the guardian saved.
-  // This runs whatever the understander said, so no model can talk its way to another number.
-  function foreignNumber(purse, text) {
+  // Any phone or meter number in the message must be one the guardian saved, and any request
+  // for someone else ("my neighbour", "send ... to", "raise my limit") goes to the guardian.
+  // This runs whatever the understander said, so no model can talk its way past it.
+  function needsGuardian(purse, text) {
     const saved = new Set(Object.values(purse.destinations));
-    return (text.match(/\d{10,13}/g) ?? []).some((n) => !saved.has(n));
+    if ((text.match(/\d{10,13}/g) ?? []).some((n) => !saved.has(n))) return true;
+    return understandScripted(text).intent === "change_rules";
   }
 
   async function respond(purse, text, lang) {
     const understood = await understander.understand(text);
-    const { intent, utility, choice } = foreignNumber(purse, text) ? { ...understood, intent: "change_rules" } : understood;
+    const { intent, utility, choice } = needsGuardian(purse, text) ? { ...understood, intent: "change_rules" } : understood;
     log({ type: "understood", intent, utility, choice });
     const pending = purse.pending;
     const pendingLive = pending && Date.parse(pending.expiresAt) > clock();
