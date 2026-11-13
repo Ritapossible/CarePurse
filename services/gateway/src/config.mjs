@@ -1,0 +1,50 @@
+// Every setting comes from the repo's root .env. Nothing is hard-coded here.
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+export const repoRoot = path.resolve(here, "../../..");
+dotenv.config({ path: path.join(repoRoot, ".env"), quiet: true });
+
+const env = (name, fallback = "") => (process.env[name] ?? fallback).trim();
+const number = (name, fallback) => {
+  const value = Number(env(name, String(fallback)));
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} in .env must be a positive number`);
+  return value;
+};
+
+const facilitatorChoice = env("FACILITATOR", "backup");
+
+export const config = {
+  network: env("STELLAR_NETWORK", "stellar:testnet"),
+  rpcUrl: env("STELLAR_RPC_URL", "https://soroban-testnet.stellar.org"),
+  horizonUrl: env("STELLAR_HORIZON_URL", "https://horizon-testnet.stellar.org"),
+  explorerUrl: env("STELLAR_EXPLORER_URL", "https://stellar.expert/explorer/testnet"),
+  usdc: {
+    contractId: env("USDC_CONTRACT_ID", "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"),
+    issuer: env("USDC_ISSUER", "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"),
+    decimals: number("USDC_DECIMALS", 7),
+  },
+  facilitator:
+    facilitatorChoice === "primary"
+      ? { name: "Built on Stellar (OpenZeppelin)", url: env("FACILITATOR_PRIMARY_URL"), apiKey: env("FACILITATOR_PRIMARY_API_KEY") }
+      : { name: "Coinbase", url: env("FACILITATOR_BACKUP_URL", "https://x402.org/facilitator"), apiKey: "" },
+  recipient: env("GATEWAY_RECIPIENT"),
+  agentSecret: env("AGENT_SECRET_KEY"),
+  port: number("GATEWAY_PORT", 4021),
+  gatewayUrl: env("GATEWAY_URL", "http://localhost:4021"),
+  ngnPerUsdc: number("NGN_PER_USDC", 1470),
+  provider: env("UTILITY_PROVIDER", "mock"),
+  ordersFile: path.resolve(repoRoot, env("ORDERS_FILE", ".data/orders.json")),
+  orderTtlMinutes: number("ORDER_TTL_MINUTES", 10),
+};
+
+if (config.network !== "stellar:testnet") {
+  throw new Error("CarePurse runs on Stellar testnet only. Set STELLAR_NETWORK=stellar:testnet");
+}
+
+export const explorer = {
+  tx: (hash) => `${config.explorerUrl}/tx/${hash}`,
+  account: (address) => `${config.explorerUrl}/account/${address}`,
+};

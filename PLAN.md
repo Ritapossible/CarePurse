@@ -29,20 +29,20 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 
 ### Step 0: Set up (day 1, 12–13 Nov)
 - [ ] Both: run Koxy's workshop kit end to end (`library.md`, section 5). Get one paid request working on testnet. This proves our machines, wallets and facilitator work.
-- [ ] Create the folders: `apps/web`, `services/gateway`, `contracts/purse`.
-- [ ] Add `.gitignore` (with `.env`) and `.env.example` from `ARCHITECTURE.md`.
-- [ ] Create the testnet wallets (gateway recipient and agent) and fund the agent from faucet.circle.com.
+- [ ] Create the folders: `apps/web`, `services/gateway` (done), `contracts/purse`.
+- [x] Add `.gitignore` (with `.env`) and `.env.example`.
+- [x] Create the testnet wallets and fund the agent: `npm run setup` then `npm run get-usdc` in `services/gateway`.
 - [ ] Sign up for the VTpass sandbox and note the test meter and phone numbers.
 - [ ] **Check Privy's Stellar support** (see `ARCHITECTURE.md`, Accounts and wallets). Decide Privy or Stellar Wallets Kit.
 
-### Step 1: The paid gateway (14–16 Nov), Must have
-- [ ] Copy the kit's `server.mjs` pattern into `services/gateway`.
-- [ ] `GET /v1/options?utility=` returns the price tiers (from ₦500 for electricity, from ₦100 for airtime and data) that fit the daughter's limits and the purse balance (free).
-- [ ] `POST /v1/orders` creates an order (free).
-- [ ] `GET /paid/topup/:utility/:tier` priced with x402. It answers 402 until paid.
-- [ ] After payment: check the order, call the sandbox provider, return the token.
-- [ ] One payment per order; fail closed.
-- [ ] **Test:** `curl` the paid route and see the 402. Pay it with the kit's `client.mjs` pattern and get a token back.
+### Step 1: The paid gateway (14–16 Nov), Must have · **done 13 Nov**
+- [x] Gateway in `services/gateway`, following the kit's `server.mjs` pattern.
+- [x] `GET /v1/options?utility=` returns the price tiers (from ₦500 for electricity, from ₦100 for airtime and data) that fit the daughter's limits and the purse balance (free).
+- [x] `POST /v1/orders` creates an order (free).
+- [x] `GET /paid/topup/:utility/:tier` priced with x402. It answers 402 until paid.
+- [x] After payment: check the order, call the sandbox provider (mock for now), return the token. VTpass sandbox is still to do.
+- [x] One payment per order; fail closed.
+- [x] **Test:** `npm run peek` shows the 402; `npm run pay` paid ₦500 electricity and ₦100 airtime on Stellar testnet in about 3 s each. Offline tests: `npm test`.
 
 ### Step 2: Mhasibu pays (16–18 Nov), Must have
 - [ ] An agent module with `@x402/fetch` + `@x402/stellar` (the kit's `client.mjs` pattern).

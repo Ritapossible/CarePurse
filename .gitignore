@@ -8,3 +8,4 @@ dist/
 *.log
 .agent-spend-log.json
 .DS_Store
+.data/

@@ -1,0 +1,25 @@
+{
+  "name": "carepurse-gateway",
+  "version": "0.1.0",
+  "description": "CarePurse top-up gateway: sells electricity, airtime and data over x402 on Stellar testnet",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.mjs",
+    "setup": "node scripts/setup.mjs",
+    "peek": "node scripts/peek.mjs",
+    "pay": "node scripts/pay.mjs",
+    "get-usdc": "node scripts/get-test-usdc.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.4.1",
+    "@x402/core": "2.30.0",
+    "@x402/express": "2.30.0",
+    "@x402/fetch": "2.30.0",
+    "@x402/stellar": "2.30.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  }
+}
