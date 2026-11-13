@@ -52,22 +52,20 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] **Test:** "Abeg, light don almost finish" → options → "1" → paid on testnet → token.
 
 ### Step 3: Mama's chat (18–20 Nov), Must have
-- [ ] Welcome screen with two buttons: "I'm setting this up for my mum" / "I'm Mama / I have a link" (`SIGNUP.md`).
+- [ ] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)
 - [ ] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome.
-- [ ] Backup path: Mama starts first, shares a link with her child, waits.
-- [ ] "Add to home screen" prompt.
+- [ ] "Add to home screen" prompt, shown once.
 - [ ] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction.
 - [ ] English and Pidgin replies.
 - [ ] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
 
 ### Step 4: Daughter's dashboard (19–22 Nov), Should have
-- [ ] Setup steps D1 to D6 from `SIGNUP.md`, with a progress bar and saved progress.
-- [ ] Privy login; the daughter becomes guardian.
-- [ ] About Mama: name, phone, language.
-- [ ] Add Mama's meter (with the owner name check) and phone number.
-- [ ] Limits: Light / Standard / Custom presets in naira.
-- [ ] Fund the purse with USDC (address, QR, testnet USDC button).
-- [ ] Invite Mama: WhatsApp share and copy link. One use, 7-day expiry.
+- [ ] The four sign-up screens from `SIGNUP.md` (D1 to D4).
+- [ ] D1 Privy login; the daughter becomes guardian.
+- [ ] D2 Mama: name, phone, language.
+- [ ] D3 Mama's meter with the owner-name check. Airtime and data use Mama's phone.
+- [ ] D4 Light / Standard presets (calculate the monthly cap), then fund: address, QR, Get test USDC.
+- [ ] D5 Invite Mama: Copy link and Share on WhatsApp (`wa.me`). One use, 7-day expiry.
 - [ ] Invite status on the dashboard, and **[Send a new invite]** that cancels the old link.
 - [ ] Receipts: every top-up with its Stellar transaction link.
 

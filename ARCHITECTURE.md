@@ -47,22 +47,23 @@ The gateway follows Koxy's workshop kit (`src/server.mjs`), and the agent's payi
 
 **The daughter sets everything up, and Mama does one step.** Full screen-by-screen plan: [SIGNUP.md](SIGNUP.md).
 
+One path only. Mama can't start a purse; without a link she sees "Ask your child to set up CarePurse and send you the link."
+
 1. **The daughter signs in with Privy** and becomes the purse's **guardian**.
 2. **She enters Mama's details:** name, phone number and language.
-3. **She enters Mama's meter number.** The gateway looks up the owner's name ("NGOZI OKAFOR, IKEDC prepaid") and she confirms. Airtime and data go to Mama's phone by default.
-4. **She picks limits:** Light, Standard or Custom.
-5. **She funds the purse** with testnet USDC.
-6. **She invites Mama** with a WhatsApp share or a copied link. Each link works once and expires after 7 days. She can make a new link any time Mama hasn't joined, which cancels the old one.
-7. **Mama taps the link,** confirms the code sent to her number, and the chat opens with a welcome in her language. Her saved meter and phone are shown read-only.
+3. **She enters Mama's meter number.** The gateway looks up the owner's name ("NGOZI OKAFOR, IKEDC prepaid") and she confirms. Airtime and data go to Mama's own phone number; there's no second number.
+4. **She picks a preset, Light or Standard.** The purse monthly cap is calculated from it. Then she funds the purse with testnet USDC on the same screen.
+5. **She invites Mama** with Copy link or Share on WhatsApp (a `wa.me` link, not a WhatsApp integration). Each link works once and expires after 7 days. She can send a new link if Mama didn't use it, which cancels the old one.
+6. **Mama taps the link,** confirms the code sent to her number, and the chat opens with a welcome in her language. Her saved meter and phone are shown read-only.
 
-**Backup path:** Mama can start first with her phone number and send her child a link. Her chat stays in "waiting for your child" until the child finishes steps 1 to 5.
+**MVP limits:** one guardian per purse, and one purse per Mama.
 
 ### Invite links (stored in the database)
 
 | Field | Notes |
 |---|---|
 | `token` | Random, single use. Stored hashed. |
-| `purse_id`, `created_by` | Daughter or Mama |
+| `purse_id`, `created_by` | Always the guardian (daughter) |
 | `expires_at` | 7 days after creation |
 | `used_at`, `cancelled_at` | Creating a new link sets `cancelled_at` on the old one |
 

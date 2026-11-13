@@ -1,99 +1,99 @@
 # CarePurse sign-up plan
 
-How Mama and her daughter join CarePurse. The goal: **the daughter does the setup, and Mama does one step.**
+**One path for the hackathon: the daughter sets it up, and Mama only opens a link.**
 
-## Why the daughter starts
+The person who pays has to be the one who starts, because a purse with no guardian, no meter and no limits can't be used. If Mama hears about CarePurse first, she tells her daughter, and the daughter signs up and sends her the link. Mama can't create a purse herself. For the demo, Adaeze always starts.
 
-Mama is the least comfortable with apps. Asking her to register, then send a link, then wait puts the hardest work on her. The daughter is the one paying and setting the rules, so she does the setup. Mama only taps a link and types a code.
-
-Mama can still start first if she hears about CarePurse before her daughter does (see "Backup path" below). The daughter-first path is the main one, and the one we demo.
-
-## Screen 0: the first screen
-
-Two big buttons, no jargon:
+## The first screen
 
 ```
-            CarePurse
+                 CarePurse
 
-[ I'm setting this up for my mum ]   → daughter's setup (Privy)
-[ I'm Mama / I have a link       ]   → phone number + code
+ [ Set up CarePurse for your mum ]   → daughter's sign-up
+
+   I'm Mama  →  "Ask your child to set up CarePurse
+                 and send you the link."
 ```
 
-## Main path: the daughter sets everything up (about 3 minutes)
+The "I'm Mama" option is only a message. There's no account and no waiting screen for Mama without a link.
 
-A step-by-step setup with a progress bar ("Step 2 of 5"). She can leave and come back; her progress is saved.
+## Daughter: four screens
 
-| Step | Screen | What she does |
-|---|---|---|
-| 1 | **Sign in** | Privy, with email or Google. Her Stellar wallet is created behind the scenes, with no seed phrase. |
-| 2 | **About Mama** | Mama's name, Mama's phone number, Mama's language (English or Pidgin). |
-| 3 | **Mama's meter and phone** | She enters the meter number, and we show the owner's name ("NGOZI OKAFOR, IKEDC prepaid") so she can confirm it's Mama's. Airtime and data go to Mama's phone number by default, with an option to add another number. |
-| 4 | **Limits** | Picks a ready-made choice (below), or Custom for the full table. |
-| 5 | **Fund the purse** | Sees the purse address and a QR code. On testnet: a "Get test USDC" button. |
-| Done | **Invite Mama** | Sends Mama her link (see "Invite links"). |
+### 1. Sign in
+One button: **Continue with email or Google** (Privy). Her Stellar wallet is created behind that, with no seed phrase.
 
-### Limit presets (step 4)
+### 2. Mama
+Mama's **name**, **phone number**, and **language** (English or Pidgin).
 
-Shown in naira so the daughter doesn't do maths. The app converts to USDC behind the scenes.
+### 3. Where the money goes
+- She enters Mama's **meter number**.
+- We show the **owner's name** so she can confirm it's Mama's: "NGOZI OKAFOR, IKEDC prepaid".
+- Airtime and data go to **Mama's phone number from screen 2**. There's no second number in the MVP.
+
+### 4. Limits, then fund
+Two presets, no table:
 
 | Preset | Electricity | Airtime | Data |
 |---|---|---|---|
-| **Light** | up to ₦5,000 a week | up to ₦500 a day | up to ₦500 a day |
-| **Standard** | up to ₦10,000 a week | up to ₦1,000 a day | up to ₦1,000 a day |
-| **Custom** | the full table: per top-up, per day, per week, per month, for each utility, plus a monthly total |
+| **Light** | ₦2,000 a time, ₦5,000 a week | ₦200 a time, ₦500 a day | ₦200 a time, ₦500 a day |
+| **Standard** | ₦5,000 a time, ₦15,000 a week | ₦500 a time, ₦1,000 a day | ₦500 a time, ₦1,000 a day |
 
-The minimum top-ups still apply: ₦500 for electricity, ₦100 for airtime and data.
+- **We demo Standard.**
+- **Monthly cap:** the whole-purse monthly cap is **calculated for her**, and she never fills it in. It's the electricity weekly limit × 4, plus the airtime and data daily limits × 30. That gives ₦50,000 for Light and ₦120,000 for Standard.
+- **Custom limits** are a later edit on the dashboard, not part of sign-up.
+- **Minimums still apply:** ₦500 for electricity, ₦100 for airtime and data.
 
-## Mama's side: one step
+Then, on the same screen:
+- the **purse address**
+- a **QR code**
+- a **Get test USDC** button (testnet)
 
-1. **She taps the link.** Her phone number is already filled in, so she just taps **[Send code]**.
-2. **She types the 6-digit code.** In the demo, the code shows on screen instead of being sent by SMS.
-3. **She's in.** The chat opens with a welcome message in her language:
+### Last action: invite Mama
+Two buttons:
+- **Copy link**
+- **Share on WhatsApp.** This is just a `wa.me` link with the message filled in, not a WhatsApp integration:
 
-   > "Welcome Mama Ngozi! Adaeze has set up CarePurse for you. Tell me when your light, airtime or data is low."
+> Mama, I've set up CarePurse for you. Tap here to start: carepurse.app/i/abc123
 
-She stays logged in on her phone, and the site prompts her to **add it to her home screen**, so next time she just taps the icon. An optional 4-digit PIN protects purchases.
+## Mama: one screen
 
-## Invite links
+1. **The link opens** with her phone number already filled in.
+2. **She taps Send code** and types the 6 digits. In the demo, the code is shown on screen.
+3. **The chat opens:**
 
-- **How it's sent:** a **[Share on WhatsApp]** button opens WhatsApp with this message ready to send:
+> Welcome Mama Ngozi. Adaeze has set up CarePurse for you. Tell me when your light, airtime or data is low.
 
-  > "Mama, I've set up CarePurse for you. Tap here to start: carepurse.app/i/abc123"
+- **She stays logged in.**
+- **Home screen:** we prompt her **once** to add the site to her home screen.
+- **What she sees:** never a wallet, a seed phrase or USDC. Only naira.
 
-  There's also a **[Copy link]** button for SMS or anything else.
-- **Each link works once** and **expires after 7 days**.
-- **If Mama didn't use it in time,** the daughter taps **[Send a new invite]** on her dashboard to get a fresh 7-day link. She can do this any time Mama hasn't joined yet.
-- **Only the newest link works.** Making a new link cancels the old one, so an old message forwarded to someone else is useless.
-- **The code goes only to the number the daughter entered.** Even with the link, someone else can't claim Mama's purse.
-- **The dashboard shows the invite status:** "Waiting for Mama to join (link expires in 5 days)", "Link expired: send a new one", or "Mama joined on 14 Nov".
+## Rules
 
-## Backup path: Mama starts first
+- **The code is for the number the daughter entered.** A forwarded link isn't enough to get in.
+- **The invite works once and expires after 7 days.**
+- **If Mama didn't use it in time,** the daughter taps **Send a new invite** on her dashboard. The new link cancels the old one.
+- **One guardian per purse.**
+- **One purse per Mama** for the MVP.
 
-1. Mama taps **I'm Mama**, enters her phone number and code, and picks her language.
-2. She sees: **"Who will look after your CarePurse?"** with a **[Share on WhatsApp]** button that sends the link to her child.
-3. Until her child finishes setup, Mama's chat says: **"Waiting for Adaeze to finish setting up."** She can't buy anything yet.
-4. Her child opens the link, signs in with Privy, and follows the same 5 steps, with Mama's name and phone already filled in.
-5. The same link rules apply: one use, 7 days. Mama can tap **[Send a new link]** if it expired.
+## Not in the MVP
 
-## Rules that never change
-
-- **Mama never sees** a wallet, a seed phrase or a USDC amount. She only sees naira.
-- **Only the daughter** sets or changes the meter, phone numbers and limits.
-- **One guardian per purse** for the MVP. A second guardian (for example, two daughters) comes later.
+- Mama starting first, and any "waiting for your child" state
+- A step-by-step wizard with more than four screens
+- A custom limit table during sign-up (it's a dashboard edit later)
+- A second phone number for airtime or data
+- Real WhatsApp messaging (we only use a `wa.me` share link)
+- Several guardians, or several purses for one Mama
 
 ## Screens to build
 
 | # | Screen | Who |
 |---|---|---|
-| 0 | Welcome: two buttons | Everyone |
-| D1 | Sign in with Privy | Daughter |
-| D2 | About Mama | Daughter |
-| D3 | Mama's meter and phone (with the owner-name check) | Daughter |
-| D4 | Limits: Light / Standard / Custom | Daughter |
-| D5 | Fund the purse (address, QR, testnet USDC button) | Daughter |
-| D6 | Invite Mama (WhatsApp, copy link) | Daughter |
-| D7 | Dashboard: balance, receipts, limits, invite status, **[Send a new invite]**, Pause | Daughter |
-| M1 | Phone number + code | Mama |
-| M2 | Language choice (backup path only; the daughter already picked it in the main path) | Mama |
-| M3 | Waiting for my child (backup path only) | Mama |
-| M4 | Chat with Mhasibu | Mama |
+| 0 | First screen: set-up button, plus the "I'm Mama" message | Everyone |
+| D1 | Sign in (Privy) | Daughter |
+| D2 | Mama: name, phone, language | Daughter |
+| D3 | Where the money goes: meter + owner-name check | Daughter |
+| D4 | Limits (Light / Standard), then fund: address, QR, Get test USDC | Daughter |
+| D5 | Invite Mama: Copy link, Share on WhatsApp | Daughter |
+| D6 | Dashboard: balance, receipts, invite status, Send a new invite, Pause (custom limits later) | Daughter |
+| M1 | Invite link: phone filled in, Send code, enter code | Mama |
+| M2 | Chat with Mhasibu | Mama |

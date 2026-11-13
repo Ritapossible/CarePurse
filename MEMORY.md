@@ -30,27 +30,32 @@ Mama in Nigeria asks for electricity, airtime or data in a chat. Our AI agent, *
 - **Testnet only.** Stellar testnet USDC.
 
 ### Sign-up and identity
-- **The daughter starts and does the setup; Mama does one step** (tap the link, type the code). Mama can also start first and send her child a link. Full plan: `SIGNUP.md`.
-- **Invite links** work once and expire after 7 days. If Mama didn't use hers, the daughter can make a new one any time; the new link cancels the old one.
-- **Limit presets** for the daughter: Light, Standard or Custom, shown in naira.
+- **One sign-up path: the daughter sets it up, and Mama only opens a link.** Full plan: `SIGNUP.md`.
+  - The daughter has 4 screens: sign in, Mama, where the money goes, then limits and fund. She finishes with Copy link and Share on WhatsApp (a `wa.me` link only).
+  - Mama has 1 screen: the link opens with her number filled in, she types the code, and the chat opens.
+- **Mama can't start a purse.** If she hears about CarePurse first, she tells her daughter, who signs up and sends the link. Without a link, Mama's screen just says "Ask your child to set up CarePurse and send you the link." There's no account and no waiting state.
+- **Invite links** work once and expire after 7 days. If Mama didn't use hers, the daughter can send a new one; the new link cancels the old one.
+- **One guardian per purse, and one purse per Mama** for the MVP.
 - **Mama:** phone number plus a one-time code. No email, no wallet, no seed phrase. For the demo, show the code on screen instead of sending an SMS. An optional 4-digit PIN protects purchases.
 - **Daughter:** a **Privy** embedded wallet (email or Google login, no seed phrase). Privy lists Stellar among its supported chains. **Check first** how it signs Stellar transactions; the fallback is Stellar Wallets Kit (Freighter and others).
 - **Mhasibu:** its own server-held Stellar keypair (the agent wallet), as in the workshop kit. It never holds more than the purchase in progress.
 
 ### Who sets what
-- **Only the daughter** enters Mama's meter number and phone number(s). The gateway looks up the meter owner's name so she can confirm it's Mama's.
+- **Only the daughter** enters Mama's meter number and phone number. The gateway looks up the meter owner's name so she can confirm it's Mama's.
+- **Airtime and data go to Mama's own phone number** (the one she logs in with). There's no second number in the MVP.
 - Mama **cannot** add or change a meter or phone number. Nor can anyone with her phone, and nor can Mhasibu. This is how we make sure every top-up reaches Mama.
 - Any change to destinations or limits needs **the daughter's wallet signature**.
 
 ### Spending limits (set by the daughter)
-Example values. The daughter picks her own, and any box can be left empty for "no limit".
+At sign-up she picks one of two presets, shown in naira. The app converts to USDC behind the scenes.
 
-| Utility | Per top-up | Per day | Per week | Per month |
-|---|---|---|---|---|
-| Electricity | 7 USDC | 7 USDC | 15 USDC | 40 USDC |
-| Airtime | 2 USDC | 2 USDC | 5 USDC | 10 USDC |
-| Data | 3 USDC | 3 USDC | 6 USDC | 15 USDC |
-| **Whole purse** | | | | **60 USDC** |
+| Preset | Electricity | Airtime | Data |
+|---|---|---|---|
+| **Light** | ₦2,000 a time, ₦5,000 a week | ₦200 a time, ₦500 a day | ₦200 a time, ₦500 a day |
+| **Standard** (demo) | ₦5,000 a time, ₦15,000 a week | ₦500 a time, ₦1,000 a day | ₦500 a time, ₦1,000 a day |
+
+- **Monthly cap:** the whole-purse monthly cap is **calculated, never typed**: electricity weekly × 4, plus the airtime and data daily limits × 30. That gives ₦50,000 for Light and ₦120,000 for Standard.
+- **Custom limits** are a later edit on the dashboard, not part of sign-up.
 
 - **Smallest top-up:** **₦500 for electricity** (about 0.34 USDC) and **₦100 for airtime and data** (about 0.07 USDC).
 - **Sizes Mama is offered:**
