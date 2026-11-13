@@ -342,3 +342,20 @@ curl -si https://stellar.org/x402-demo/api/protected/testnet | grep -i payment-r
 - **Scheme name:** the Built on Stellar page lists the scheme as `exact` in one place and `exact-v2` in another. The live 402 uses `exact`.
 - **Kit limits live in code, not on-chain:** if we want Soroban-enforced caps, read the token allowances guide and OpenZeppelin smart accounts first: https://docs.openzeppelin.com/stellar-contracts/accounts/smart-account
 - **USDC decimals:** 7 decimals on Stellar. Double-check every base-unit conversion.
+
+---
+
+## 10. Checked against these resources (13 November 2026)
+
+`ARCHITECTURE.md` and `PLAN.md` were compared with the workshop slides, the workshop kit, both Stellar docs pages, Stellar's live 402, and the Ideation & MVP assignment material. Nothing in them goes against those resources. These eight gaps were fixed:
+
+1. **Allowlist and quoted price:** Mhasibu now checks every 402 (host, amount, payTo, asset, network) before signing. These are the kit's allowlist and Layer 2.
+2. **One agent wallet per purse:** so the wallet's balance is a real hard limit for each family. This is the kit's Layer 3.
+3. **Silence means no:** if Mama doesn't confirm within the order's 10 minutes, nothing is bought. This matches the kit's approval timeout.
+4. **Step cap:** at most 8 model steps per message, like the kit's `AGENT_MAX_STEPS`.
+5. **Limits and `max_ngn`:** the gateway doesn't know the limits. Mhasibu computes `max_ngn`, and the docs now say so.
+6. **Settlement order:** the docs now match how `@x402/express` really works (verify, then our handler, then settle). They also note the gap for a live biller.
+7. **Allowance option:** token allowances are now described as the simpler Phase 2 fallback, with the trade-off spelled out (one total cap, no per-utility caps).
+8. **Deploy step:** the plan now has a Render deploy step, as in the kit, so the judges get a working prototype link.
+
+Still to check: the second workshop deck (`docs.google.com/presentation/d/1iLywzcGRrSDlUzPDGRtOsJpDBl4uDRC_3_N96imDNCA`) needs a Google sign-in, so it hasn't been read yet. Once it's shared with "Anyone with the link", add it here and check again.

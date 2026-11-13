@@ -37,7 +37,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 
 ### Step 1: The paid gateway (14–16 Nov), Must have · **done 13 Nov**
 - [x] Gateway in `services/gateway`, following the kit's `server.mjs` pattern.
-- [x] `GET /v1/options?utility=` returns the price tiers (from ₦500 for electricity, from ₦100 for airtime and data) that fit the daughter's limits and the purse balance (free).
+- [x] `GET /v1/options?utility=&max_ngn=` returns the sizes (from ₦500 for electricity, from ₦100 for airtime and data) up to `max_ngn` (free). Mhasibu works out `max_ngn` from the limits and balance.
 - [x] `POST /v1/orders` creates an order (free).
 - [x] `GET /paid/topup/:utility/:tier` priced with x402. It answers 402 until paid.
 - [x] After payment: check the order, call the sandbox provider (mock for now), return the token. VTpass sandbox is still to do.
@@ -45,10 +45,12 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] **Test:** `npm run peek` shows the 402; `npm run pay` paid ₦500 electricity and ₦100 airtime on Stellar testnet in about 3 s each. Offline tests: `npm test`.
 
 ### Step 2: Mhasibu pays (16–18 Nov), Must have
-- [ ] An agent module with `@x402/fetch` + `@x402/stellar` (the kit's `client.mjs` pattern).
-- [ ] Rule checks in code before signing (Phase 1 limits, from the database).
+- [ ] An agent module with `@x402/fetch` + `@x402/stellar` (the kit's `client.mjs` pattern; `services/gateway/scripts/pay.mjs` already does this).
+- [ ] Rule checks in code before signing, in the order in `ARCHITECTURE.md`: allowlist, quoted price, destination, limits, paused, Mama's confirmation.
+- [ ] One agent wallet per purse; the daughter funds it directly in Phase 1.
+- [ ] Until the dashboard exists, seed the Standard limits and Mama's meter and phone in the database.
 - [ ] The LLM turns Mama's message into an intent and an option id; the code does everything else.
-- [ ] A scripted fallback with no LLM.
+- [ ] A scripted fallback with no LLM, and a cap of 8 model steps per message.
 - [ ] **Test:** "Abeg, light don almost finish" → options → "1" → paid on testnet → token.
 
 ### Step 3: Mama's chat (18–20 Nov), Must have
@@ -80,6 +82,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Record the demo video (live or recorded x402 flow).
 - [ ] Update the pitch deck from the Ideation & MVP slides.
 - [ ] README with setup steps, architecture and the GitHub link.
+- [ ] Deploy for the judges (Render, as in the kit): gateway + web app. Use a small testnet balance, label it testnet, and move orders from the JSON file to a database (Render's disk is wiped on restart).
 
 ### Step 7: Submit (27–28 Nov)
 - [ ] Submission checklist: working prototype, live or recorded x402 flow, architecture docs, GitHub repo.

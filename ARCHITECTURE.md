@@ -38,8 +38,10 @@ The gateway follows Koxy's workshop kit (`src/server.mjs`), and the agent's payi
 |---|---|---|
 | Mama | Phone number + one-time code (shown on screen in the demo) | None |
 | Daughter | **Privy** (email or Google) | Privy embedded Stellar wallet. Signs funding and rule changes. |
-| Mhasibu | Server only | Agent keypair (`AGENT_SECRET_KEY`). Holds at most the purchase in progress. |
+| Mhasibu | Server only | **One agent wallet per purse**, held by the server. Phase 1: this wallet *is* the purse, so the daughter funds it directly and its balance is the hard limit (the kit's Layer 3). Phase 2: the contract holds the money and the agent wallet holds at most the purchase in progress. |
 | Gateway | Server only | Receives payments (`GATEWAY_RECIPIENT`). Needs a USDC trustline. |
+
+**Why one agent wallet per purse:** the workshop's third safety layer is "the wallet can never spend more than it holds". If every family shared one agent wallet, one family's money could pay for another family's top-up. For the hackathon demo there is one family, so one wallet.
 
 **Privy check (do first):** Privy lists Stellar among its supported chains. Confirm whether it gives us a ready Stellar signing method or only raw signing (where we build the transaction with `@stellar/stellar-sdk` and ask Privy to sign the hash). If Privy blocks us, use Stellar Wallets Kit (Freighter) for the daughter instead.
 
@@ -77,17 +79,19 @@ Same flow for electricity, airtime and data.
 Mama        Mhasibu (web/agent)          Gateway                    Facilitator / Stellar
  │ "Abeg, light don almost finish"
  │──────────►│
- │           │ GET /v1/options?utility=electricity   (free)
+ │           │ works out the most Mama may spend now (limits + balance)
+ │           │ GET /v1/options?utility=electricity&max_ngn=5000   (free)
  │           │──────────────────────────►│
- │           │ tiers that fit the limits │
- │◄──────────│ "1) ₦5,000 ≈ 3.40 USDC  2) ₦10,000 ≈ 6.80 USDC  0) Cancel"
+ │           │◄── sizes up to max_ngn ───│
+ │◄──────────│ "1) ₦2,000 ≈ 1.36 USDC  2) ₦5,000 ≈ 3.40 USDC  0) Cancel"
  │ "1"       │
- │──────────►│ checks rules (allowlist, per top-up, day, week, month, purse)
- │           │ POST /v1/orders {utility, destination, tier}   (free)
- │           │──────────────────────────►│ → orderId
- │           │ GET /paid/topup/electricity/5000?order=orderId
+ │──────────►│ checks rules again (see "Rule order")
+ │           │ POST /v1/orders {utility, ngn, destination}   (free)
+ │           │──────────────────────────►│ → order (id, amount)
+ │           │ GET /paid/topup/electricity/2000?order=<id>
  │           │──────────────────────────►│
- │           │◄── 402 PAYMENT-REQUIRED ──│ (3.40 USDC, payTo, stellar:testnet)
+ │           │◄── 402 PAYMENT-REQUIRED ──│ (1.36 USDC, payTo, stellar:testnet)
+ │           │ checks the 402 matches the quote (host, amount, payTo, asset, network)
  │           │ sign Soroban USDC auth, retry with PAYMENT-SIGNATURE
  │           │──────────────────────────►│── verify + settle ───────►│ USDC moves
  │           │◄── 200 PAYMENT-RESPONSE + token ──────────────────────│
@@ -113,22 +117,28 @@ Route pattern: `/paid/topup/:utility/:tier`, for example `/paid/topup/airtime/10
 
 Small amounts are fine for x402: a ₦100 airtime top-up (about 0.07 USDC) settles exactly like a large one, because the Stellar fee is a tiny fraction of a cent. The gateway works out the exact price in USDC base units (7 decimals) from `NGN_PER_USDC`, so nothing is rounded away.
 
-**The daughter's limits decide which tiers Mama sees.** `GET /v1/options` returns only the tiers that fit every limit she set and the purse balance. Example: if she sets airtime to at most 0.34 USDC (₦500) per top-up, Mama is offered ₦100, ₦200 and ₦500 only. If she raises it, the bigger tiers appear. Nothing below the minimum (₦500 electricity, ₦100 airtime and data) is ever offered.
+**The daughter's limits decide which tiers Mama sees.** The gateway doesn't know the limits. Mhasibu works out the most Mama may spend right now (every limit, plus the purse balance) and passes it as `max_ngn`. `GET /v1/options` then returns only the sizes up to that amount. Example: if she sets airtime to at most 0.34 USDC (₦500) per top-up, Mama is offered ₦100, ₦200 and ₦500 only. If she raises it, the bigger tiers appear. Nothing below the minimum (₦500 electricity, ₦100 airtime and data) is ever offered.
 
 **Data bundles:** data is sold as fixed bundles by network, not by any amount. Each naira tier maps to the closest bundle the provider sells (for example ₦100 → the network's smallest daily bundle). The provider's sandbox catalogue gives the real bundle list.
 
-The demo rate (`NGN_PER_USDC`) is a single number in `.env`. If `@x402/express` supports a price computed per request, we can drop the tiers later.
+The demo rate (`NGN_PER_USDC`) is a single number in `.env`. `@x402/express` 2.30 also accepts a price function per request, but we keep the fixed sizes: a fixed menu is easier for Mama, for the agent and for the judges to follow.
 
 **Check with the provider:** some electricity distribution companies set their own minimum purchase, which can be above ₦500. If a meter's company refuses ₦500, the gateway hides that tier for that meter.
 
-### What the gateway checks before delivering
+### What the gateway does on a paid request (as built in `services/gateway`)
 
-1. The order exists, is unpaid, and matches the route's utility and tier.
-2. The destination is one the daughter saved for that utility.
-3. x402 settlement succeeded: right amount, paid to `GATEWAY_RECIPIENT`, on `stellar:testnet`.
-4. One payment settles one order (the transaction hash is stored and can't be reused).
-5. Only then does it call the sandbox utility provider and return the token.
-6. **Fail closed:** if anything is missing, it returns an error and never serves a token for free.
+The `@x402/express` middleware **verifies** the payment, runs our handler, and **settles** only after the handler answers 200. If the handler answers with an error, settlement is cancelled and nobody pays.
+
+1. **Before any 402:** the order must exist, match the route's utility and size, still be `created`, and not be expired. Otherwise 4xx, and no payment is asked for.
+2. **402:** the exact price, our `payTo`, the USDC contract, `stellar:testnet`.
+3. **Verified retry:** the handler moves the order to `fulfilling` (only once, ever) and asks the provider for the token.
+4. **Settlement:** the facilitator settles on Stellar, and the response carries `PAYMENT-RESPONSE`.
+5. **Record:** the order becomes `delivered` with its transaction hash. A hash can settle one order only.
+6. **Fail closed:** without a valid `GATEWAY_RECIPIENT`, paid routes answer 503 and never serve a token for free.
+
+**Who checks the destination:** the gateway checks its format (meter or Nigerian phone). That it's a destination **the daughter saved** is checked by Mhasibu in Phase 1 and by the purse contract in Phase 2.
+
+**Known gap for a live biller:** the token is issued in step 3, before settlement in step 4. With the sandbox, a failed settlement only wastes a demo token. A real biller needs "reserve, then confirm after settlement", or a refund path.
 
 ## Spending rules: where they live
 
@@ -137,12 +147,24 @@ The demo rate (`NGN_PER_USDC`) is a single number in `.env`. If `@x402/express` 
 | **Phase 1 (Must have)** | Mhasibu's code, before it signs (like the kit's Layer 1), with limits stored in the database and set by the daughter | Code checks + the agent wallet's balance |
 | **Phase 2 (Should have)** | **The purse contract on Soroban** | The Stellar network refuses anything over a limit |
 
-**Rule order:** the first "no" wins, as in the kit.
-1. Destination saved for this utility?
-2. Within the per-top-up limit?
-3. Within the utility's day, week and month limits?
-4. Within the whole-purse month limit?
-5. Purse not paused?
+**Rule order:** the first "no" wins, as in the kit. Mhasibu runs these before it signs anything.
+1. **Allowlist:** is the 402 from our gateway's host, paying our `GATEWAY_RECIPIENT`, in testnet USDC, on `stellar:testnet`?
+2. **Quoted price:** does the 402 amount equal the order's amount? If the price changed after the quote, nothing is signed (the kit's Layer 2).
+3. **Destination:** is it the meter or phone the daughter saved for this utility?
+4. **Per top-up:** within the per-top-up limit?
+5. **Utility limits:** within the utility's day, week and month limits?
+6. **Purse limit:** within the whole-purse month limit?
+7. **Not paused:** is the purse unpaused?
+8. **Mama said yes:** did Mama confirm this exact option in chat? No answer within the order's 10 minutes means no purchase, like the kit's "silence = decline".
+
+The three layers from the workshop, mapped to CarePurse:
+
+| Kit layer | CarePurse |
+|---|---|
+| 1. Spending rules in code | Rules 1 and 3 to 7 above (Phase 2: in the contract) |
+| 2. Pay at most the quoted price | Rule 2 |
+| 3. The wallet's own balance | One agent wallet per purse (Phase 1), or the contract's balance (Phase 2) |
+| Human approval | Mama confirms every purchase (rule 8) |
 
 ### Phase 2: purse contract (Soroban)
 
@@ -165,6 +187,8 @@ buy(utility, dest_hash, amount, order_ref)         agent only
 - The gateway can also check that a `Bought` event exists for the order.
 - Meter and phone numbers are stored as **hashes**, so the public ledger doesn't show where Mama lives.
 - The workshop also suggests **token allowances** (SEP-41 `approve` with a cap and an expiry) or **OpenZeppelin smart accounts**. Look at those before writing the contract; one may be simpler. See `library.md`.
+  - **Allowance trade-off:** an allowance gives one total cap and an expiry, enforced by the USDC contract itself. It can't tell electricity from airtime, so per-utility caps would stay in Mhasibu's code. That's the simpler fallback if the purse contract runs late.
+  - **x402 stays standard either way:** the facilitator expects the payer to sign a plain USDC `transfer`. So the contract (or an allowance `transfer_from`) moves the money to the agent wallet first, and the agent pays the gateway with normal x402.
 
 ## Mhasibu (the agent)
 
@@ -174,6 +198,7 @@ buy(utility, dest_hash, amount, order_ref)         agent only
 - **Safety net:** a reply containing a number the model typed is thrown away and replaced with a fixed template.
 - **Untrusted input:** Mama's messages and gateway replies are data, never instructions.
 - **Fallback:** a scripted planner (no LLM) for when the AI is down, as in the kit.
+- **Step cap:** at most 8 model steps per message (the kit's `AGENT_MAX_STEPS`), so a confused model can't loop.
 
 ## Data we store (web app database)
 
@@ -183,52 +208,32 @@ buy(utility, dest_hash, amount, order_ref)         agent only
 | `purses` | id, mama_id, guardian_id, contract_id (Phase 2), paused |
 | `destinations` | purse_id, utility, number, owner_name, approved_by_guardian |
 | `limits` | purse_id, utility, per_topup, per_day, per_week, per_month; plus purse per_month |
-| `orders` | id, purse_id, utility, destination_id, tier_ngn, price_usdc, status, tx_hash (unique), token |
+| `orders` | id, purse_id, gateway_order_id, utility, destination_id, ngn, amount (USDC base units), status, tx_hash (unique), token |
 | `messages` | purse_id, from (mama / mhasibu), text, created_at |
 
-**Order status:** `created` → `paid` → `delivered`, or `failed` → `refund_due`.
+**Order status** (same as the gateway): `created` → `fulfilling` → `delivered`, or `failed`. A failed order was never charged, because settlement is cancelled when fulfilment fails.
 
 ## Environment variables (`.env`, never commit)
 
-```bash
-# Stellar (testnet)
-STELLAR_NETWORK=stellar:testnet
-STELLAR_RPC_URL=https://soroban-testnet.stellar.org
-STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
-USDC_CONTRACT_ID=CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA
-USDC_ISSUER=GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
-USDC_DECIMALS=7
+The full list, with comments, is in [`.env.example`](.env.example). `cd services/gateway && npm run setup` creates `.env` from it and fills in the wallets. The main ones:
 
-# Facilitator: backup = Coinbase (no key), primary = Built on Stellar (needs key)
-FACILITATOR=backup
-FACILITATOR_BACKUP_URL=https://x402.org/facilitator
-FACILITATOR_PRIMARY_URL=https://channels.openzeppelin.com/x402/testnet
-FACILITATOR_PRIMARY_API_KEY=
-
-# Wallets
-GATEWAY_RECIPIENT=          # G... receives payments
-AGENT_SECRET_KEY=           # S... Mhasibu's wallet. NEVER share or show on screen.
-
-# Gateway
-GATEWAY_URL=http://localhost:4021
-NGN_PER_USDC=1470           # demo rate for price tiers
-UTILITY_PROVIDER=sandbox    # sandbox | mock
-VTPASS_SANDBOX_API_KEY=
-VTPASS_SANDBOX_SECRET_KEY=
-
-# Web app
-PRIVY_APP_ID=
-PRIVY_APP_SECRET=
-LLM_API_KEY=
-LLM_MODEL=
-DATABASE_URL=
-```
+| Setting | What it is |
+|---|---|
+| `STELLAR_NETWORK` | Always `stellar:testnet`. The gateway refuses anything else. |
+| `USDC_CONTRACT_ID`, `USDC_ISSUER`, `USDC_DECIMALS` | Circle testnet USDC; 7 decimals |
+| `FACILITATOR` | `backup` = Coinbase (no key), `primary` = Built on Stellar (needs `FACILITATOR_PRIMARY_API_KEY`) |
+| `GATEWAY_RECIPIENT` / `GATEWAY_RECIPIENT_SECRET` | The gateway wallet that receives payments |
+| `AGENT_SECRET_KEY` | Mhasibu's wallet. Never share or show on screen. |
+| `NGN_PER_USDC` | The demo rate used to price each size |
+| `UTILITY_PROVIDER` | `mock` (built-in sandbox tokens) for now |
+| `PRIVY_*`, `LLM_*`, `DATABASE_URL` | For the web app, later |
 
 ## Security checklist
 
-- [ ] `.env` is in `.gitignore` and never shown on screen
+- [x] `.env` is in `.gitignore` and never shown on screen
 - [ ] Testnet only, labelled in the UI: "Live Stellar Testnet payment · sandbox utility fulfilment"
 - [ ] Only the guardian's signature changes destinations or limits
-- [ ] The gateway fails closed and accepts one payment per order
+- [x] The gateway fails closed and accepts one payment per order (built and tested)
 - [ ] Mhasibu is never told its limits, and model-typed numbers are discarded
-- [ ] The agent wallet holds only small amounts
+- [ ] The agent wallet holds only small amounts (one wallet per purse)
+- [ ] Mhasibu checks every 402 against the quote (host, amount, payTo, asset, network) before signing
