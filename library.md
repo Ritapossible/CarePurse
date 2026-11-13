@@ -22,7 +22,8 @@ Everything here is **Stellar testnet only**.
 
 | What | Link |
 |---|---|
-| Workshop slides | https://docs.google.com/presentation/d/1vCA-r_mRtzHwciS_Ui1o7-L_T2BtjykFQ6bJbAAsOFE/edit?usp=sharing |
+| Workshop slides | https://docs.google.com/presentation/d/1vCA-r_mRtzHwciS_Ui1o7-L_T2BtjykFQ6bJbAAsOFE/edit?usp=sharing (with speaker notes) |
+| Workshop slides, second copy | https://docs.google.com/presentation/d/1iLywzcGRrSDlUzPDGRtOsJpDBl4uDRC_3_N96imDNCA/edit (same deck; needs sign-in) |
 | Workshop kit (code) | https://github.com/KoxyG/x402-stellar-empower-Her |
 | Workshop kit, hosted demo (Agent Console) | https://x402-stellar-empower-her.onrender.com/ |
 | Stellar's own x402 demo endpoint (returns a real 402) | https://stellar.org/x402-demo/api/protected/testnet |
@@ -358,4 +359,4 @@ curl -si https://stellar.org/x402-demo/api/protected/testnet | grep -i payment-r
 7. **Allowance option:** token allowances are now described as the simpler Phase 2 fallback, with the trade-off spelled out (one total cap, no per-utility caps).
 8. **Deploy step:** the plan now has a Render deploy step, as in the kit, so the judges get a working prototype link.
 
-Still to check: the second workshop deck (`docs.google.com/presentation/d/1iLywzcGRrSDlUzPDGRtOsJpDBl4uDRC_3_N96imDNCA`) needs a Google sign-in, so it hasn't been read yet. Once it's shared with "Anyone with the link", add it here and check again.
+**Second workshop link checked:** `docs.google.com/presentation/d/1iLywzcGRrSDlUzPDGRtOsJpDBl4uDRC_3_N96imDNCA` (also shared as `AGENTIC_PAYMENT__X402_ON_STELLAR.pdf`) is the **same deck** as the first link: Koxy's "Agentic Payment & x402 on Stellar", 25 slides, 12 November 2026. Its slides match section 4 above exactly; the PDF just has no speaker notes. Nothing new, and nothing in it goes against our docs.
