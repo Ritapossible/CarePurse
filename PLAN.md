@@ -44,14 +44,16 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] One payment per order; fail closed.
 - [x] **Test:** `npm run peek` shows the 402; `npm run pay` paid ₦500 electricity and ₦100 airtime on Stellar testnet in about 3 s each. Offline tests: `npm test`.
 
-### Step 2: Mhasibu pays (16–18 Nov), Must have
-- [ ] An agent module with `@x402/fetch` + `@x402/stellar` (the kit's `client.mjs` pattern; `services/gateway/scripts/pay.mjs` already does this).
-- [ ] Rule checks in code before signing, in the order in `ARCHITECTURE.md`: allowlist, quoted price, destination, limits, paused, Mama's confirmation.
-- [ ] One agent wallet per purse; the daughter funds it directly in Phase 1.
-- [ ] Until the dashboard exists, seed the Standard limits and Mama's meter and phone in the database.
-- [ ] The LLM turns Mama's message into an intent and an option id; the code does everything else.
-- [ ] A scripted fallback with no LLM, and a cap of 8 model steps per message.
-- [ ] **Test:** "Abeg, light don almost finish" → options → "1" → paid on testnet → token.
+### Step 2: Mhasibu pays (16–18 Nov), Must have · **done 13 Nov** (`packages/mhasibu`)
+- [x] An agent module with `@x402/fetch` + `@x402/stellar`, with an exact-match `policies` filter before signing.
+- [x] Rule checks in code before signing: allowlist, quoted price, destination, paused, limits, Mama's confirmation.
+- [x] One agent wallet per purse; its balance is the hard limit in Phase 1.
+- [x] Demo purse seeded (Standard limits, Mama's meter and phone) in `.data/purses.json`.
+- [x] Claude (or the scripted parser) turns Mama's message into an intent; the code does everything else. Replies are fixed templates in English and Pidgin.
+- [x] A scripted fallback with no LLM; one model call per message.
+- [x] **Test:** "Abeg, light don almost finish" → options → "1" → paid on Stellar testnet → token, live via `npm run chat`. 12 offline tests (`npm test`).
+- [ ] Try Claude live once an `LLM_API_KEY` is in `.env` (tested only with a fake client so far).
+- [ ] Have a native speaker check the Pidgin replies in `src/replies.mjs`.
 
 ### Step 3: Mama's chat (18–20 Nov), Must have
 - [ ] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)

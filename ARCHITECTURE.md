@@ -26,7 +26,7 @@ How the parts fit together. Keep it simple: three parts, one paid route, one pay
 | Part | Folder | Built with | Job |
 |---|---|---|---|
 | Web app | `apps/web` | Next.js, TypeScript, Tailwind | Mama's chat, the daughter's dashboard, and Mhasibu's API routes |
-| Mhasibu (agent) | `apps/web/src/agent` | LLM (set in `.env`), `@x402/fetch`, `@x402/stellar` | Turns Mama's message into one fixed option, checks the limits, pays the gateway |
+| Mhasibu (agent) | `packages/mhasibu` (built) | Claude via `@anthropic-ai/sdk` (or a scripted parser), `@x402/fetch`, `@x402/stellar` | Turns Mama's message into an intent, checks every rule, pays the gateway. The web app imports it. |
 | Gateway (seller) | `services/gateway` | Express, `@x402/express`, `@x402/core`, `@x402/stellar` | Prices each top-up, answers 402, returns the token after payment |
 | Purse contract | `contracts/purse` | Rust, Soroban SDK | Holds the funds and the rules; Phase 2 makes the limits on-chain |
 
@@ -192,10 +192,11 @@ buy(utility, dest_hash, amount, order_ref)         agent only
 
 ## Mhasibu (the agent)
 
-- **The LLM's job:** understanding Mama's message, picking an **intent** (`buy_electricity`, `buy_airtime`, `buy_data`, `check_balance`, `history`, `help`) and an **option id** from the server's list, and writing the reply.
+- **The LLM's job:** classifying Mama's message into `intent` (buy, choose, cancel, check_balance, history, change_rules, help, unknown), `utility` and `choice`, with a fixed schema (Claude `claude-opus-5-5`, effort low). Without a key, or if Claude fails, a scripted English/Pidgin parser does it.
 - **The code's job:** every amount, every rule check, every payment.
 - **Not told its limits:** the prompt only says a purchase may be refused.
-- **Safety net:** a reply containing a number the model typed is thrown away and replaced with a fixed template.
+- **Fixed replies:** the model never writes reply text. Every reply is a template in English or Pidgin, filled in by code, so it can't invent an amount. This replaces the earlier "discard replies with model-typed numbers" idea, and is stronger.
+- **Foreign numbers:** any 10 to 13 digit number in Mama's message that isn't a saved destination makes the message a change request for the guardian, whatever the model understood.
 - **Untrusted input:** Mama's messages and gateway replies are data, never instructions.
 - **Fallback:** a scripted planner (no LLM) for when the AI is down, as in the kit.
 - **Step cap:** at most 8 model steps per message (the kit's `AGENT_MAX_STEPS`), so a confused model can't loop.

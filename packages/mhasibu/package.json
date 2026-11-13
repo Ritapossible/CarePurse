@@ -1,0 +1,22 @@
+{
+  "name": "carepurse-mhasibu",
+  "version": "0.1.0",
+  "description": "Mhasibu AI: understands Mama, checks the rules in code, and pays the CarePurse gateway over x402",
+  "type": "module",
+  "private": true,
+  "main": "src/mhasibu.mjs",
+  "scripts": {
+    "chat": "node bin/chat.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "@stellar/stellar-sdk": "^16.4.1",
+    "@x402/core": "2.30.0",
+    "@x402/fetch": "2.30.0",
+    "@x402/stellar": "2.30.0",
+    "dotenv": "^16.4.5",
+    "zod": "latest"
+  }
+}
