@@ -139,3 +139,12 @@ test("the service fee is added on top of face value; 0 switches it off", async (
   assert.deepEqual([first.ngn, first.feeNgn, first.chargedNgn, first.amount], [500, 15, 515, "3503402"]);
 });
 
+
+test("SERVICE_FEE_BPS=0 switches the fee off and the gateway still starts; out-of-range values are refused", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const read = (v) => execFileSync(process.execPath, ["-e", 'import("./src/config.mjs").then(m => console.log(m.config.serviceFeeBps)).catch(e => console.log("ERR " + e.message))'], { env: { ...process.env, SERVICE_FEE_BPS: v }, encoding: "utf8" }).trim();
+  assert.equal(read("0"), "0");
+  assert.equal(read("300"), "300");
+  assert.match(read("1001"), /^ERR SERVICE_FEE_BPS must be a whole number from 0 to 1000/);
+  assert.match(read("-1"), /^ERR/);
+});

@@ -1,6 +1,7 @@
 // Server-side relay to the Mhasibu API. The key (MHASIBU_API_KEY) lives only here, on the web
 // app's server: browsers never see it. Only the routes the pages use are relayed.
-// Optional WEB_ACCESS_CODE: the demo link must carry ?code=…; the pages send it back on each call.
+// WEB_ACCESS_CODE: the demo link must carry ?code=…; the pages send it back on each call. Required in
+// production: without it the private routes are closed (otherwise any visitor would get the key's power).
 import { timingSafeEqual } from "node:crypto";
 
 const UPSTREAM = (process.env.MHASIBU_URL ?? "http://localhost:4022").replace(/\/$/, "");
@@ -18,6 +19,10 @@ async function relay(request: Request, path: string[]) {
   const route = `${request.method} ${path.join("/")}`;
   if (!ALLOWED.has(route)) return Response.json({ error: "not found" }, { status: 404 });
   const url = new URL(request.url);
+  // Fail closed: a public (production) site with no access code would hand Mhasibu's key to anyone.
+  if (!ACCESS_CODE && process.env.NODE_ENV === "production" && route !== "GET v1/status") {
+    return Response.json({ error: "WEB_ACCESS_CODE is not set on the web app, so Mama's chat is closed." }, { status: 503 });
+  }
   if (ACCESS_CODE && route !== "GET v1/status") {
     const given = request.headers.get("x-access-code") ?? url.searchParams.get("code") ?? "";
     if (!sameText(given, ACCESS_CODE)) return Response.json({ error: "access code needed" }, { status: 401 });

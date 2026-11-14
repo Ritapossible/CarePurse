@@ -18,7 +18,7 @@ Everything below runs today on Stellar testnet with real sandbox fulfilment.
 
 | Milestone | Status | Proof |
 |---|---|---|
-| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 15 tests |
+| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 16 tests |
 | Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 36 tests |
 | Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
 | Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 17 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC) |
@@ -212,10 +212,10 @@ Mhasibu holds the agent key, so its API is **private**:
 
 - Every route except `GET /v1/status` needs `MHASIBU_API_KEY` (`Authorization: Bearer …`, checked in constant time). Without a key configured, Mhasibu only answers its own machine.
 - **Browsers never call Mhasibu.** The web app's server relays `/api/mhasibu/...` (only the routes the pages use) and adds the key, so it never reaches a browser. On Render the key is generated automatically and shared with the web app.
-- Optional `WEB_ACCESS_CODE`: the demo link must end with `?code=…`.
+- `WEB_ACCESS_CODE`: the link must end with `?code=…`. **Required in production**: if it isn't set, the web app keeps Mama's chat closed (503) instead of letting any visitor use the key.
 - The overspend demo ignores any amount it's sent: it always asks for exactly one unit over the on-chain cap, and would refund at once if it were ever accepted.
 
-Checked live: without the key, chat, history, tokens, the live log and overspend all answer **401**; a wrong key, **401**; the web relay without the code, **401**; with the code, the full demo works.
+Checked live: without the key, chat, history, tokens, the live log and overspend all answer **401**; a wrong key, **401**; the web relay without the code, **401**; a production web app with no code configured, **503**; with the code, the full demo works.
 
 ### Money that's mid-flight is never lost or paid twice
 

@@ -8,6 +8,12 @@ export const repoRoot = path.resolve(here, "../../..");
 dotenv.config({ path: path.join(repoRoot, ".env"), quiet: true });
 
 const env = (name, fallback = "") => (process.env[name] ?? fallback).trim();
+// A whole number of basis points from 0 to 1000 (0% to 10%); 0 switches the fee off.
+const feeBps = (name, fallback) => {
+  const value = Number(env(name, String(fallback)));
+  if (!Number.isInteger(value) || value < 0 || value > 1000) throw new Error(`${name} must be a whole number from 0 to 1000 (0% to 10%).`);
+  return value;
+};
 const number = (name, fallback) => {
   const value = Number(env(name, String(fallback)));
   if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} in .env must be a positive number`);
@@ -38,7 +44,7 @@ export const config = {
   ngnPerUsdc: number("NGN_PER_USDC", 1470),
   // CarePurse's service fee on top of face value, in basis points (300 = 3%). Paid from the purse;
   // Mama never sees it, Adaeze does (receipts). 0 to switch it off.
-  serviceFeeBps: number("SERVICE_FEE_BPS", 300),
+  serviceFeeBps: feeBps("SERVICE_FEE_BPS", 300),
   provider: env("UTILITY_PROVIDER", "mock"),
   vtpass: {
     baseUrl: env("VTPASS_BASE_URL", "https://sandbox.vtpass.com/api"),
@@ -56,10 +62,6 @@ export const config = {
 
 if (config.provider === "vtpass" && !/^https:\/\/sandbox\.vtpass\.com\//.test(config.vtpass.baseUrl)) {
   throw new Error("CarePurse uses the VTpass SANDBOX only. Set VTPASS_BASE_URL=https://sandbox.vtpass.com/api");
-}
-
-if (!(config.serviceFeeBps >= 0 && config.serviceFeeBps <= 1000)) {
-  throw new Error("SERVICE_FEE_BPS must be between 0 and 1000 (0% to 10%).");
 }
 
 if (config.network !== "stellar:testnet") {

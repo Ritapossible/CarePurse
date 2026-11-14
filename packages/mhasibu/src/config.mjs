@@ -31,7 +31,11 @@ export const config = {
   ngnPerUsdc: Number(env("NGN_PER_USDC", "1470")),
   // CarePurse's service fee on top of face value (basis points, 300 = 3%), same as the gateway's.
   // Limits stay in face value; the on-chain caps add the fee (capBaseUnits).
-  serviceFeeBps: Number(env("SERVICE_FEE_BPS", "300")),
+  serviceFeeBps: (() => {
+    const value = Number(env("SERVICE_FEE_BPS", "300"));
+    if (!Number.isInteger(value) || value < 0 || value > 1000) throw new Error("SERVICE_FEE_BPS must be a whole number from 0 to 1000 (0% to 10%).");
+    return value;
+  })(),
   pursesFile: path.resolve(repoRoot, env("PURSES_FILE", ".data/purses.json")),
   // Postgres for purses, purchases, tokens and chat, so they survive restarts. Empty = the JSON file.
   databaseUrl: env("DATABASE_URL"),

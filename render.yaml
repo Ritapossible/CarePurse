@@ -79,4 +79,4 @@ services:
       - { key: MHASIBU_URL, sync: false }             # Mhasibu's https URL (used on the server side only)
       - key: MHASIBU_API_KEY                          # the same key, never sent to browsers
         fromService: { type: web, name: carepurse-mhasibu, envVarKey: MHASIBU_API_KEY }
-      - { key: WEB_ACCESS_CODE, sync: false }         # optional: the demo link must end with ?code=<this>
+      - { key: WEB_ACCESS_CODE, sync: false }         # REQUIRED: links must end with ?code=<this>; without it the chat is closed

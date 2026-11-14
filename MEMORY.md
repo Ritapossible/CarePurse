@@ -189,3 +189,8 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - Live: without the key every private route answered 401; with the code the demo worked end to end, including the live log stream; an overspend request asking for 1 USDC was ignored and the cap+1 attempt refused on-chain.
 - Still open: Mama's own login (phone + invite code) instead of one shared link.
 
+## Sixth review (14 Nov, Grok)
+
+- **`SERVICE_FEE_BPS=0` stopped the gateway from starting: true** (it was read with the "positive number" helper). Both services now read it as a whole number from 0 to 1000; 0 switches the fee off. Regression test added (gateway 16 tests).
+- **Set `WEB_ACCESS_CODE` before going public: right**, so it's now enforced: in production the web app's relay keeps Mama's chat closed (503) unless a code is set. Checked on a production build: no code configured → 503; code set → no or wrong code 401, right code 200.
+
