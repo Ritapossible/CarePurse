@@ -75,7 +75,11 @@ jobs:
           npm run chat -- "Abeg, light don almost finish" "1" "Abeg recharge my line" "1" | tee ../../chat.log
           sleep 240
           npm run chat -- "My data don finish" "2" | tee -a ../../chat.log
+          # Every top-up must end cleanly: paid, or refunded to the purse (VTpass's duplicate guard can
+          # refuse a quick repeat). Fail if any refund failed or nothing settled at all.
           paid=$(grep -c "paid on Stellar testnet" ../../chat.log || true)
-          echo "Settled payments: $paid of 3"
+          refunded=$(grep -c "refunded to the purse" ../../chat.log || true)
+          stuck=$(grep -c "refund failed" ../../chat.log || true)
+          echo "Settled: $paid · refunded after a provider refusal: $refunded · stuck: $stuck (of 3)"
           grep -i "provider refused" ../../gateway.log || true
-          [ "$paid" -eq 3 ]
+          [ "$stuck" -eq 0 ] && [ "$paid" -ge 1 ] && [ $((paid + refunded)) -eq 3 ]
