@@ -15,6 +15,10 @@ on:
         type: choice
         options: [provider, full]
         default: provider
+      checks:
+        description: "provider mode: which purchases (VTpass refuses repeats to the same number within minutes)"
+        type: string
+        default: electricity,airtime,data
 
 permissions:
   contents: read
@@ -50,6 +54,8 @@ jobs:
 
       - name: VTpass sandbox, provider only
         working-directory: services/gateway
+        env:
+          CHECKS: ${{ inputs.checks }}
         run: npm run vtpass-check
 
       - name: Full flow over x402

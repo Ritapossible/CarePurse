@@ -15,11 +15,14 @@ const show = (label, r) => {
   console.log(`${ok ? "✓" : "✗"} ${label}: ${JSON.stringify(rest)}`);
 };
 
+// CHECKS=electricity,airtime,data (default all). VTpass refuses a second purchase to the same
+// number within a few minutes ("019 LIKELY DUPLICATE TRANSACTION"), so retest one at a time.
+const only = new Set((process.env.CHECKS || "electricity,airtime,data").split(",").map((s) => s.trim()));
 const bal = await provider.balance();
 console.log(`  sandbox wallet: ${JSON.stringify(bal)}`);
 show("verify meter", await provider.lookupMeter(METER));
-show("electricity ₦500", await provider.purchase({ utility: "electricity", ngn: 500, destination: METER, contactPhone: PHONE }));
-show("airtime ₦100 (MTN)", await provider.purchase({ utility: "airtime", ngn: 100, destination: PHONE, network: "mtn" }));
-show("data ₦500 (MTN)", await provider.purchase({ utility: "data", ngn: 500, destination: PHONE, network: "mtn" }));
+if (only.has("electricity")) show("electricity ₦500", await provider.purchase({ utility: "electricity", ngn: 500, destination: METER, contactPhone: PHONE }));
+if (only.has("airtime")) show("airtime ₦100 (MTN)", await provider.purchase({ utility: "airtime", ngn: 100, destination: PHONE, network: "mtn" }));
+if (only.has("data")) show("data ₦500 (MTN)", await provider.purchase({ utility: "data", ngn: 500, destination: PHONE, network: "mtn" }));
 console.log(failures ? `\n${failures} check(s) failed.` : "\nAll VTpass sandbox checks passed.");
 process.exit(failures ? 1 : 0);
