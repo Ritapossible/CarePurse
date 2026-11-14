@@ -21,6 +21,7 @@ const mhasibu = createMhasibu({
     else if (e.type === "contract-ok") console.log(`   · purse contract released the top-up: ${e.link}`);
     else if (e.type === "contract-refused") console.log(`   · purse contract refused: ${e.rule} (Error #${e.code})`);
     else if (e.type === "refunded") console.log(`   · refunded to the purse: ${e.link}`);
+    else if (e.type === "committed") console.log(`   · order closed on-chain (commit): ${e.link}`);
     else if (e.type === "refund-failed") console.log(`   · refund failed: ${e.message}`);
   },
 });

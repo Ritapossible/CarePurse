@@ -159,3 +159,10 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - **Host:** Neon free tier (doesn't expire). Not Render's free Postgres (deleted after 30 days, mid-December) or Supabase free (pauses after a week idle).
 - **Tested:** real Postgres tests (`TEST_DATABASE_URL`), and live: bought ₦500 of light, restarted both services, "send my token again" returned the same token.
 
+## Third review (14 Nov, Grok): a second `buy` stranded the first release, fixed
+
+- **True.** If a payment failed and the refund also failed (or the process crashed after the release), the next `buy` made the earlier order "not latest", so it could never be refunded and its USDC stayed on the agent wallet.
+- **Fixed as proposed, in the contract (v5) and Mhasibu:** `commit` after a successful payment; `buy` refuses while the last order is open; a committed order can't be refunded; guardian escape hatch `guardian_close`. Mhasibu writes the open order down before `buy`, settles any open order first on the next message (gateway order status decides commit or refund, and recovers the token), and starts nothing new until it's settled. Balance = purse + USDC on the agent; unconfirmed top-ups labelled in history.
+- Cost: one extra on-chain call (`commit`) per top-up, a few seconds after Mama already has her token.
+- Contract **v5** `CAMXGONVKRA2KVWGJIXLLQEFZI4TFPHO3X7I5JMI4WUTY35GNVJW32FG`. Tests: contract 16, Mhasibu 26, gateway 13 (+1 Postgres test each).
+

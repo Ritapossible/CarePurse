@@ -7,7 +7,7 @@ import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config as defaultConfig } from "./config.mjs";
-import { addressVal, buyArgs, createSoroban, refundArgs } from "./purse-contract.mjs";
+import { addressVal, buyArgs, commitArgs, createSoroban, orderRef, refundArgs } from "./purse-contract.mjs";
 
 export function createWallet(config = defaultConfig) {
   const json = async (res) => { const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`); return body; };
@@ -15,13 +15,19 @@ export function createWallet(config = defaultConfig) {
   return {
     expected: { host: config.allowedHost, payTo: config.gatewayRecipient, asset: config.usdc.contractId, network: config.network },
 
-    // The purse balance in naira at the demo rate. Phase 2: the purse contract's USDC.
+    // The purse balance in naira at the demo rate. Phase 2: the purse contract's USDC plus any USDC
+    // still on the agent wallet (an unsettled top-up), so the family's money never "disappears".
+    // New purchases are blocked while a top-up is unsettled, so this never offers money twice.
     // Phase 1: the agent wallet's USDC, because that wallet IS the purse.
     async balanceNgn() {
       const address = Keypair.fromSecret(config.agentSecret).publicKey();
       if (config.purseContractId) {
-        const units = await createSoroban({ rpcUrl: config.rpcUrl }).read(config.usdc.contractId, "balance", [addressVal(config.purseContractId)], address);
-        return (Number(units) / 10 ** config.usdc.decimals) * config.ngnPerUsdc;
+        const soroban = createSoroban({ rpcUrl: config.rpcUrl });
+        const [inPurse, onAgent] = await Promise.all([
+          soroban.read(config.usdc.contractId, "balance", [addressVal(config.purseContractId)], address),
+          soroban.read(config.usdc.contractId, "balance", [addressVal(address)], address).catch(() => 0n),
+        ]);
+        return (Number(BigInt(inPurse) + BigInt(onAgent)) / 10 ** config.usdc.decimals) * config.ngnPerUsdc;
       }
       const account = await new Horizon.Server(config.horizonUrl).loadAccount(address);
       const usdc = account.balances.find((b) => b.asset_code === "USDC" && b.asset_issuer === config.usdc.issuer);
@@ -69,6 +75,29 @@ export function createWallet(config = defaultConfig) {
       const soroban = createSoroban({ rpcUrl: config.rpcUrl });
       const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "refund", refundArgs(orderId));
       return { tx: hash };
+    },
+
+    // Phase 2: the payment went through, so close the open order on-chain as final.
+    commit: !config.purseContractId ? undefined : async ({ orderId }) => {
+      const soroban = createSoroban({ rpcUrl: config.rpcUrl });
+      const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "commit", commitArgs(orderId));
+      return { tx: hash };
+    },
+
+    // The contract's open order as our order id, if it's this one; null if none; undefined if unknown.
+    async openOrder(orderIdHint) {
+      const soroban = createSoroban({ rpcUrl: config.rpcUrl });
+      const open = await soroban.read(config.purseContractId, "open_order", [], Keypair.fromSecret(config.agentSecret).publicKey());
+      if (!open) return null;
+      const hex = Buffer.from(open).toString("hex");
+      return orderIdHint && orderRef(orderIdHint) === hex ? orderIdHint : hex;
+    },
+
+    // The gateway's record of an order: status, and the token if it was delivered.
+    async orderStatus(orderId) {
+      const res = await fetch(new URL(`/v1/orders/${orderId}`, config.gatewayUrl));
+      if (!res.ok) throw new Error(`order lookup HTTP ${res.status}`);
+      return (await res.json()).order;
     },
 
     // Pay exactly the approved offer. Anything else is filtered out before signing.

@@ -36,6 +36,8 @@ export function createMhasibu({
   const remember = (purse, from, text) => purses.update(purse.id, (p) => p.history.push({ at: new Date(clock()).toISOString(), from, text }));
 
   async function offer(purse, utility, lang) {
+    // Don't even offer sizes while the last top-up is unsettled.
+    if (purse.openOrder) return say.stillSettling(lang, { guardian: purse.guardian.name });
     const now = clock();
     if (purse.paused) return say.paused(lang, { guardian: purse.guardian.name });
     const balanceNgn = await wallet.balanceNgn();
@@ -56,6 +58,8 @@ export function createMhasibu({
   }
 
   async function buy(purse, utility, ngn, lang) {
+    // Never start a purchase while the last one is unsettled (one open order at a time).
+    if (purse.openOrder) return say.stillSettling(lang, { guardian: purse.guardian.name });
     const destination = purse.destinations[utility];
     const balanceNgn = await wallet.balanceNgn();
     // Rules before ordering (destination, paused, limits, balance).
@@ -74,15 +78,26 @@ export function createMhasibu({
     log({ type: "rules-ok", utility, ngn });
 
     // Phase 2: the purse contract checks the guardian's rules on-chain and releases exactly this amount.
+    // One open order at a time (the contract enforces it too). Write the open order down BEFORE the
+    // release, so even a crash right after it leaves a trace to settle on the next message.
     let release = null;
     if (wallet.release) {
+      purses.update(purse.id, (p) => { p.openOrder = { orderId: order.id, utility, ngn, amount: quote.amount, at: new Date(clock()).toISOString(), released: false, paid: false, attempts: 0 }; });
+      await purses.flush?.();
       log({ type: "contract-check", utility, amount: quote.amount });
       try {
         release = await wallet.release({ utility, destination, amount: quote.amount, orderId: order.id });
-        if (release) log({ type: "contract-ok", tx: release.tx, link: explorer.tx(release.tx) });
+        purses.update(purse.id, (p) => { p.openOrder.released = true; p.openOrder.releaseTx = release.tx; });
+        log({ type: "contract-ok", tx: release.tx, link: explorer.tx(release.tx) });
       } catch (err) {
+        purses.update(purse.id, (p) => { p.openOrder = null; });
         if (!(err instanceof ContractRefused)) { log({ type: "payment-failed", message: err.message }); return say.failed(lang); }
         log({ type: "contract-refused", rule: err.rule, code: err.code });
+        if (err.rule === "order open") {
+          // The chain has an open order this purse doesn't know about (e.g. lost data). Don't guess.
+          notifyGuardian(purse, "check-payment", "The purse contract has an open order Mhasibu has no record of. Please check, and close it from the guardian wallet if needed.");
+          return say.checking(lang, { guardian: purse.guardian.name });
+        }
         const period = { "per day": "day", "per week": "week", "per month": "month", "purse month": "month" }[err.rule];
         return refuse(purse, utility, { ok: false, rule: err.rule, reason: `the purse contract refused (${err.rule})`, period, onChain: true }, lang);
       }
@@ -93,25 +108,28 @@ export function createMhasibu({
       const { result, tx } = await wallet.pay(quote.url, quote);
       // Keep what was delivered with the purchase, so Mama can always see her token again.
       const kept = Object.fromEntries(Object.entries({ token: result.token, units: result.units, reference: result.reference, bundle: result.bundle }).filter(([, v]) => v != null));
-      purses.update(purse.id, (p) => p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, tx, releaseTx: release?.tx, ...kept }));
+      purses.update(purse.id, (p) => {
+        p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, tx, releaseTx: release?.tx, ...kept });
+        if (p.openOrder) p.openOrder.paid = true;
+      });
       log({ type: "paid", utility, ngn, tx, link: explorer.tx(tx) });
       // The token goes in Adaeze's receipt too, so she can read it to Mama on the phone.
       notifyGuardian(purse, "receipt", `Mama bought ₦${ngn.toLocaleString("en-NG")} of ${utility}.${result.token ? ` Token: ${result.token}${result.units ? ` (${result.units})` : ""}.` : ""} ${explorer.tx(tx)}`);
+      // Close the order on-chain. If that fails, it's retried on the next message (the order is
+      // already marked paid, so it will be committed, never refunded).
+      if (release) await commitOpenOrder(purses.get(purse.id));
       return say.delivered(lang, { utility, ngn, token: result.token, units: result.units });
     } catch (err) {
       log({ type: "payment-failed", message: err.message });
       // The contract already released the money to Mhasibu's wallet. Put it back before replying,
       // so the purse keeps its USDC and Mama keeps her cap room.
-      if (release && wallet.refund) {
+      if (release) {
         const back = await refundWithRetry(order.id, quote.amount);
-        if (!back) {
-          // The chain still counts this order against the caps, so the code's caps must too: record
-          // it as unconfirmed. The USDC may still be on Mhasibu's wallet (refund retried on the next
-          // message) or the payment may have gone through after all. Don't tell Mama she wasn't charged.
-          purses.update(purse.id, (p) => {
-            p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, releaseTx: release.tx, unconfirmed: true });
-            p.pendingRefund = { orderId: order.id, amount: quote.amount, attempts: 0 };
-          });
+        if (back) purses.update(purse.id, (p) => { p.openOrder = null; });
+        else {
+          // The chain still counts this order, so the code's caps must too: record it as unconfirmed.
+          // The open order stays, so no new purchase starts until it's settled on the next message.
+          purses.update(purse.id, (p) => { p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, releaseTx: release.tx, unconfirmed: true }); });
           notifyGuardian(purse, "check-payment", `A ₦${ngn.toLocaleString("en-NG")} ${utility} payment (order ${order.id}) may not have completed, and returning the money to the purse failed. Mhasibu will keep trying; please check its wallet.`);
           return say.checking(lang, { guardian: purse.guardian.name });
         }
@@ -136,22 +154,61 @@ export function createMhasibu({
     return null;
   }
 
-  // A refund that failed earlier is retried before anything else. Once it succeeds, the unconfirmed
-  // spend is removed; if the contract says it can't be refunded (already refunded, or a newer order
-  // exists), it stays counted, which matches the chain.
-  async function settlePendingRefund(purse) {
-    const pending = purse.pendingRefund;
-    if (!pending || !wallet.refund) return;
+  async function commitOpenOrder(purse) {
+    const open = purse.openOrder;
+    if (!open || !wallet.commit) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
     try {
-      const back = await wallet.refund({ orderId: pending.orderId });
-      log({ type: "refunded", tx: back.tx, link: explorer.tx(back.tx), amount: pending.amount });
-      purses.update(purse.id, (p) => { p.spends = p.spends.filter((s) => s.order !== pending.orderId); p.pendingRefund = null; });
-      notifyGuardian(purse, "refunded", `The ${pending.orderId} payment was returned to the purse.`);
+      const done = await wallet.commit({ orderId: open.orderId });
+      purses.update(purse.id, (p) => { p.openOrder = null; });
+      log({ type: "committed", tx: done.tx, link: explorer.tx(done.tx) });
+      return true;
     } catch (err) {
-      log({ type: "refund-failed", message: err.message, pending: true });
-      const final = err instanceof ContractRefused || pending.attempts + 1 >= 5;
-      purses.update(purse.id, (p) => { p.pendingRefund = final ? null : { ...pending, attempts: pending.attempts + 1 }; });
+      // Already committed counts as done.
+      if (err instanceof ContractRefused && err.rule === "already committed") { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
+      log({ type: "commit-failed", message: err.message });
+      return false;
     }
+  }
+
+  // Settle an order left open by a failure or a crash, before anything else happens:
+  //   paid (we saw it)            → commit it
+  //   never released              → nothing to do
+  //   released, outcome unknown   → ask the gateway: delivered → keep the token and commit;
+  //                                 failed/expired → refund to the purse; still in flight → wait
+  // Returns true when no open order is left.
+  async function settleOpenOrder(purse) {
+    const open = purse.openOrder;
+    if (!open) return true;
+    if (!wallet.release) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
+    if (open.paid) return commitOpenOrder(purse);
+    if (!open.released) {
+      // Crashed between writing the order down and hearing back from the contract: ask the chain.
+      const onChain = await wallet.openOrder(open.orderId).catch(() => undefined);
+      if (onChain === undefined) return false;
+      if (onChain !== open.orderId) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
+      purses.update(purse.id, (p) => { p.openOrder.released = true; });
+    }
+    const status = await wallet.orderStatus(open.orderId).catch(() => null);
+    if (status?.status === "delivered") {
+      const kept = Object.fromEntries(Object.entries({ token: status.token, units: status.units, reference: status.reference, bundle: status.bundle }).filter(([, v]) => v != null));
+      purses.update(purse.id, (p) => {
+        p.spends = p.spends.filter((s) => s.order !== open.orderId);
+        p.spends.push({ at: open.at, utility: open.utility, ngn: open.ngn, order: open.orderId, tx: status.txHash, releaseTx: open.releaseTx, ...kept });
+        p.openOrder.paid = true;
+      });
+      notifyGuardian(purse, "receipt", `Confirmed: Mama's ₦${open.ngn.toLocaleString("en-NG")} ${open.utility} top-up went through.${kept.token ? ` Token: ${kept.token}.` : ""}`);
+      return commitOpenOrder(purses.get(purse.id));
+    }
+    if (status?.status === "fulfilling" && Date.now() - Date.parse(open.at) < 15 * MINUTE) return false; // still in flight
+    const back = await refundWithRetry(open.orderId, open.amount, 1);
+    if (back) {
+      purses.update(purse.id, (p) => { p.spends = p.spends.filter((s) => s.order !== open.orderId); p.openOrder = null; });
+      notifyGuardian(purse, "refunded", `Mama's unfinished ₦${open.ngn.toLocaleString("en-NG")} ${open.utility} top-up was returned to the purse.`);
+      return true;
+    }
+    purses.update(purse.id, (p) => { p.openOrder.attempts = (p.openOrder.attempts ?? 0) + 1; });
+    if (purses.get(purse.id).openOrder.attempts === 3) notifyGuardian(purse, "check-payment", `Mhasibu still can't settle order ${open.orderId}. Please check its wallet, or close the order from the guardian wallet.`);
+    return false;
   }
 
   function refuse(purse, utility, verdict, lang) {
@@ -178,7 +235,7 @@ export function createMhasibu({
       const lang = purse.mama.language;
       remember(purse, "mama", text);
       log({ type: "mama", text });
-      await settlePendingRefund(purse);
+      await settleOpenOrder(purses.get(purseId));
       const reply = await respond(purse, text, lang);
       log({ type: "reply", text: reply });
       remember(purses.get(purseId), "mhasibu", reply);

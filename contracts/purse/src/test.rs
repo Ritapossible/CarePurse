@@ -87,6 +87,7 @@ fn weekly_cap_holds_and_resets_on_monday() {
     let e = Symbol::new(&t.env, "electricity");
     for n in 1..=3 {
         t.purse.buy(&e, &t.meter, &34_013_606, &order(&t.env, n));
+        t.purse.commit(&order(&t.env, n));
     }
     assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 4)), Err(Ok(Error::OverWeek)));
     // Sunday 23:30 Lagos is still the same week.
@@ -105,6 +106,7 @@ fn purse_monthly_cap_and_daily_cap() {
     t.purse.set_destination(&data, &phone);
     t.purse.set_caps(&data, &Caps { per_topup: 5 * USDC, per_day: 6 * USDC, per_week: 0, per_month: 0 });
     t.purse.buy(&data, &phone, &(5 * USDC), &order(&t.env, 1));
+    t.purse.commit(&order(&t.env, 1));
     assert_eq!(t.purse.try_buy(&data, &phone, &(2 * USDC), &order(&t.env, 2)), Err(Ok(Error::OverDay)));
     t.purse.set_purse_cap(&(6 * USDC));
     t.env.ledger().set_timestamp(SAT + DAY);
@@ -116,6 +118,7 @@ fn paused_purse_and_reused_order_are_refused() {
     let t = setup();
     let e = Symbol::new(&t.env, "electricity");
     t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 1));
+    t.purse.commit(&order(&t.env, 1));
     assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 1)), Err(Ok(Error::OrderUsed)));
     t.purse.pause();
     assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 2)), Err(Ok(Error::Paused)));
@@ -183,8 +186,10 @@ fn refund_returns_the_usdc_and_gives_back_the_cap() {
     // Use the whole week: three ₦5,000 top-ups.
     for n in 1..=3 {
         t.purse.buy(&e, &t.meter, &34_013_606, &order(&t.env, n));
+        if n < 3 { t.purse.commit(&order(&t.env, n)); } // 1 and 2 paid; 3 is still open
     }
-    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 4)), Err(Ok(Error::OverWeek)));
+    // While 3 is open, nothing else can be released.
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 4)), Err(Ok(Error::OrderOpen)));
     // The third payment failed: the agent refunds it.
     t.purse.refund(&order(&t.env, 3));
     assert_eq!(t.token.balance(&t.agent), 2 * 34_013_606);
@@ -194,6 +199,7 @@ fn refund_returns_the_usdc_and_gives_back_the_cap() {
     // Cap room is back, so a new order goes through; the refunded order can't be reused, and after a
     // newer order it can't be refunded either.
     t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 5));
+    t.purse.commit(&order(&t.env, 5));
     assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 3)), Err(Ok(Error::OrderUsed)));
     assert_eq!(t.purse.try_refund(&order(&t.env, 3)), Err(Ok(Error::NotLatestOrder)));
     assert_eq!(t.purse.try_refund(&order(&t.env, 9)), Err(Ok(Error::NoOrder)));
@@ -208,21 +214,57 @@ fn purse_cap_is_readable() {
 }
 
 #[test]
-fn only_the_latest_order_can_be_refunded() {
-    // The attack: pay for electricity order A, buy airtime B, then refund A with B's USDC,
-    // which would free electricity's cap while A's token was already issued.
+fn one_open_order_at_a_time_and_a_paid_order_cannot_be_refunded() {
     let t = setup();
     let e = Symbol::new(&t.env, "electricity");
     let airtime = Symbol::new(&t.env, "airtime");
     let phone = sha(&t.env, "08011111111");
     t.purse.set_destination(&airtime, &phone);
     t.purse.set_caps(&airtime, &Caps { per_topup: 5 * USDC, per_day: 0, per_week: 0, per_month: 0 });
-    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 1)); // A
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 1)); // A released
+    assert_eq!(t.purse.open_order(), Some(order(&t.env, 1)));
+    // A second tap (or a restarted process) can't release B while A is open.
+    assert_eq!(t.purse.try_buy(&airtime, &phone, &USDC, &order(&t.env, 2)), Err(Ok(Error::OrderOpen)));
+    t.purse.commit(&order(&t.env, 1)); // A paid
+    assert_eq!(t.purse.open_order(), None);
+    // A paid order can't be refunded (no moving spend between utilities with someone else's USDC).
+    assert_eq!(t.purse.try_refund(&order(&t.env, 1)), Err(Ok(Error::AlreadyCommitted)));
+    assert_eq!(t.purse.try_commit(&order(&t.env, 1)), Err(Ok(Error::AlreadyCommitted)));
     t.purse.buy(&airtime, &phone, &USDC, &order(&t.env, 2)); // B
     assert_eq!(t.purse.try_refund(&order(&t.env, 1)), Err(Ok(Error::NotLatestOrder)));
-    assert_eq!(t.purse.spent(&e).week_amount, USDC); // A stays counted
-    t.purse.refund(&order(&t.env, 2)); // the latest one is fine
+    t.purse.refund(&order(&t.env, 2)); // B failed: back to the purse
     assert_eq!(t.purse.spent(&airtime).day_amount, 0);
+    assert_eq!(t.purse.try_commit(&order(&t.env, 2)), Err(Ok(Error::AlreadyRefunded)));
+}
+
+#[test]
+fn a_crash_after_buy_leaves_the_order_open_and_refundable() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 1)); // released, then the process dies
+    // On restart, the next purchase is refused until the open order is settled...
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 2)), Err(Ok(Error::OrderOpen)));
+    // ...and it can still be refunded, because nothing newer exists.
+    t.purse.refund(&order(&t.env, 1));
+    assert_eq!(t.token.balance(&t.agent), 0);
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 2));
+}
+
+#[test]
+fn the_guardian_can_close_an_open_order_and_strangers_cannot_commit() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 1));
+    t.env.set_auths(&[]);
+    let stranger = Address::generate(&t.env);
+    let r = t.purse.mock_auths(&[MockAuth { address: &stranger, invoke: &MockAuthInvoke {
+        contract: &t.purse.address, fn_name: "commit", args: (order(&t.env, 1),).into_val(&t.env), sub_invokes: &[] } }])
+        .try_commit(&order(&t.env, 1));
+    assert!(r.is_err());
+    t.env.mock_all_auths();
+    t.purse.guardian_close(&order(&t.env, 1)); // e.g. the agent's key was lost
+    assert_eq!(t.purse.open_order(), None);
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 2));
 }
 
 #[test]

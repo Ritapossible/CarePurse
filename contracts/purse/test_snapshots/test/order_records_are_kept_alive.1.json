@@ -316,6 +316,14 @@
                   },
                   {
                     "key": {
+                      "symbol": "committed"
+                    },
+                    "val": {
+                      "bool": false
+                    }
+                  },
+                  {
+                    "key": {
                       "symbol": "day"
                     },
                     "val": {

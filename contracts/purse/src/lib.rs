@@ -43,6 +43,8 @@ pub enum Error {
     NoOrder = 12,
     AlreadyRefunded = 13,
     NotLatestOrder = 14,
+    OrderOpen = 15,
+    AlreadyCommitted = 16,
 }
 
 /// Limits for one utility. 0 means "no limit for this period"; a utility with no caps at all
@@ -77,6 +79,17 @@ pub struct OrderRec {
     pub week: u64,
     pub month: u64,
     pub refunded: bool,
+    /// Paid over x402 and delivered: final, can't be refunded.
+    pub committed: bool,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Committed {
+    #[topic]
+    pub utility: Symbol,
+    pub amount: i128,
+    pub order_ref: BytesN<32>,
 }
 
 #[contracttype]
@@ -147,6 +160,25 @@ fn save_order(env: &Env, order_ref: &BytesN<32>, rec: &OrderRec) {
     let key = Key::Order(order_ref.clone());
     env.storage().persistent().set(&key, rec);
     env.storage().persistent().extend_ttl(&key, BUMP_THRESHOLD, BUMP_LEDGERS);
+}
+
+fn close_open_order(env: &Env, order_ref: BytesN<32>) -> Result<(), Error> {
+    let mut rec: OrderRec = env.storage().persistent().get(&Key::Order(order_ref.clone())).ok_or(Error::NoOrder)?;
+    let last: Option<BytesN<32>> = env.storage().instance().get(&Key::LastOrder);
+    if last != Some(order_ref.clone()) {
+        return Err(Error::NotLatestOrder);
+    }
+    if rec.refunded {
+        return Err(Error::AlreadyRefunded);
+    }
+    if rec.committed {
+        return Err(Error::AlreadyCommitted);
+    }
+    rec.committed = true;
+    save_order(env, &order_ref, &rec);
+    bump(env);
+    Committed { utility: rec.utility, amount: rec.amount, order_ref }.publish(env);
+    Ok(())
 }
 
 #[contractimpl]
@@ -225,6 +257,15 @@ impl Purse {
         if s.get(&Key::Paused).unwrap_or(false) {
             return Err(Error::Paused);
         }
+        // One open release at a time: the previous order must be committed (paid) or refunded
+        // first. Otherwise a crash or a second tap could make the earlier release unrefundable.
+        if let Some(last) = s.get::<Key, BytesN<32>>(&Key::LastOrder) {
+            if let Some(prev) = env.storage().persistent().get::<Key, OrderRec>(&Key::Order(last)) {
+                if !prev.refunded && !prev.committed {
+                    return Err(Error::OrderOpen);
+                }
+            }
+        }
         if amount <= 0 {
             return Err(Error::BadAmount);
         }
@@ -274,7 +315,7 @@ impl Purse {
         spent.month_amount += amount;
         s.set(&Key::Spent(utility.clone()), &spent);
         s.set(&Key::PurseSpent, &(purse_month, purse_amount + amount));
-        let rec = OrderRec { utility: utility.clone(), amount, day, week, month, refunded: false };
+        let rec = OrderRec { utility: utility.clone(), amount, day, week, month, refunded: false, committed: false };
         save_order(&env, &order_ref, &rec);
         s.set(&Key::LastOrder, &order_ref);
         bump(&env);
@@ -302,6 +343,9 @@ impl Purse {
         if rec.refunded {
             return Err(Error::AlreadyRefunded);
         }
+        if rec.committed {
+            return Err(Error::AlreadyCommitted);
+        }
 
         let usdc: Address = s.get(&Key::Usdc).unwrap();
         token::TokenClient::new(&env, &usdc).transfer(&agent, &env.current_contract_address(), &rec.amount);
@@ -323,7 +367,29 @@ impl Purse {
         Ok(())
     }
 
+    /// The x402 payment for the open order went through: close it as final. Only the latest order.
+    pub fn commit(env: Env, order_ref: BytesN<32>) -> Result<(), Error> {
+        let agent: Address = env.storage().instance().get(&Key::Agent).unwrap();
+        agent.require_auth();
+        close_open_order(&env, order_ref)
+    }
+
+    /// Guardian escape hatch: close the open order as final without the agent (for example if the
+    /// agent's key is lost), so the purse is never locked. The USDC stays wherever it is.
+    pub fn guardian_close(env: Env, order_ref: BytesN<32>) -> Result<(), Error> {
+        guardian(&env).require_auth();
+        close_open_order(&env, order_ref)
+    }
+
     // ── Anyone can read ───────────────────────────────────────
+
+    /// The open order (released, neither committed nor refunded), if there is one.
+    pub fn open_order(env: Env) -> Option<BytesN<32>> {
+        let last: BytesN<32> = env.storage().instance().get(&Key::LastOrder)?;
+        let rec: OrderRec = env.storage().persistent().get(&Key::Order(last.clone()))?;
+        if rec.refunded || rec.committed { None } else { Some(last) }
+    }
+
 
     /// The whole-purse limit per calendar month (0 = none), in USDC base units.
     pub fn purse_cap(env: Env) -> i128 {

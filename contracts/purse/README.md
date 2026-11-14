@@ -24,8 +24,10 @@ x402 stays standard: the facilitator still sees a plain USDC `transfer` signed b
 | `set_destination(utility, sha256(number))` | guardian | The saved meter or phone, stored as a hash so the ledger doesn't show where Mama lives |
 | `set_agent`, `pause`, `unpause`, `withdraw` | guardian | |
 | `buy(utility, dest_hash, amount, order_ref)` | agent | Checks the rules, records the spend, releases exactly `amount` |
-| `refund(order_ref)` | agent | The x402 payment failed: returns that order's USDC from the agent to the purse and takes its spend off the caps (periods still current). Once per order, and **only the latest order** |
-| `caps`, `spent`, `purse_cap`, `order`, `paused`, `guardian`, `agent` | anyone | Read-only |
+| `refund(order_ref)` | agent | The x402 payment failed: returns that order's USDC from the agent to the purse and takes its spend off the caps (periods still current). Only the open (latest) order, never a committed one |
+| `commit(order_ref)` | agent | The x402 payment succeeded: closes the open order as final, so the next `buy` can run |
+| `guardian_close(order_ref)` | guardian | Escape hatch: close a stuck open order (for example if the agent's key is lost) |
+| `caps`, `spent`, `purse_cap`, `order`, `open_order`, `paused`, `guardian`, `agent` | anyone | Read-only |
 
 Funding: anyone sends USDC to the contract address with a normal USDC transfer.
 
@@ -42,7 +44,8 @@ Funding: anyone sends USDC to the contract address with a normal USDC transfer.
 | 4, 5, 6 | `OverDay`, `OverWeek`, `OverMonth` | Utility limits per day, week (from Monday) and calendar month, in Lagos time |
 | 7 | `OverPurseMonth` | The whole-purse monthly cap |
 | 10 | `LowBalance` | The purse holds less than the amount |
-| 12, 13, 14 | `NoOrder`, `AlreadyRefunded`, `NotLatestOrder` | `refund` only: unknown order, already refunded, or a newer order exists |
+| 15 | `OrderOpen` | The last order is neither committed nor refunded: one open order at a time |
+| 12, 13, 14, 16 | `NoOrder`, `AlreadyRefunded`, `NotLatestOrder`, `AlreadyCommitted` | `refund` and `commit` only |
 
 Caps are set in naira on the dashboard and turned into USDC base units at the demo rate (`NGN_PER_USDC`). Rounding always favours the guardian's limit being reachable, never exceeded by more than one base unit per top-up.
 
@@ -50,7 +53,7 @@ Caps are set in naira on the dashboard and turned into USDC base units at the de
 
 ```bash
 cd contracts/purse
-cargo test                      # 14 tests, no network
+cargo test                      # 16 tests, no network
 stellar contract build          # needs stellar-cli; writes target/wasm32v1-none/release/carepurse_purse.wasm
 
 cd ../../packages/mhasibu
@@ -62,9 +65,10 @@ Built with `soroban-sdk` 29.0.1 and `stellar-cli` 30.0.1. Testnet runs protocol 
 
 ## Live on testnet (14 Nov 2026)
 
-- Purse contract **v4**: [`CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV`](https://stellar.expert/explorer/testnet/contract/CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV), Standard preset, purse cap ₦120,000 a month (81.63 USDC, `purse_cap()`), 100 USDC in it.
-- v4 adds: `refund` only on the **latest** order (an older order can't be refunded with a newer order's USDC, which would move spend between utilities), and order records kept alive about 30 days. Checked live: refunding an older order is refused (`NotLatestOrder`); the latest one works ([tx](https://stellar.expert/explorer/testnet/tx/e4885df95bf2292087ec1353a0cb42e989c28365af4a64e05207afd2d0a4aa13)); an order record shows 535,679 ledgers (about 31 days) to live.
-- History: v1 `CDHX2A…MJAE` (no refund), v2 `CBKVT2…CDIP` (refund on any order), v3 `CBTGNM…MC57` (order lifetime not actually extended). All retired; their USDC went back to the guardian.
+- Purse contract **v5**: [`CAMXGONVKRA2KVWGJIXLLQEFZI4TFPHO3X7I5JMI4WUTY35GNVJW32FG`](https://stellar.expert/explorer/testnet/contract/CAMXGONVKRA2KVWGJIXLLQEFZI4TFPHO3X7I5JMI4WUTY35GNVJW32FG), Standard preset, purse cap ₦120,000 a month (81.63 USDC, `purse_cap()`), about 100 USDC in it.
+- v5 adds **one open order at a time**: `buy` refuses while the last order is neither committed (`commit`, after the x402 payment) nor refunded, so a crash or a second tap can't make an earlier release unrefundable. A committed order can't be refunded. The guardian can close a stuck order (`guardian_close`). Checked live: a second `buy` while one is open is refused (`OrderOpen`); the open order can still be refunded; a committed order's refund is refused (`AlreadyCommitted`); a real top-up went release → x402 → commit and left no open order.
+- v4 added refund only on the latest order and ~30-day order records (still true in v5).
+- History: v1 `CDHX2A…MJAE` (no refund), v2 `CBKVT2…CDIP` (refund on any order), v3 `CBTGNM…MC57` (order lifetime not actually extended), v4 `CBWQ4E…5OBV` (no open-order rule). All retired; their USDC went back to the guardian.
 - The overspend demo: 7 USDC asked, refused on-chain with `OverPerTopup` (Error #3). No USDC moved.
 - Funding: the guardian bought 1,000 test USDC on the testnet exchange (`npm run fund-purse`); the purse holds 100, the guardian keeps the rest for testing and Demo Day.
 - Testnet resets on 16 Dec 2026: run `npm run deploy-purse` again after a reset.

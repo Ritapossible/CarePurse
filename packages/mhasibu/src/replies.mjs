@@ -62,6 +62,8 @@ export const say = {
   expired(lang) { return lang === "pcm" ? "Those options don expire. Tell me again wetin you need." : "Those options have expired. Tell me again what you need."; },
   cancelled(lang) { return lang === "pcm" ? "No wahala, I no buy anything." : "No problem, I haven't bought anything."; },
   failed(lang) { return lang === "pcm" ? "Sorry, e no work this time and nobody charge you. Try again small time." : "Sorry, that didn't work and you weren't charged. Please try again in a moment."; },
+  // The last top-up isn't settled yet (one at a time), so nothing new starts.
+  stillSettling(lang, { guardian }) { return lang === "pcm" ? `I still dey finish your last top-up. Wait small, then try again. If e pass 15 minutes, I don tell ${guardian}.` : `I'm still finishing your last top-up. Please wait a little and try again. If it takes more than 15 minutes, ${guardian} will be told.`; },
   // The payment may or may not have gone through, and the money couldn't be put back yet.
   checking(lang, { guardian }) { return lang === "pcm" ? `Sorry, something no go well. I no fit confirm am yet. I don tell ${guardian} make she check. No buy again for now.` : `Sorry, something went wrong and I can't confirm it yet. I've asked ${guardian} to check. Please don't buy this again for now.`; },
   // The provider asked us to wait (e.g. the same number was topped up a moment ago). Not charged.
@@ -84,7 +86,7 @@ export const say = {
 
   history(lang, { spends }) {
     if (!spends.length) return lang === "pcm" ? "You never buy anything yet." : "You haven't bought anything yet.";
-    const body = spends.slice(-5).reverse().map((s) => `${new Date(s.at).toLocaleDateString("en-NG", { timeZone: "Africa/Lagos" })}: ${naira(s.ngn)} ${LABEL[lang][s.utility]}${s.token ? ` · token ${s.token}` : ""}`).join("\n");
+    const body = spends.slice(-5).reverse().map((s) => `${new Date(s.at).toLocaleDateString("en-NG", { timeZone: "Africa/Lagos" })}: ${naira(s.ngn)} ${LABEL[lang][s.utility]}${s.token ? ` · token ${s.token}` : ""}${s.unconfirmed ? (lang === "pcm" ? " (we never confirm am yet)" : " (not confirmed yet)") : ""}`).join("\n");
     return lang === "pcm" ? `Wetin you don buy last:\n${body}` : `Your last top-ups:\n${body}`;
   },
 

@@ -29,6 +29,10 @@ function describe(e: LogEvent): Row | null {
       return { tone: "x402", label: "Sign and retry", detail: `signed a Soroban auth entry for exactly ${usdc(e.amount)} USDC, retried with PAYMENT-SIGNATURE` };
     case "paid":
       return { tone: "ok", label: "Settled on Stellar Testnet", detail: `the facilitator settled the payment (PAYMENT-RESPONSE) · ₦${e.ngn?.toLocaleString("en-NG")} ${e.utility}`, link: e.link };
+    case "committed":
+      return { tone: "chain", label: "Order closed on-chain", detail: "paid and delivered, so the purse contract marks it final (commit); the next top-up can start", link: e.link };
+    case "commit-failed":
+      return { tone: "no", label: "Commit pending", detail: `${e.message ?? ""} (retried on the next message)` };
     case "refunded":
       return { tone: "chain", label: "Refunded to the purse", detail: `the payment failed, so ${usdc(e.amount)} USDC went back to the purse contract and the cap room was restored`, link: e.link };
     case "refund-failed":
