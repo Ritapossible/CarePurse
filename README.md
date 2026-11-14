@@ -19,7 +19,7 @@ Everything below runs today on Stellar testnet with real sandbox fulfilment.
 | Milestone | Status | Proof |
 |---|---|---|
 | x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 15 tests |
-| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 33 tests |
+| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 36 tests |
 | Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
 | Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 17 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC) |
 | On-chain refusal demo: 7 USDC over the cap, refused by the contract | ✅ Done 14 Nov | `npm run overspend` → `OverPerTopup` (Error #3), no USDC moved |

@@ -182,3 +182,10 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - **Found while testing:** `@x402/fetch` has a default `$1` per-payment ceiling, so every top-up above about ₦1,470 had been silently refused (earlier tests only bought ₦500 or less). Now set to the largest top-up plus fee ($7.01). Live: ₦5,000 of light paid 3.5034014 USDC, receipt "Charged ₦5,150 (₦5,000 + ₦150 service fee)".
 - Production: replace the fixed `NGN_PER_USDC` with a live rate at order time (Ponte uses CoinGecko).
 
+## Fifth review (14 Nov, Grok, two reports), checked against library.md and the code
+
+- **Recovery pay could race the facilitator: true.** The gateway records `issued` while still `fulfilling`, and the direct-pay check came before "wait". Now: `created` and not expired, or `fulfilling` under 30 minutes → wait (no pay, no refund); direct pay only after settlement can no longer happen and a token was issued; otherwise refund. Chain-only orders take their start time from the gateway (`createdAt`), fixing the missing `at`.
+- **The agent API was open: true.** Fixed with `MHASIBU_API_KEY` on every route but `/v1/status`, and a server-side relay in the web app (`/api/mhasibu/...`) that adds it. **Not done as suggested:** sending the secret from the web app, because anything in a browser page is readable by whoever opens it. Optional `WEB_ACCESS_CODE` locks the demo link. Overspend now uses a fixed amount (on-chain cap + 1 base unit) and refunds if ever accepted.
+- Live: without the key every private route answered 401; with the code the demo worked end to end, including the live log stream; an overspend request asking for 1 USDC was ignored and the cap+1 attempt refused on-chain.
+- Still open: Mama's own login (phone + invite code) instead of one shared link.
+

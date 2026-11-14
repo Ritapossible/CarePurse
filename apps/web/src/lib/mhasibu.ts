@@ -1,6 +1,21 @@
-// The Mhasibu API (packages/mhasibu, npm run serve). It holds the agent wallet, so it is a
-// separate server; the browser only sends Mama's text and reads replies and log events.
-export const MHASIBU_URL = process.env.NEXT_PUBLIC_MHASIBU_URL ?? "http://localhost:4022";
+// The Mhasibu API (packages/mhasibu, npm run serve) holds the agent wallet, so it is a separate
+// server. The browser talks only to this web app's relay (/api/mhasibu/...), which adds the API key
+// on the server side. If the demo link has ?code=…, it is kept and sent with every call.
+export const MHASIBU_URL = "/api/mhasibu";
+
+function accessCode(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const fromLink = new URLSearchParams(window.location.search).get("code");
+    if (fromLink) localStorage.setItem("carepurse-code", fromLink);
+    return fromLink ?? localStorage.getItem("carepurse-code") ?? "";
+  } catch {
+    return new URLSearchParams(window.location.search).get("code") ?? "";
+  }
+}
+const withCode = (headers: Record<string, string> = {}) => ({ ...headers, "x-access-code": accessCode() });
+// EventSource can't send headers, so the live log carries the code in its URL.
+export const eventsUrl = () => `${MHASIBU_URL}/v1/events?code=${encodeURIComponent(accessCode())}`;
 
 export type ChatLine = { from: "mama" | "mhasibu"; text: string; at?: string };
 
@@ -45,7 +60,7 @@ export type Status = {
 export async function sendMessage(text: string, purse = "demo"): Promise<string> {
   const res = await fetch(`${MHASIBU_URL}/v1/chat`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: withCode({ "content-type": "application/json" }),
     body: JSON.stringify({ purse, text }),
   });
   const body = await res.json();
@@ -54,7 +69,8 @@ export async function sendMessage(text: string, purse = "demo"): Promise<string>
 }
 
 export async function loadHistory(purse = "demo") {
-  const res = await fetch(`${MHASIBU_URL}/v1/history?purse=${purse}`);
+  const res = await fetch(`${MHASIBU_URL}/v1/history?purse=${purse}`, { headers: withCode() });
+  if (res.status === 401) throw new Error("access code needed");
   if (!res.ok) throw new Error("could not load the chat");
   return (await res.json()) as { mama: { name: string; language: string }; guardian: string; history: ChatLine[] };
 }
@@ -62,7 +78,7 @@ export async function loadHistory(purse = "demo") {
 export type TokenRecord = { at: string; ngn: number; token: string; units: string | null; meter: string };
 
 export async function loadTokens(purse = "demo"): Promise<TokenRecord[]> {
-  const res = await fetch(`${MHASIBU_URL}/v1/tokens?purse=${purse}`);
+  const res = await fetch(`${MHASIBU_URL}/v1/tokens?purse=${purse}`, { headers: withCode() });
   if (!res.ok) return [];
   return (await res.json()).tokens;
 }
@@ -72,12 +88,9 @@ export async function loadStatus(): Promise<Status> {
   return res.json();
 }
 
-export async function tryOverspend(usdc: number) {
-  const res = await fetch(`${MHASIBU_URL}/v1/demo/overspend`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ usdc }),
-  });
+// The amount is fixed by the server (just over Adaeze's on-chain cap), never chosen here.
+export async function tryOverspend() {
+  const res = await fetch(`${MHASIBU_URL}/v1/demo/overspend`, { method: "POST", headers: withCode({ "content-type": "application/json" }), body: "{}" });
   return res.json();
 }
 

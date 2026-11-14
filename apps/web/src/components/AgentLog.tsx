@@ -2,7 +2,7 @@
 // The Agent & x402 Log: every step Mhasibu takes, live, for the judges.
 // Mama never sees this; it sits beside her chat on the demo page.
 import { useEffect, useRef, useState } from "react";
-import { type LogEvent, type Status, MHASIBU_URL, loadStatus, short, tryOverspend, usdc } from "@/lib/mhasibu";
+import { type LogEvent, type Status, eventsUrl, loadStatus, short, tryOverspend, usdc } from "@/lib/mhasibu";
 
 type Tone = "plain" | "x402" | "chain" | "ok" | "no";
 type Row = { tone: Tone; label: string; detail: string; link?: string };
@@ -72,7 +72,7 @@ export default function AgentLog() {
 
   useEffect(() => {
     loadStatus().then(setStatus).catch(() => {});
-    const source = new EventSource(`${MHASIBU_URL}/v1/events`);
+    const source = new EventSource(eventsUrl());
     source.onopen = () => setLive(true);
     source.onerror = () => setLive(false);
     source.onmessage = (m) => setEvents((list) => [...list.slice(-150), JSON.parse(m.data)]);
@@ -138,11 +138,11 @@ export default function AgentLog() {
             disabled={trying}
             onClick={async () => {
               setTrying(true);
-              await tryOverspend(7).finally(() => setTrying(false));
+              await tryOverspend().finally(() => setTrying(false));
             }}
             className="shrink-0 rounded-full border border-danger px-4 py-2 text-sm font-semibold text-danger disabled:opacity-50"
           >
-            {trying ? "Asking the contract…" : "Try to take 7 USDC"}
+            {trying ? "Asking the contract…" : "Try to take more than the cap"}
           </button>
         </div>
       )}

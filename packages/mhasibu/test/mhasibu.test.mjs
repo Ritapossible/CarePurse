@@ -429,3 +429,50 @@ test("the x402 client's ceiling covers the largest top-up (10,000 naira + fee) a
   assert.equal(maxPaymentUsd({ serviceFeeBps: 300, ngnPerUsdc: 1470 }), "$7.01"); // 10,300 / 1,470 = 7.0068
   assert.equal(maxPaymentUsd({ serviceFeeBps: 0, ngnPerUsdc: 1470 }), "$6.81");
 });
+
+// ── Recovery never races the facilitator ──────────────────────
+function openOrderFor(purses, id, atMs) {
+  purses.update("demo", (p) => { p.openOrder = { orderId: id, ref: orderRef(id), utility: "electricity", ngn: 500, amount: "3503402", at: new Date(atMs).toISOString(), released: true, paid: false, attempts: 0 }; });
+}
+
+test("still fulfilling with a token issued: wait (no direct pay, no refund) while x402 may still settle", async () => {
+  const wallet = phase2Wallet();
+  const { mhasibu, purses, tick } = setup({ wallet });
+  openOrderFor(purses, "o1", MONDAY_10AM);
+  wallet.chain.open = orderRef("o1");
+  wallet.chain.gateway.o1 = { id: "o1", status: "fulfilling", ngn: 500, createdAt: new Date(MONDAY_10AM).toISOString(), issued: { token: "1111 0000 1111 0000 1111" } };
+  await mhasibu.handle("demo", "hello");
+  assert.deepEqual(wallet.chain.calls, []); // nothing paid twice, nothing refunded
+  assert.ok(purses.get("demo").openOrder);
+  // Past the window, settlement is impossible: now the token is kept and the gateway paid directly.
+  tick(31 * 60_000);
+  await mhasibu.handle("demo", "hello");
+  assert.deepEqual(wallet.chain.calls, ["pay-direct 3503402", `commit ${R("o1")}`]);
+  assert.equal(purses.get("demo").openOrder, null);
+});
+
+test("created and not yet expired: wait; once expired: refund", async () => {
+  const wallet = phase2Wallet();
+  const { mhasibu, purses, tick } = setup({ wallet });
+  openOrderFor(purses, "o2", MONDAY_10AM);
+  wallet.chain.open = orderRef("o2");
+  wallet.chain.gateway.o2 = { id: "o2", status: "created", ngn: 500, createdAt: new Date(MONDAY_10AM).toISOString(), expiresAt: new Date(MONDAY_10AM + 10 * 60_000).toISOString() };
+  await mhasibu.handle("demo", "hello");
+  assert.deepEqual(wallet.chain.calls, []);
+  tick(11 * 60_000);
+  await mhasibu.handle("demo", "hello");
+  assert.deepEqual(wallet.chain.calls, [`refund ${R("o2")}`]);
+});
+
+test("an order known only from the chain, still fulfilling: wait (its start comes from the gateway)", async () => {
+  const wallet = phase2Wallet();
+  const { mhasibu } = setup({ wallet });
+  wallet.chain.open = orderRef("o3");
+  wallet.chain.orders[orderRef("o3")] = { utility: "electricity", amount: "3503402" };
+  wallet.chain.gateway.o3 = { id: "o3", status: "fulfilling", ngn: 500, createdAt: new Date(MONDAY_10AM).toISOString(), issued: { token: "2222 3333 4444 5555 6666" } };
+  const { ContractRefused } = await import("../src/purse-contract.mjs");
+  wallet.release = async () => { throw new ContractRefused(15, "Error(Contract, #15)"); };
+  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "1");
+  assert.deepEqual(wallet.chain.calls, []); // neither paid nor refunded while it may still settle
+});

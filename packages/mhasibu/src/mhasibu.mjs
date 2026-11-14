@@ -17,6 +17,8 @@ import { say } from "./replies.mjs";
 import { ContractRefused, orderRef } from "./purse-contract.mjs";
 
 const MINUTE = 60_000;
+// After this long, a signed x402 authorisation has expired, so a "fulfilling" order can no longer settle.
+const SETTLE_WINDOW_MS = 30 * MINUTE;
 // The one-digit menu shown with help and "I didn't understand" (same order as MENU in replies.mjs).
 const MENU_CHOICES = [null, "electricity", "airtime", "data", "check_balance", "my_token"];
 
@@ -194,7 +196,18 @@ export function createMhasibu({
       await commitRef(purse, ref);
       return { kind: "delivered", token: issued?.token, units: issued?.units };
     }
-    if (issued && (issued.token || issued.reference)) {
+    // Could the x402 payment still settle? Then do nothing yet: neither a second payment nor a refund.
+    //   created, not expired → the payment may still start (the gateway refuses expired orders)
+    //   fulfilling, under 30 minutes → the facilitator may still be settling (a signed x402
+    //   authorisation expires within minutes, so after 30 it can't settle any more)
+    const startedAt = Date.parse(status?.createdAt ?? open.at ?? "");
+    if (status?.status === "created" && !(Date.parse(status.expiresAt) < clock())) return { kind: "pending" };
+    if (status?.status === "fulfilling" && !(clock() - startedAt > SETTLE_WINDOW_MS)) return { kind: "pending" };
+
+    // Settlement can't happen any more. If the provider issued a token anyway (failed settlement, or
+    // stuck past the window), Mama keeps it and the gateway is paid that exact amount directly:
+    // the only recovery payment. A normal top-up is always paid over x402.
+    if (issued && (issued.token || issued.reference) && ["failed", "fulfilling"].includes(status?.status)) {
       try {
         const paid = await wallet.payGatewayDirect(open.amount);
         log({ type: "paid-direct", tx: paid.tx, link: explorer.tx(paid.tx), amount: open.amount });
@@ -207,7 +220,7 @@ export function createMhasibu({
         return { kind: "pending" };
       }
     }
-    if (status?.status === "fulfilling" && Date.now() - Date.parse(open.at ?? 0) < 15 * MINUTE) return { kind: "pending" };
+    // Otherwise (failed with nothing issued, created but expired, or unknown to the gateway): refund.
     for (let i = 0; i < refundAttempts; i++) {
       try {
         const back = await wallet.refundRef(ref);

@@ -63,7 +63,7 @@ services:
       - { key: GATEWAY_RECIPIENT, sync: false }      # the gateway wallet's public address
       - { key: AGENT_SECRET_KEY, sync: false }       # Mhasibu's testnet wallet secret
       - { key: LLM_API_KEY, sync: false }            # OpenServ key; empty = keyword parser
-      - { key: WEB_ORIGIN, sync: false }             # the web app's https URL (CORS)
+      - { key: MHASIBU_API_KEY, generateValue: true } # Render makes a random key; the web app reads it below
       - { key: DATABASE_URL, sync: false }           # same Neon database: purses, purchases, tokens, chat
 
   # Mama's chat and the judges' demo view.
@@ -76,4 +76,7 @@ services:
     startCommand: npm start
     envVars:
       - { key: NODE_VERSION, value: "22" }
-      - { key: NEXT_PUBLIC_MHASIBU_URL, sync: false } # Mhasibu's https URL (read at build time)
+      - { key: MHASIBU_URL, sync: false }             # Mhasibu's https URL (used on the server side only)
+      - key: MHASIBU_API_KEY                          # the same key, never sent to browsers
+        fromService: { type: web, name: carepurse-mhasibu, envVarKey: MHASIBU_API_KEY }
+      - { key: WEB_ACCESS_CODE, sync: false }         # optional: the demo link must end with ?code=<this>

@@ -70,7 +70,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
         setName(h.mama.name);
         setLines(h.history.slice(-20));
       })
-      .catch(() => setError("Mhasibu is not reachable right now."));
+      .catch((err) => setError(String(err?.message).includes("access code") ? "This link needs its access code. Please use the full link you were given." : "Mhasibu is not reachable right now."));
     refreshToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [purse]);
