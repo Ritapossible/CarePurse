@@ -63,4 +63,5 @@ Built with `soroban-sdk` 29.0.1 and `stellar-cli` 30.0.1. Testnet runs protocol 
 - Purse contract: [`CDHX2A22XCJBWPL2524SZDKNCB66EKYFO736KWHOIISB4HAZNKLLMJAE`](https://stellar.expert/explorer/testnet/contract/CDHX2A22XCJBWPL2524SZDKNCB66EKYFO736KWHOIISB4HAZNKLLMJAE), Standard preset, 3.50 USDC in it.
 - A ₦500 electricity top-up: the contract released 0.3401361 USDC, then x402 settled it.
 - The overspend demo: 7 USDC asked, refused on-chain with `OverPerTopup` (Error #3). No USDC moved.
+- Funded 14 Nov: the guardian bought 1,000 test USDC on the testnet exchange (`npm run fund-purse`), deposited 100 (purse about 102.76 USDC) and keeps 900 for testing and Demo Day.
 - Testnet resets on 16 Dec 2026: run `npm run deploy-purse` again after a reset.

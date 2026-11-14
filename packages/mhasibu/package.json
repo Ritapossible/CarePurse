@@ -11,7 +11,8 @@
     "deploy-purse": "node scripts/deploy-purse.mjs",
     "overspend": "node scripts/overspend.mjs",
     "serve": "node bin/serve.mjs",
-    "sync-purse": "node scripts/sync-purse.mjs"
+    "sync-purse": "node scripts/sync-purse.mjs",
+    "fund-purse": "node scripts/fund-purse.mjs"
   },
   "engines": {
     "node": ">=22"

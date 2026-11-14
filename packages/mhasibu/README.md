@@ -19,6 +19,7 @@ npm test                                                       # offline tests, 
 npm run serve                                                  # API for the web app (port 4022), with the live log stream
 npm run deploy-purse                                           # Phase 2: deploy the purse contract (see contracts/purse)
 npm run overspend                                              # Phase 2 demo: ask the contract for 7 USDC; refused on-chain
+npm run fund-purse -- 100 50                                   # the daughter buys test USDC (testnet exchange) and deposits into the purse
 ```
 
 **Phase 2 (limits on-chain):** with `PURSE_CONTRACT_ID` set, Mhasibu calls the purse contract's `buy` after its own checks and before paying. The contract checks the guardian's caps and saved destination and releases exactly one top-up to the agent wallet; then the x402 payment goes out as usual. If the contract says no, nothing is paid.
