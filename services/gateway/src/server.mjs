@@ -3,7 +3,8 @@
 //   GET  /v1/options?utility=electricity[&max_ngn=5000]   free: sizes and prices
 //   GET  /v1/meters/:meter                                free: who owns this meter
 //   POST /v1/orders {utility, ngn, destination}           free: create an order
-//   GET  /v1/orders/:id                                   free: order status
+//   GET  /v1/orders/:id                                   free: order status (and its token)
+//   GET  /v1/orders/by-ref/:sha256(id)                    free: the same, by the purse contract's reference
 //   GET  /paid/topup/:utility/:ngn?order=<id>             x402: 402 until paid, then the token
 //
 // The flow on the paid route: 402 → the payer signs a USDC transfer → retry → the facilitator
@@ -95,6 +96,13 @@ export function createApp({
     const extra = utility === "electricity" ? { disco, ...(contactPhone ? { contactPhone } : {}) } : { network };
     const order = store.create({ utility, ngn, destination, amount: priceOf(utility, ngn), ttlMinutes: config.orderTtlMinutes, ...extra });
     res.status(201).json({ order, payPath: `/paid/topup/${utility}/${ngn}?order=${order.id}` });
+  });
+
+  app.get("/v1/orders/by-ref/:ref", (req, res) => {
+    if (!/^[0-9a-f]{64}$/i.test(req.params.ref)) return res.status(400).json({ error: "ref must be 64 hex characters." });
+    const order = store.getByRef(req.params.ref);
+    if (!order) return res.status(404).json({ error: "No such order." });
+    res.json({ order });
   });
 
   app.get("/v1/orders/:id", (req, res) => {

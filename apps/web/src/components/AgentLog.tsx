@@ -29,6 +29,10 @@ function describe(e: LogEvent): Row | null {
       return { tone: "x402", label: "Sign and retry", detail: `signed a Soroban auth entry for exactly ${usdc(e.amount)} USDC, retried with PAYMENT-SIGNATURE` };
     case "paid":
       return { tone: "ok", label: "Settled on Stellar Testnet", detail: `the facilitator settled the payment (PAYMENT-RESPONSE) · ₦${e.ngn?.toLocaleString("en-NG")} ${e.utility}`, link: e.link };
+    case "release-unknown":
+      return { tone: "no", label: "Release not confirmed", detail: `${e.message ?? ""}: kept as an open order and settled on the next message (refund or commit)` };
+    case "paid-direct":
+      return { tone: "chain", label: "Paid the gateway directly", detail: "the token was issued but the x402 settlement failed, so Mhasibu paid the exact amount to the gateway (recovery only)", link: e.link };
     case "committed":
       return { tone: "chain", label: "Order closed on-chain", detail: "paid and delivered, so the purse contract marks it final (commit); the next top-up can start", link: e.link };
     case "commit-failed":

@@ -18,10 +18,10 @@ Everything below runs today on Stellar testnet with real sandbox fulfilment.
 
 | Milestone | Status | Proof |
 |---|---|---|
-| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 13 tests |
-| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 26 tests |
+| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 14 tests |
+| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 29 tests |
 | Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
-| Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 16 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CAMXGONVKRA2KVWGJIXLLQEFZI4TFPHO3X7I5JMI4WUTY35GNVJW32FG) |
+| Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 17 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC) |
 | On-chain refusal demo: 7 USDC over the cap, refused by the contract | ✅ Done 14 Nov | `npm run overspend` → `OverPerTopup` (Error #3), no USDC moved |
 | Mama's chat and the live **Agent & x402 Log** demo page | ✅ Done 14 Nov | `apps/web`: `/chat`, `/demo` |
 | VTpass sandbox fulfilment: electricity token, airtime, data | ✅ Done 14 Nov | GitHub Actions "VTpass sandbox" |
@@ -49,7 +49,7 @@ On the explorer, the XLM shown is the network fee (about 0.001 XLM, paid by the 
 
 | What | Address | Holds |
 |---|---|---|
-| Purse contract (Mama's money and Adaeze's rules) | [`CAMXGO…32FG`](https://stellar.expert/explorer/testnet/contract/CAMXGONVKRA2KVWGJIXLLQEFZI4TFPHO3X7I5JMI4WUTY35GNVJW32FG) | 100 USDC · purse cap ₦120,000 a month (81.63 USDC) |
+| Purse contract (Mama's money and Adaeze's rules) | [`CCJMZQ…B3XC`](https://stellar.expert/explorer/testnet/contract/CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC) | 100 USDC · purse cap ₦120,000 a month (81.63 USDC) |
 | Mhasibu's agent wallet | [`GC4JIW…OUKO`](https://stellar.expert/explorer/testnet/account/GC4JIWQIQAU3GBIHKEWLEWVJGC477W5XZV7465B5GVTEREOVQSGOOUKO) | 0 USDC between top-ups (the contract releases one top-up at a time) |
 | Gateway wallet (receives x402 payments) | [`GDFFLJ…7CAA`](https://stellar.expert/explorer/testnet/account/GDFFLJ7SQVYJDH7RB7JYIBRLHRHOP7IV4XILUMHS5WPOJ5DAJCTO7CAA) | 2.38 USDC |
 | Guardian wallet (stands in for Adaeze until Privy) | [`GATEMC…SGVS`](https://stellar.expert/explorer/testnet/account/GATEMCQDIHTP2HQSTADGX7ICFF4MJOSIT2OU3FRJ5KIHOX2O4YXISGVS) | About 902 USDC reserve for testing and Demo Day |

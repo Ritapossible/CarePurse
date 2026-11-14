@@ -54,6 +54,14 @@ export function createStore(file, { records = null } = {}) {
       return order ? { ...order } : null;
     },
 
+    // Find an order by its on-chain reference: the purse contract stores sha256(order id), so an
+    // open order can be settled even if the agent lost the id.
+    getByRef(refHex) {
+      const want = String(refHex).toLowerCase();
+      const order = Object.values(state.orders).find((o) => crypto.createHash("sha256").update(o.id).digest("hex") === want);
+      return order ? { ...order } : null;
+    },
+
     // Move an order on only if it is still in the expected status. Returns the new order, or null.
     transition(id, from, to, extra = {}) {
       const order = state.orders[id];

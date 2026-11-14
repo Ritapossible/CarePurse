@@ -114,3 +114,15 @@ test("after a paid delivery, the token is kept on the order and can be looked up
     assert.ok(looked.order.units);
   } finally { await gw.close(); }
 });
+
+test("an order can be found by the purse contract's reference (sha256 of its id)", async () => {
+  const { createHash } = await import("node:crypto");
+  const gw = await startGateway();
+  try {
+    const { order } = await (await post(`${gw.base}/v1/orders`, { utility: "airtime", ngn: 100, destination: "08011111111" })).json();
+    const ref = createHash("sha256").update(order.id).digest("hex");
+    assert.equal((await (await fetch(`${gw.base}/v1/orders/by-ref/${ref}`)).json()).order.id, order.id);
+    assert.equal((await fetch(`${gw.base}/v1/orders/by-ref/${"0".repeat(64)}`)).status, 404);
+    assert.equal((await fetch(`${gw.base}/v1/orders/by-ref/nothex`)).status, 400);
+  } finally { await gw.close(); }
+});

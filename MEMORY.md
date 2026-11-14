@@ -166,3 +166,12 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - Cost: one extra on-chain call (`commit`) per top-up, a few seconds after Mama already has her token.
 - Contract **v5** `CAMXGONVKRA2KVWGJIXLLQEFZI4TFPHO3X7I5JMI4WUTY35GNVJW32FG`. Tests: contract 16, Mhasibu 26, gateway 13 (+1 Postgres test each).
 
+## Fourth review (14 Nov, Grok), checked against ARCHITECTURE.md and PLAN.md
+
+- **A slow `buy` reported as free: true** (my catch deleted the open order on any error). Now only a contract refusal clears it; any other error keeps it, Mama hears "can't confirm yet", and the next message asks the chain.
+- **Lost order id: true.** Settlement now works from the contract's reference (hash), with a gateway lookup by reference. No contract change needed: `refund`/`commit` already take the hash.
+- **`guardian_close` on an unpaid order: true, it burns the cap and leaves the USDC.** Notifications no longer suggest it; documented as last resort for a lost key.
+- **Issued token with failed settlement: true. Fixed differently** from "keep it and don't refund" (that would leave the USDC on the agent and the gateway unpaid): Mama keeps the token, Mhasibu pays the gateway the exact amount directly (recovery only), then commits.
+- **Added `upgrade` (guardian only)** at the user's request: v6 `CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC` is the last redeploy; later fixes keep the address (`npm run upgrade-purse`).
+- Tests: contract 17, Mhasibu 29, gateway 14. Live: upgrade in place; timeout and lost-id cases refunded; normal top-up committed.
+

@@ -96,6 +96,8 @@ export function createSoroban({ rpcUrl, networkPassphrase = Networks.TESTNET }) 
 export const refundArgs = (orderId) => [bytes32(sha256(orderId))];
 export const commitArgs = refundArgs;
 export const orderRef = (orderId) => sha256(orderId).toString("hex");
+// The same, from the raw on-chain reference (hex), for an order whose id was lost.
+export const refArgs = (refHex) => [bytes32(Buffer.from(refHex, "hex"))];
 
 // The arguments of `buy`, built the same way everywhere.
 export function buyArgs({ utility, destination, amount, orderId }) {

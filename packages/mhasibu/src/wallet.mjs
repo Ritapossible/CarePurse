@@ -7,7 +7,7 @@ import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config as defaultConfig } from "./config.mjs";
-import { addressVal, buyArgs, commitArgs, createSoroban, orderRef, refundArgs } from "./purse-contract.mjs";
+import { addressVal, buyArgs, createSoroban, i128, orderRef, refArgs } from "./purse-contract.mjs";
 
 export function createWallet(config = defaultConfig) {
   const json = async (res) => { const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`); return body; };
@@ -69,35 +69,51 @@ export function createWallet(config = defaultConfig) {
       return { tx: hash, contractId: config.purseContractId };
     },
 
-    // Phase 2: the x402 payment failed after `release`, so give the USDC back to the purse and take
-    // the order's spend off the caps. Fails (and changes nothing) if the money already left the wallet.
-    refund: !config.purseContractId ? undefined : async ({ orderId }) => {
-      const soroban = createSoroban({ rpcUrl: config.rpcUrl });
-      const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "refund", refundArgs(orderId));
+    // Phase 2 settlement calls. They take the on-chain reference (sha256 of the order id, hex), so an
+    // open order can be settled even if Mhasibu lost the id: the contract only stores the hash.
+    refundRef: !config.purseContractId ? undefined : async (ref) => {
+      const { hash } = await createSoroban({ rpcUrl: config.rpcUrl }).invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "refund", refArgs(ref));
+      return { tx: hash };
+    },
+    commitRef: !config.purseContractId ? undefined : async (ref) => {
+      const { hash } = await createSoroban({ rpcUrl: config.rpcUrl }).invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "commit", refArgs(ref));
       return { tx: hash };
     },
 
-    // Phase 2: the payment went through, so close the open order on-chain as final.
-    commit: !config.purseContractId ? undefined : async ({ orderId }) => {
-      const soroban = createSoroban({ rpcUrl: config.rpcUrl });
-      const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "commit", commitArgs(orderId));
-      return { tx: hash };
+    // The contract's open order reference (hex), or null. Throws if the chain can't be read.
+    async openOrderRef() {
+      const open = await createSoroban({ rpcUrl: config.rpcUrl }).read(config.purseContractId, "open_order", [], Keypair.fromSecret(config.agentSecret).publicKey());
+      return open ? Buffer.from(open).toString("hex") : null;
     },
 
-    // The contract's open order as our order id, if it's this one; null if none; undefined if unknown.
-    async openOrder(orderIdHint) {
-      const soroban = createSoroban({ rpcUrl: config.rpcUrl });
-      const open = await soroban.read(config.purseContractId, "open_order", [], Keypair.fromSecret(config.agentSecret).publicKey());
-      if (!open) return null;
-      const hex = Buffer.from(open).toString("hex");
-      return orderIdHint && orderRef(orderIdHint) === hex ? orderIdHint : hex;
+    // What the contract recorded for an order: utility and amount (base units).
+    async contractOrder(ref) {
+      const rec = await createSoroban({ rpcUrl: config.rpcUrl }).read(config.purseContractId, "order", refArgs(ref), Keypair.fromSecret(config.agentSecret).publicKey());
+      return rec ? { utility: String(rec.utility), amount: String(rec.amount), refunded: rec.refunded, committed: rec.committed } : null;
     },
 
-    // The gateway's record of an order: status, and the token if it was delivered.
+    // The gateway's record of an order: status, and the token if one was delivered or issued.
     async orderStatus(orderId) {
       const res = await fetch(new URL(`/v1/orders/${orderId}`, config.gatewayUrl));
+      if (res.status === 404) return null;
       if (!res.ok) throw new Error(`order lookup HTTP ${res.status}`);
       return (await res.json()).order;
+    },
+    async orderByRef(ref) {
+      const res = await fetch(new URL(`/v1/orders/by-ref/${ref}`, config.gatewayUrl));
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`order lookup HTTP ${res.status}`);
+      return (await res.json()).order;
+    },
+
+    // Recovery only: the provider issued the token but the x402 settlement failed, so the USDC is
+    // still on Mhasibu's wallet. Pay the gateway's allowlisted address that exact amount directly.
+    // Every normal top-up is paid over x402.
+    payGatewayDirect: !config.purseContractId ? undefined : async (amount) => {
+      const agent = Keypair.fromSecret(config.agentSecret);
+      const { hash } = await createSoroban({ rpcUrl: config.rpcUrl }).invoke(agent, config.usdc.contractId, "transfer",
+        [addressVal(agent.publicKey()), addressVal(config.gatewayRecipient), i128(amount)]);
+      return { tx: hash };
     },
 
     // Pay exactly the approved offer. Anything else is filtered out before signing.

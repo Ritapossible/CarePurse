@@ -224,95 +224,135 @@ test("if the provider says wait (duplicate guard), Mama is told to try again in 
   assert.match(await mhasibu.handle("demo", "1"), /try again in 5 minutes/);
 });
 
-test("if the x402 payment fails after the contract released the money, Mhasibu refunds the purse", async () => {
-  const steps = [];
-  const wallet = fakeWallet();
-  wallet.release = async (r) => { steps.push("release"); return { tx: "rel1" }; };
-  wallet.refund = async ({ orderId }) => { steps.push(`refund ${orderId}`); return { tx: "ref1" }; };
-  wallet.pay = async () => { steps.push("pay"); throw new Error("payment not confirmed (HTTP 502)"); };
-  const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
-  const reply = await mhasibu.handle("demo", "1");
-  assert.deepEqual(steps, ["release", "pay", "refund o500"]);
-  assert.match(reply, /weren't charged/);
-  assert.equal(purses.get("demo").spends.length, 0);
-});
-
-test("if the refund also fails, the guardian is asked to check", async () => {
-  const wallet = fakeWallet();
-  wallet.release = async () => ({ tx: "rel1" });
-  wallet.refund = async () => { throw new Error("transaction FAILED"); };
-  wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
-  const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
-  await mhasibu.handle("demo", "1");
-  assert.equal(purses.get("demo").notifications.at(-1).kind, "check-payment");
-});
-
-// A fake Phase 2 wallet: release, refund, commit, the contract's open order, and the gateway's order status.
+// A fake Phase 2 wallet: the purse contract (open order by reference), the gateway's order records,
+// and the settlement calls. No network.
+import { orderRef } from "../src/purse-contract.mjs";
 function phase2Wallet() {
   const wallet = fakeWallet();
-  const chain = { open: null, refundWorks: true, calls: [] };
+  const chain = { open: null, orders: {}, refundWorks: true, calls: [], gateway: {} };
   wallet.chain = chain;
-  wallet.release = async ({ orderId }) => { chain.calls.push(`release ${orderId}`); chain.open = orderId; return { tx: "rel" }; };
-  wallet.refund = async ({ orderId }) => { chain.calls.push(`refund ${orderId}`); if (!chain.refundWorks) throw new Error("rpc timeout"); chain.open = null; return { tx: "ref" }; };
-  wallet.commit = async ({ orderId }) => { chain.calls.push(`commit ${orderId}`); chain.open = null; return { tx: "com" }; };
-  wallet.openOrder = async () => chain.open;
-  wallet.orderStatus = async () => ({ status: chain.gatewayStatus ?? "failed", ...(chain.gatewayToken ? { token: chain.gatewayToken, units: "2.2 kWh" } : {}) });
+  wallet.release = async ({ orderId, utility, amount }) => {
+    chain.open = orderRef(orderId); chain.orders[orderRef(orderId)] = { utility, amount };
+    if (chain.releaseThrows) throw new Error(chain.releaseThrows); // landed on-chain, but we didn't hear back
+    chain.calls.push(`release ${orderId}`); return { tx: "rel" };
+  };
+  wallet.refundRef = async (ref) => { chain.calls.push(`refund ${ref.slice(0, 6)}`); if (!chain.refundWorks) throw new Error("rpc timeout"); chain.open = null; return { tx: "ref" }; };
+  wallet.commitRef = async (ref) => { chain.calls.push(`commit ${ref.slice(0, 6)}`); chain.open = null; return { tx: "com" }; };
+  wallet.openOrderRef = async () => chain.open;
+  wallet.contractOrder = async (ref) => chain.orders[ref] ?? null;
+  wallet.orderStatus = async (id) => chain.gateway[id] ?? { id, status: "failed" };
+  wallet.orderByRef = async (ref) => Object.values(chain.gateway).find((o) => orderRef(o.id) === ref) ?? null;
+  wallet.payGatewayDirect = async (amount) => { chain.calls.push(`pay-direct ${amount}`); return { tx: "direct" }; };
   return wallet;
 }
+const R = (id) => orderRef(id).slice(0, 6);
 
 test("a paid top-up is committed on-chain, closing the open order", async () => {
   const wallet = phase2Wallet();
   const { mhasibu, purses } = setup({ wallet });
   await mhasibu.handle("demo", "light don finish");
   await mhasibu.handle("demo", "1");
-  assert.deepEqual(wallet.chain.calls, ["release o500", "commit o500"]);
+  assert.deepEqual(wallet.chain.calls, ["release o500", `commit ${R("o500")}`]);
   assert.equal(purses.get("demo").openOrder, null);
 });
 
-test("if the refund keeps failing: counted as unconfirmed, no new purchase, settled on a later message", async () => {
+test("payment fails after the release: refunded to the purse", async () => {
+  const wallet = phase2Wallet();
+  wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
+  const { mhasibu, purses } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  assert.match(await mhasibu.handle("demo", "1"), /weren't charged/);
+  assert.deepEqual(wallet.chain.calls, ["release o500", `refund ${R("o500")}`]);
+  assert.equal(purses.get("demo").openOrder, null);
+  assert.equal(purses.get("demo").spends.length, 0);
+});
+
+test("the provider issued a token but settlement failed: Mama keeps the token, the gateway is paid directly, no refund", async () => {
+  const wallet = phase2Wallet();
+  wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 402)"); };
+  wallet.chain.gateway.o500 = { id: "o500", status: "failed", ngn: 500, issued: { token: "1212 3434 5656 7878 9090", units: "2.2 kWh" } };
+  const { mhasibu, purses } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  assert.match(await mhasibu.handle("demo", "1"), /1212 3434 5656 7878 9090/);
+  assert.deepEqual(wallet.chain.calls, ["release o500", `pay-direct ${500 * 6803}`, `commit ${R("o500")}`]);
+  const p = purses.get("demo");
+  assert.equal(p.spends[0].token, "1212 3434 5656 7878 9090");
+  assert.equal(p.spends[0].paidDirect, true);
+  assert.equal(p.openOrder, null);
+});
+
+test("a timeout after the release landed: not reported as free, settled on the next message", async () => {
+  const wallet = phase2Wallet();
+  wallet.chain.releaseThrows = "transaction poll timed out";
+  const { mhasibu, purses } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  const reply = await mhasibu.handle("demo", "1");
+  assert.match(reply, /can't confirm it yet/);
+  assert.doesNotMatch(reply, /weren't charged/);
+  assert.equal(purses.get("demo").openOrder.released, false); // kept, not deleted
+  delete wallet.chain.releaseThrows;
+  const next = await mhasibu.handle("demo", "recharge my line");
+  assert.deepEqual(wallet.chain.calls, [`refund ${R("o500")}`]); // the chain had it open; the gateway never delivered
+  assert.equal(purses.get("demo").openOrder, null);
+  assert.match(next, /I can buy airtime/);
+});
+
+test("a send error before anything landed: the chain has no open order, so the record is simply cleared", async () => {
+  const wallet = phase2Wallet();
+  wallet.release = async () => { throw new Error("send failed: txBadSeq"); };
+  const { mhasibu, purses } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "1");
+  assert.ok(purses.get("demo").openOrder);
+  await mhasibu.handle("demo", "hello");
+  assert.equal(purses.get("demo").openOrder, null);
+  assert.deepEqual(wallet.chain.calls, []);
+});
+
+test("if settling keeps failing: counted as unconfirmed, no new purchase, settled later", async () => {
   const wallet = phase2Wallet();
   wallet.chain.refundWorks = false;
   wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
   const { mhasibu, purses } = setup({ wallet });
   await mhasibu.handle("demo", "light don finish");
-  const reply = await mhasibu.handle("demo", "1");
+  assert.match(await mhasibu.handle("demo", "1"), /can't confirm it yet/);
   assert.equal(wallet.chain.calls.filter((c) => c.startsWith("refund")).length, 3); // retried
-  assert.match(reply, /can't confirm it yet/);
-  assert.doesNotMatch(reply, /weren't charged/);
-  let p = purses.get("demo");
-  assert.equal(p.spends[0].unconfirmed, true); // the code's caps match the chain's
-  assert.ok(p.openOrder);
-  // History shows it as not confirmed.
+  assert.equal(purses.get("demo").spends[0].unconfirmed, true);
   assert.match(await mhasibu.handle("demo", "what did I buy"), /not confirmed yet/);
-  // A second purchase is refused while the order is open (the refund still fails).
   assert.match(await mhasibu.handle("demo", "recharge my line"), /still finishing your last top-up/);
   assert.equal(wallet.chain.calls.filter((c) => c.startsWith("release")).length, 1);
-  // Later the refund works: the order is settled first, then her request goes ahead.
   wallet.chain.refundWorks = true;
-  const next = await mhasibu.handle("demo", "recharge my line");
-  assert.match(next, /I can buy airtime/);
-  p = purses.get("demo");
-  assert.equal(p.openOrder, null);
-  assert.equal(p.spends.length, 0);
+  assert.match(await mhasibu.handle("demo", "recharge my line"), /I can buy airtime/);
+  assert.equal(purses.get("demo").openOrder, null);
+  assert.equal(purses.get("demo").spends.length, 0);
 });
 
 test("a crash right after the release: the next message asks the gateway, keeps the token and commits", async () => {
   const wallet = phase2Wallet();
   const { mhasibu, purses } = setup({ wallet });
-  // What a crash leaves behind: the order written down, released on-chain, outcome never heard.
-  purses.update("demo", (p) => { p.openOrder = { orderId: "o500", utility: "electricity", ngn: 500, amount: "3401500", at: new Date(MONDAY_10AM).toISOString(), released: false, paid: false, attempts: 0 }; });
-  wallet.chain.open = "o500";
-  wallet.chain.gatewayStatus = "delivered";
-  wallet.chain.gatewayToken = "9999 8888 7777 6666 5555";
+  purses.update("demo", (p) => { p.openOrder = { orderId: "o500", ref: orderRef("o500"), utility: "electricity", ngn: 500, amount: "3401500", at: new Date(MONDAY_10AM).toISOString(), released: false, paid: false, attempts: 0 }; });
+  wallet.chain.open = orderRef("o500");
+  wallet.chain.gateway.o500 = { id: "o500", status: "delivered", ngn: 500, txHash: "abc", token: "9999 8888 7777 6666 5555", units: "2.2 kWh" };
   await mhasibu.handle("demo", "hello");
-  const p = purses.get("demo");
-  assert.equal(p.openOrder, null);
-  assert.deepEqual(wallet.chain.calls, ["commit o500"]);
-  assert.equal(p.spends[0].token, "9999 8888 7777 6666 5555");
+  assert.deepEqual(wallet.chain.calls, [`commit ${R("o500")}`]);
+  assert.equal(purses.get("demo").openOrder, null);
   assert.match(await mhasibu.handle("demo", "send my token again"), /9999 8888 7777 6666 5555/);
 });
+
+test("the order id was lost: the chain's open order is settled by its reference alone", async () => {
+  const wallet = phase2Wallet();
+  const { mhasibu } = setup({ wallet });
+  wallet.chain.open = orderRef("lost1");
+  wallet.chain.orders[orderRef("lost1")] = { utility: "airtime", amount: "680300" };
+  wallet.chain.gateway.lost1 = { id: "lost1", status: "failed", ngn: 100 };
+  const { ContractRefused } = await import("../src/purse-contract.mjs");
+  wallet.release = async () => { throw new ContractRefused(15, "Error(Contract, #15)"); }; // the contract: order open
+  await mhasibu.handle("demo", "light don finish");
+  assert.match(await mhasibu.handle("demo", "1"), /still finishing your last top-up/);
+  assert.deepEqual(wallet.chain.calls, [`refund ${R("lost1")}`]); // returned to the purse by reference
+  assert.equal(wallet.chain.open, null);
+});
+
 
 test("'NEPA card' and 'meter card' are electricity, 'recharge card' is airtime", () => {
   assert.equal(understandScripted("my NEPA card don finish").utility, "electricity");

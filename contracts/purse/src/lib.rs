@@ -374,11 +374,21 @@ impl Purse {
         close_open_order(&env, order_ref)
     }
 
-    /// Guardian escape hatch: close the open order as final without the agent (for example if the
-    /// agent's key is lost), so the purse is never locked. The USDC stays wherever it is.
+    /// Guardian escape hatch, LAST RESORT: close the open order as final without the agent (for
+    /// example if the agent's key is lost), so the purse is never locked. It does NOT move USDC back
+    /// and the cap stays used, so never use it for an order that wasn't paid while the agent works:
+    /// the agent settles those itself (`refund` or `commit`).
     pub fn guardian_close(env: Env, order_ref: BytesN<32>) -> Result<(), Error> {
         guardian(&env).require_auth();
         close_open_order(&env, order_ref)
+    }
+
+    /// Guardian only: replace this contract's code with an uploaded wasm (same address, same
+    /// storage, same USDC). New versions must keep the storage keys and record shapes compatible.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) {
+        guardian(&env).require_auth();
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+        bump(&env);
     }
 
     // ── Anyone can read ───────────────────────────────────────

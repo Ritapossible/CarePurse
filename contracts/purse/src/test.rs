@@ -278,3 +278,14 @@ fn order_records_are_kept_alive() {
     let ttl = t.env.as_contract(&t.purse.address, || t.env.storage().persistent().get_ttl(&Key::Order(order(&t.env, 1))));
     assert!(ttl >= BUMP_LEDGERS - 1, "order TTL {ttl}");
 }
+
+#[test]
+fn only_the_guardian_can_upgrade() {
+    let t = setup();
+    let hash = BytesN::from_array(&t.env, &[7; 32]);
+    t.env.set_auths(&[]);
+    let r = t.purse.mock_auths(&[MockAuth { address: &t.agent, invoke: &MockAuthInvoke {
+        contract: &t.purse.address, fn_name: "upgrade", args: (hash.clone(),).into_val(&t.env), sub_invokes: &[] } }])
+        .try_upgrade(&hash);
+    assert!(r.is_err());
+}
