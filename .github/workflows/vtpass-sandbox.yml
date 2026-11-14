@@ -1,0 +1,71 @@
+# Runs CarePurse against the VTpass SANDBOX, on demand (Actions tab → "VTpass sandbox" → Run workflow).
+#   provider: our VTpass provider alone (verify meter, buy electricity, airtime, data). No Stellar.
+#   full:     the whole flow: Mhasibu → purse contract → x402 on Stellar testnet → gateway → VTpass sandbox.
+#             Spends about 0.5 testnet USDC from the purse. Needs the AGENT_SECRET_KEY secret too.
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   VTPASS_API_KEY, VTPASS_SECRET_KEY, VTPASS_PUBLIC_KEY   (sandbox keys)
+#   AGENT_SECRET_KEY                                        (only for "full"; Mhasibu's testnet wallet)
+name: VTpass sandbox
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "provider = VTpass only; full = Mhasibu + contract + x402 + VTpass"
+        type: choice
+        options: [provider, full]
+        default: provider
+
+permissions:
+  contents: read
+
+env:
+  STELLAR_NETWORK: stellar:testnet
+  UTILITY_PROVIDER: vtpass
+  VTPASS_BASE_URL: https://sandbox.vtpass.com/api
+  VTPASS_CONTACT_PHONE: "08011111111"
+  VTPASS_API_KEY: ${{ secrets.VTPASS_API_KEY }}
+  VTPASS_SECRET_KEY: ${{ secrets.VTPASS_SECRET_KEY }}
+  VTPASS_PUBLIC_KEY: ${{ secrets.VTPASS_PUBLIC_KEY }}
+
+jobs:
+  sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the secrets are set (names only)
+        run: |
+          for v in VTPASS_API_KEY VTPASS_SECRET_KEY VTPASS_PUBLIC_KEY; do
+            if [ -z "${!v}" ]; then echo "::error::Repository secret $v is missing"; exit 1; fi
+          done
+
+      - name: Gateway tests (offline)
+        working-directory: services/gateway
+        run: npm ci && npm test
+
+      - name: VTpass sandbox, provider only
+        working-directory: services/gateway
+        run: npm run vtpass-check
+
+      - name: Full flow over x402
+        if: inputs.mode == 'full'
+        env:
+          AGENT_SECRET_KEY: ${{ secrets.AGENT_SECRET_KEY }}
+          GATEWAY_RECIPIENT: GDFFLJ7SQVYJDH7RB7JYIBRLHRHOP7IV4XILUMHS5WPOJ5DAJCTO7CAA
+          PURSE_CONTRACT_ID: CDHX2A22XCJBWPL2524SZDKNCB66EKYFO736KWHOIISB4HAZNKLLMJAE
+          GATEWAY_URL: http://localhost:4021
+        run: |
+          if [ -z "$AGENT_SECRET_KEY" ]; then echo "::error::Repository secret AGENT_SECRET_KEY is missing"; exit 1; fi
+          (cd services/gateway && npm start > ../../gateway.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf localhost:4021/health >/dev/null && break; sleep 1; done
+          cd packages/mhasibu && npm ci
+          npm run chat -- "Abeg, light don almost finish" "1" "Abeg recharge my line" "1" "My data don finish" "3" | tee ../../chat.log
+          paid=$(grep -c "paid on Stellar testnet" ../../chat.log || true)
+          echo "Settled payments: $paid of 3"
+          grep -i "provider refused" ../../gateway.log || true
+          [ "$paid" -eq 3 ]

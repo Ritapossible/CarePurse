@@ -10,6 +10,7 @@
     "peek": "node scripts/peek.mjs",
     "pay": "node scripts/pay.mjs",
     "get-usdc": "node scripts/get-test-usdc.mjs",
+    "vtpass-check": "node scripts/vtpass-check.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "engines": { "node": ">=22" },
