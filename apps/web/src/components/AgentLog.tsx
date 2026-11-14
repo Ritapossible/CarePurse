@@ -29,6 +29,10 @@ function describe(e: LogEvent): Row | null {
       return { tone: "x402", label: "Sign and retry", detail: `signed a Soroban auth entry for exactly ${usdc(e.amount)} USDC, retried with PAYMENT-SIGNATURE` };
     case "paid":
       return { tone: "ok", label: "Settled on Stellar Testnet", detail: `the facilitator settled the payment (PAYMENT-RESPONSE) · ₦${e.ngn?.toLocaleString("en-NG")} ${e.utility}`, link: e.link };
+    case "refunded":
+      return { tone: "chain", label: "Refunded to the purse", detail: `the payment failed, so ${usdc(e.amount)} USDC went back to the purse contract and the cap room was restored`, link: e.link };
+    case "refund-failed":
+      return { tone: "no", label: "Refund failed", detail: `${e.message ?? ""} (Adaeze asked to check)` };
     case "refused":
       return { tone: "no", label: "Refused by the rules", detail: `${e.rule}: ${e.reason}` };
     case "notify-guardian":

@@ -96,6 +96,18 @@ export function createMhasibu({
       return say.delivered(lang, { utility, ngn, token: result.token, units: result.units });
     } catch (err) {
       log({ type: "payment-failed", message: err.message });
+      // The contract already released the money to Mhasibu's wallet. Put it back before replying,
+      // so the purse keeps its USDC and Mama keeps her cap room.
+      if (release && wallet.refund) {
+        try {
+          const back = await wallet.refund({ orderId: order.id });
+          log({ type: "refunded", tx: back.tx, link: explorer.tx(back.tx), amount: quote.amount });
+        } catch (refundErr) {
+          // Most likely the payment did go through after all (the wallet no longer holds the USDC).
+          log({ type: "refund-failed", message: refundErr.message });
+          notifyGuardian(purse, "check-payment", `A ${utility} payment for order ${order.id} may not have completed, and the refund to the purse failed. Please check Mhasibu's wallet.`);
+        }
+      }
       return err.retryLater ? say.tryLater(lang) : say.failed(lang);
     }
   }

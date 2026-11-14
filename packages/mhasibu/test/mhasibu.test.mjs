@@ -223,3 +223,28 @@ test("if the provider says wait (duplicate guard), Mama is told to try again in 
   await mhasibu.handle("demo", "recharge my line");
   assert.match(await mhasibu.handle("demo", "1"), /try again in 5 minutes/);
 });
+
+test("if the x402 payment fails after the contract released the money, Mhasibu refunds the purse", async () => {
+  const steps = [];
+  const wallet = fakeWallet();
+  wallet.release = async (r) => { steps.push("release"); return { tx: "rel1" }; };
+  wallet.refund = async ({ orderId }) => { steps.push(`refund ${orderId}`); return { tx: "ref1" }; };
+  wallet.pay = async () => { steps.push("pay"); throw new Error("payment not confirmed (HTTP 502)"); };
+  const { mhasibu, purses } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  const reply = await mhasibu.handle("demo", "1");
+  assert.deepEqual(steps, ["release", "pay", "refund o500"]);
+  assert.match(reply, /weren't charged/);
+  assert.equal(purses.get("demo").spends.length, 0);
+});
+
+test("if the refund also fails, the guardian is asked to check", async () => {
+  const wallet = fakeWallet();
+  wallet.release = async () => ({ tx: "rel1" });
+  wallet.refund = async () => { throw new Error("transaction FAILED"); };
+  wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
+  const { mhasibu, purses } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "1");
+  assert.equal(purses.get("demo").notifications.at(-1).kind, "check-payment");
+});

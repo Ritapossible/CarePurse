@@ -376,14 +376,16 @@ Stellar's web tool for building, testing and exploring the network. Nothing to i
 
 | Lab page | What we use it for |
 |---|---|
-| [Create account](https://lab.stellar.org/account/create) | Make and fund testnet wallets with Friendbot, and add the USDC trustline, without our setup script |
+| [Create account](https://lab.stellar.org/account/create) | Make a keypair (only that: it doesn't fund the wallet or add a trustline) |
+| [Fund account](https://lab.stellar.org/account/fund) | Get test XLM from Friendbot, and add the USDC trustline with its button |
+| [Build transaction](https://lab.stellar.org/transaction/build) | Add a trustline by hand: operation **Change Trust**, asset `USDC`, issuer `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`, network **Testnet**. Also where to try (simulate) a transaction before sending it |
 | [Endpoints](https://lab.stellar.org/endpoints) | Look up a wallet's balances and trustlines (Horizon), or call Stellar RPC methods |
-| [Transaction dashboard](https://lab.stellar.org/transaction-dashboard) | Open a top-up's tx hash and see the USDC `transfer`, its result and any failure |
+| [Transaction dashboard](https://lab.stellar.org/transaction/dashboard) | Open a top-up's tx hash and see the USDC `transfer`, its result and any failure |
 | [XDR viewer](https://lab.stellar.org/xdr/view) | Decode the signed auth entry or transaction inside a `PAYMENT-SIGNATURE` header, to show judges what Mhasibu signed |
 | [Contract explorer](https://lab.stellar.org/smart-contracts/contract-explorer) and [Deploy](https://lab.stellar.org/smart-contracts/deploy-contract) | Phase 2: deploy the purse contract and call `buy` from the browser |
-| [Simulate](https://lab.stellar.org/transaction/simulate) and [Submit](https://lab.stellar.org/transaction/submit) | Try a transaction before sending it |
+| [Submit](https://lab.stellar.org/transaction/submit) | Send a signed transaction |
 
-Always pick **Testnet** in Lab's network menu.
+Always pick **Testnet** in Lab's network menu. Our `npm run setup` (services/gateway) already funds wallets with Friendbot and adds the USDC trustline, so Lab is the manual fallback. Links checked 14 Nov: `/transaction-dashboard` and `/transaction/simulate` now redirect, so we use `/transaction/dashboard` and `/transaction/build`.
 
 ### Are we following the Stellar docs?
 
@@ -402,7 +404,6 @@ Checked against Stellar Lab's docs, the networks page, the x402 page, the lumens
 | The docs name an npm package `x402-stellar` | We use the `@x402/*` 2.30.0 packages from the workshop kit, which we've run live. `stellar/x402-stellar` itself names no published package | Fine, keep the kit's |
 | Mainnet RPC only through third-party providers | Not relevant: testnet only | n/a |
 
-**Nothing we built goes against the Stellar docs.**
 
 ### Watch out
 

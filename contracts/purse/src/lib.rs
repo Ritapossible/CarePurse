@@ -37,6 +37,8 @@ pub enum Error {
     BadAmount = 9,
     LowBalance = 10,
     OrderUsed = 11,
+    NoOrder = 12,
+    AlreadyRefunded = 13,
 }
 
 /// Limits for one utility. 0 means "no limit for this period"; a utility with no caps at all
@@ -61,6 +63,18 @@ pub struct Spent {
     pub month_amount: i128,
 }
 
+/// What `buy` released for one order, so a failed payment can be refunded exactly.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OrderRec {
+    pub utility: Symbol,
+    pub amount: i128,
+    pub day: u64,
+    pub week: u64,
+    pub month: u64,
+    pub refunded: bool,
+}
+
 #[contracttype]
 #[derive(Clone)]
 enum Key {
@@ -82,6 +96,15 @@ pub struct Bought {
     #[topic]
     pub utility: Symbol,
     pub dest_hash: BytesN<32>,
+    pub amount: i128,
+    pub order_ref: BytesN<32>,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Refunded {
+    #[topic]
+    pub utility: Symbol,
     pub amount: i128,
     pub order_ref: BytesN<32>,
 }
@@ -238,7 +261,8 @@ impl Purse {
         spent.month_amount += amount;
         s.set(&Key::Spent(utility.clone()), &spent);
         s.set(&Key::PurseSpent, &(purse_month, purse_amount + amount));
-        env.storage().persistent().set(&order_key, &true);
+        let rec = OrderRec { utility: utility.clone(), amount, day, week, month, refunded: false };
+        env.storage().persistent().set(&order_key, &rec);
         bump(&env);
 
         token.transfer(&me, &agent, &amount);
@@ -246,7 +270,50 @@ impl Purse {
         Ok(())
     }
 
+    /// The x402 payment for this order failed after `buy`: the agent returns exactly the released
+    /// USDC to the purse, and the order's spend is taken off the caps (for periods still current).
+    /// The order stays used; a retry is a new order.
+    pub fn refund(env: Env, order_ref: BytesN<32>) -> Result<(), Error> {
+        let s = env.storage().instance();
+        let agent: Address = s.get(&Key::Agent).unwrap();
+        agent.require_auth();
+        let order_key = Key::Order(order_ref.clone());
+        let mut rec: OrderRec = env.storage().persistent().get(&order_key).ok_or(Error::NoOrder)?;
+        if rec.refunded {
+            return Err(Error::AlreadyRefunded);
+        }
+
+        let usdc: Address = s.get(&Key::Usdc).unwrap();
+        token::TokenClient::new(&env, &usdc).transfer(&agent, &env.current_contract_address(), &rec.amount);
+
+        let mut spent: Spent = s.get(&Key::Spent(rec.utility.clone())).unwrap_or_default();
+        if spent.day == rec.day { spent.day_amount -= rec.amount; }
+        if spent.week == rec.week { spent.week_amount -= rec.amount; }
+        if spent.month == rec.month { spent.month_amount -= rec.amount; }
+        s.set(&Key::Spent(rec.utility.clone()), &spent);
+        let (purse_month, purse_amount): (u64, i128) = s.get(&Key::PurseSpent).unwrap_or((rec.month, 0));
+        if purse_month == rec.month {
+            s.set(&Key::PurseSpent, &(purse_month, purse_amount - rec.amount));
+        }
+
+        rec.refunded = true;
+        env.storage().persistent().set(&order_key, &rec);
+        bump(&env);
+        Refunded { utility: rec.utility, amount: rec.amount, order_ref }.publish(&env);
+        Ok(())
+    }
+
     // ── Anyone can read ───────────────────────────────────────
+
+    /// The whole-purse limit per calendar month (0 = none), in USDC base units.
+    pub fn purse_cap(env: Env) -> i128 {
+        env.storage().instance().get(&Key::PurseCap).unwrap_or(0)
+    }
+
+    pub fn order(env: Env, order_ref: BytesN<32>) -> Option<OrderRec> {
+        env.storage().persistent().get(&Key::Order(order_ref))
+    }
+
 
     pub fn caps(env: Env, utility: Symbol) -> Option<Caps> {
         env.storage().instance().get(&Key::Caps(utility))

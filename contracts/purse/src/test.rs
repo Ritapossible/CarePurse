@@ -175,3 +175,32 @@ fn lagos_periods() {
     let (_, _, m) = periods(1_798_759_800);
     assert_eq!(m, 2027 * 12);
 }
+
+#[test]
+fn refund_returns_the_usdc_and_gives_back_the_cap() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    // Use the whole week: three ₦5,000 top-ups.
+    for n in 1..=3 {
+        t.purse.buy(&e, &t.meter, &34_013_606, &order(&t.env, n));
+    }
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 4)), Err(Ok(Error::OverWeek)));
+    // The third payment failed: the agent refunds it.
+    t.purse.refund(&order(&t.env, 3));
+    assert_eq!(t.token.balance(&t.agent), 2 * 34_013_606);
+    assert_eq!(t.purse.spent(&e).week_amount, 2 * 34_013_606);
+    assert!(t.purse.order(&order(&t.env, 3)).unwrap().refunded);
+    // Cap room is back, so a new order goes through; the refunded order can't be reused or refunded twice.
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 5));
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 3)), Err(Ok(Error::OrderUsed)));
+    assert_eq!(t.purse.try_refund(&order(&t.env, 3)), Err(Ok(Error::AlreadyRefunded)));
+    assert_eq!(t.purse.try_refund(&order(&t.env, 9)), Err(Ok(Error::NoOrder)));
+}
+
+#[test]
+fn purse_cap_is_readable() {
+    let t = setup();
+    assert_eq!(t.purse.purse_cap(), 0);
+    t.purse.set_purse_cap(&(80 * USDC));
+    assert_eq!(t.purse.purse_cap(), 80 * USDC);
+}

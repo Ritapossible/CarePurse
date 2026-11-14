@@ -130,3 +130,9 @@ Note: the assignment described the paid route as `POST /v1/topup`. As built it i
 - **Data bundles:** the variation list mixes data with talk-time bundles ("Xtratalk"); we pick only MB/GB bundles, and only at **exactly** the tier price. A tier with no exact bundle is hidden from Mama (MTN sandbox has no ₦500 data bundle), so she never pays ₦500 for a ₦200 bundle.
 - VTpass needs two key headers per request, so in cloud sessions the keys live in GitHub secrets / Render env vars, not the session's network secret.
 
+## Review fixes (14 Nov, from Grok's review, each verified first)
+
+- **Stellar Lab links:** `/transaction-dashboard` and `/transaction/simulate` now redirect (308); `library.md` uses `/transaction/dashboard` and `/transaction/build`. Account setup is split: keypair on `/account/create`, Friendbot and the USDC trustline on `/account/fund`. Removed the "nothing goes against the Stellar docs" line.
+- **Refund after a failed payment (real bug, fixed):** `buy` releases USDC and counts the spend before x402 runs. If the payment then failed, the USDC sat in the agent wallet and the cap stayed used. The contract now has `refund(order_ref)` (agent only, once per order): it returns the USDC to the purse and takes the spend off the caps. Mhasibu calls it whenever the payment fails after a release; if the refund itself fails, Adaeze is asked to check. Tested live on testnet. New contract v2 `CBKVT2…CDIP`; v1 retired, its USDC returned to the guardian.
+- **Purse cap:** the review said it was never set. On the live v1 contract it was set by `deploy-purse` (read from storage: 81.63 USDC = ₦120,000), but `sync-purse` did not re-send it. `sync-purse` now sets it, and the contract has `purse_cap()` to read it.
+

@@ -306,7 +306,56 @@
               },
               "durability": "persistent",
               "val": {
-                "bool": true
+                "map": [
+                  {
+                    "key": {
+                      "symbol": "amount"
+                    },
+                    "val": {
+                      "i128": "3401361"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "day"
+                    },
+                    "val": {
+                      "u64": "20771"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "month"
+                    },
+                    "val": {
+                      "u64": "24322"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "refunded"
+                    },
+                    "val": {
+                      "bool": false
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "utility"
+                    },
+                    "val": {
+                      "symbol": "electricity"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "week"
+                    },
+                    "val": {
+                      "u64": "2967"
+                    }
+                  }
+                ]
               }
             }
           },

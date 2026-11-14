@@ -7,7 +7,7 @@ import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config as defaultConfig } from "./config.mjs";
-import { addressVal, buyArgs, createSoroban } from "./purse-contract.mjs";
+import { addressVal, buyArgs, createSoroban, refundArgs } from "./purse-contract.mjs";
 
 export function createWallet(config = defaultConfig) {
   const json = async (res) => { const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`); return body; };
@@ -61,6 +61,14 @@ export function createWallet(config = defaultConfig) {
       const soroban = createSoroban({ rpcUrl: config.rpcUrl });
       const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "buy", buyArgs({ utility, destination, amount, orderId }));
       return { tx: hash, contractId: config.purseContractId };
+    },
+
+    // Phase 2: the x402 payment failed after `release`, so give the USDC back to the purse and take
+    // the order's spend off the caps. Fails (and changes nothing) if the money already left the wallet.
+    refund: !config.purseContractId ? undefined : async ({ orderId }) => {
+      const soroban = createSoroban({ rpcUrl: config.rpcUrl });
+      const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "refund", refundArgs(orderId));
+      return { tx: hash };
     },
 
     // Pay exactly the approved offer. Anything else is filtered out before signing.

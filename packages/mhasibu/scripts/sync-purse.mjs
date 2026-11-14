@@ -31,3 +31,6 @@ for (const [utility, limits] of Object.entries(purse.limits)) {
   const c = await soroban.invoke(guardian, config.purseContractId, "set_caps", [symbol(utility), capsVal(limits, utility)]);
   console.log(`✓ ${utility}: destination and caps saved on-chain · ${link(d.hash)} · ${link(c.hash)}`);
 }
+// The whole-purse monthly cap (₦120,000 on Standard). 0 on-chain would mean no total limit.
+const cap = await soroban.invoke(guardian, config.purseContractId, "set_purse_cap", [i128(capBaseUnits(purse.monthlyCap, config.ngnPerUsdc, 100))]);
+console.log(`✓ purse cap ₦${purse.monthlyCap.toLocaleString("en-NG")} a month saved on-chain · ${link(cap.hash)}`);

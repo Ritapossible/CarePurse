@@ -8,6 +8,7 @@ import { Address, BASE_FEE, Contract, Keypair, Networks, TransactionBuilder, nat
 export const CONTRACT_ERRORS = {
   1: "paused", 2: "no caps", 3: "per top-up", 4: "per day", 5: "per week", 6: "per month",
   7: "purse month", 8: "destination", 9: "bad amount", 10: "purse balance", 11: "order used",
+  12: "no order", 13: "already refunded",
 };
 
 export const sha256 = (text) => crypto.createHash("sha256").update(String(text)).digest();
@@ -90,6 +91,9 @@ export function createSoroban({ rpcUrl, networkPassphrase = Networks.TESTNET }) 
     invoke: (signer, contractId, method, args) => send(signer, new Contract(contractId).call(method, ...args)),
   };
 }
+
+// The argument of `refund`: the same order reference `buy` was given.
+export const refundArgs = (orderId) => [bytes32(sha256(orderId))];
 
 // The arguments of `buy`, built the same way everywhere.
 export function buyArgs({ utility, destination, amount, orderId }) {
