@@ -25,10 +25,10 @@ How the parts fit together. Keep it simple: three parts, one paid route, one pay
 
 | Part | Folder | Built with | Job |
 |---|---|---|---|
-| Web app | `apps/web` | Next.js, TypeScript, Tailwind | Mama's chat, the daughter's dashboard, and Mhasibu's API routes |
-| Mhasibu (agent) | `packages/mhasibu` (built) | Claude via `@anthropic-ai/sdk` (or a scripted parser), `@x402/fetch`, `@x402/stellar` | Turns Mama's message into an intent, checks every rule, pays the gateway. The web app imports it. |
+| Web app | `apps/web` | Next.js, TypeScript, Tailwind | Mama's chat (`/chat`), the judges' demo view with the live **Agent & x402 Log** (`/demo`), later the daughter's dashboard |
+| Mhasibu (agent) | `packages/mhasibu` (built) | Claude via `@anthropic-ai/sdk` (or a scripted parser), `@x402/fetch`, `@x402/stellar` | Turns Mama's message into an intent, checks every rule, asks the purse contract, pays the gateway. Runs as its own small API (`npm run serve`, port 4022) because it holds the agent wallet's key; it streams every step to the log panel over Server-Sent Events. |
 | Gateway (seller) | `services/gateway` | Express, `@x402/express`, `@x402/core`, `@x402/stellar` | Prices each top-up, answers 402, returns the token after payment |
-| Purse contract | `contracts/purse` | Rust, Soroban SDK | Holds the funds and the rules; Phase 2 makes the limits on-chain |
+| Purse contract | `contracts/purse` (built) | Rust, `soroban-sdk` 29 | Holds the funds and the rules on-chain; `buy` releases exactly one top-up to the agent |
 
 The gateway follows Koxy's workshop kit (`src/server.mjs`), and the agent's paying code follows the kit's `src/client.mjs` (see `library.md`, section 5).
 
@@ -166,7 +166,10 @@ The three layers from the workshop, mapped to CarePurse:
 | 3. The wallet's own balance | One agent wallet per purse (Phase 1), or the contract's balance (Phase 2) |
 | Human approval | Mama confirms every purchase (rule 8) |
 
-### Phase 2: purse contract (Soroban)
+### Phase 2: purse contract (Soroban), built 14 Nov in `contracts/purse`
+
+Pulled into the Must have after the mentor's feedback: judges should see one cap enforced on-chain. As built (see `contracts/purse/README.md`): one saved destination per utility, caps per top-up, day, week and month, a purse monthly cap, pause, and one-time order references. The design below is the original sketch.
+
 
 ```
 init(guardian, agent, gateway, usdc)

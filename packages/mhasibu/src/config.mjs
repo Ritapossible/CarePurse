@@ -25,6 +25,9 @@ export const config = {
   allowedHost: new URL(gatewayUrl).host,
   gatewayRecipient: env("GATEWAY_RECIPIENT"),
   agentSecret: env("AGENT_SECRET_KEY"),
+  // Phase 2: the purse contract holds the money and enforces the caps on-chain (npm run deploy-purse).
+  // Empty = Phase 1, where the agent wallet is the purse.
+  purseContractId: env("PURSE_CONTRACT_ID"),
   ngnPerUsdc: Number(env("NGN_PER_USDC", "1470")),
   pursesFile: path.resolve(repoRoot, env("PURSES_FILE", ".data/purses.json")),
   llm: {

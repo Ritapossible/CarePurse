@@ -1,0 +1,177 @@
+#![cfg(test)]
+extern crate std;
+
+use super::*;
+use soroban_sdk::testutils::{Address as _, Ledger, MockAuth, MockAuthInvoke};
+use soroban_sdk::{token::StellarAssetClient, Bytes, IntoVal};
+
+const USDC: i128 = 10_000_000; // 7 decimals
+// 14 Nov 2026 12:00 UTC (a Saturday)
+const SAT: u64 = 1_794_657_600;
+
+struct Setup {
+    env: Env,
+    purse: PurseClient<'static>,
+    token: token::TokenClient<'static>,
+    guardian: Address,
+    agent: Address,
+    meter: BytesN<32>,
+}
+
+fn sha(env: &Env, s: &str) -> BytesN<32> {
+    env.crypto().sha256(&Bytes::from_slice(env, s.as_bytes())).into()
+}
+
+fn order(env: &Env, n: u8) -> BytesN<32> {
+    BytesN::from_array(env, &[n; 32])
+}
+
+fn setup() -> Setup {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().set_timestamp(SAT);
+    let guardian = Address::generate(&env);
+    let agent = Address::generate(&env);
+    let issuer = Address::generate(&env);
+    let sac = env.register_stellar_asset_contract_v2(issuer);
+    let id = env.register(Purse, (guardian.clone(), agent.clone(), sac.address()));
+    let purse = PurseClient::new(&env, &id);
+    StellarAssetClient::new(&env, &sac.address()).mint(&id, &(50 * USDC));
+    let meter = sha(&env, "45012345678");
+    let electricity = Symbol::new(&env, "electricity");
+    // Standard preset at ₦1,470 per USDC: ₦5,000 per top-up ≈ 3.4014 USDC, ₦15,000 per week.
+    purse.set_caps(&electricity, &Caps { per_topup: 34_013_606, per_day: 0, per_week: 102_040_818, per_month: 0 });
+    purse.set_destination(&electricity, &meter);
+    let token = token::TokenClient::new(&env, &sac.address());
+    Setup { env, purse, token, guardian, agent, meter }
+}
+
+#[test]
+fn buy_sends_exactly_the_amount_to_the_agent() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    t.purse.buy(&e, &t.meter, &3_401_361, &order(&t.env, 1));
+    assert_eq!(t.token.balance(&t.agent), 3_401_361);
+    assert_eq!(t.purse.spent(&e).week_amount, 3_401_361);
+}
+
+#[test]
+fn over_the_per_topup_cap_is_refused_on_chain() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    let r = t.purse.try_buy(&e, &t.meter, &(7 * USDC), &order(&t.env, 1));
+    assert_eq!(r, Err(Ok(Error::OverPerTopup)));
+    assert_eq!(t.token.balance(&t.agent), 0);
+}
+
+#[test]
+fn a_meter_the_guardian_did_not_save_is_refused() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    let other = sha(&t.env, "45099999999");
+    assert_eq!(t.purse.try_buy(&e, &other, &USDC, &order(&t.env, 1)), Err(Ok(Error::WrongDestination)));
+}
+
+#[test]
+fn a_utility_with_no_caps_cannot_be_bought() {
+    let t = setup();
+    let airtime = Symbol::new(&t.env, "airtime");
+    let phone = sha(&t.env, "08031234567");
+    t.purse.set_destination(&airtime, &phone);
+    assert_eq!(t.purse.try_buy(&airtime, &phone, &USDC, &order(&t.env, 1)), Err(Ok(Error::NoCaps)));
+}
+
+#[test]
+fn weekly_cap_holds_and_resets_on_monday() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    for n in 1..=3 {
+        t.purse.buy(&e, &t.meter, &34_013_606, &order(&t.env, n));
+    }
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 4)), Err(Ok(Error::OverWeek)));
+    // Sunday 23:30 Lagos is still the same week.
+    t.env.ledger().set_timestamp(SAT + DAY + 10 * 3_600 + 1_800);
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 5)), Err(Ok(Error::OverWeek)));
+    // Monday 00:30 Lagos: a new week.
+    t.env.ledger().set_timestamp(SAT + DAY + 11 * 3_600 + 1_800);
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 6));
+}
+
+#[test]
+fn purse_monthly_cap_and_daily_cap() {
+    let t = setup();
+    let data = Symbol::new(&t.env, "data");
+    let phone = sha(&t.env, "08031234567");
+    t.purse.set_destination(&data, &phone);
+    t.purse.set_caps(&data, &Caps { per_topup: 5 * USDC, per_day: 6 * USDC, per_week: 0, per_month: 0 });
+    t.purse.buy(&data, &phone, &(5 * USDC), &order(&t.env, 1));
+    assert_eq!(t.purse.try_buy(&data, &phone, &(2 * USDC), &order(&t.env, 2)), Err(Ok(Error::OverDay)));
+    t.purse.set_purse_cap(&(6 * USDC));
+    t.env.ledger().set_timestamp(SAT + DAY);
+    assert_eq!(t.purse.try_buy(&data, &phone, &(2 * USDC), &order(&t.env, 3)), Err(Ok(Error::OverPurseMonth)));
+}
+
+#[test]
+fn paused_purse_and_reused_order_are_refused() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 1));
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 1)), Err(Ok(Error::OrderUsed)));
+    t.purse.pause();
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 2)), Err(Ok(Error::Paused)));
+    t.purse.unpause();
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 2));
+}
+
+#[test]
+fn low_balance_is_refused() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    t.purse.withdraw(&t.guardian, &(49 * USDC));
+    assert_eq!(t.purse.try_buy(&e, &t.meter, &(2 * USDC), &order(&t.env, 1)), Err(Ok(Error::LowBalance)));
+}
+
+#[test]
+fn only_the_agent_can_buy_and_only_the_guardian_can_set_caps() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    let stranger = Address::generate(&t.env);
+    t.env.set_auths(&[]);
+    let r = t
+        .purse
+        .mock_auths(&[MockAuth {
+            address: &stranger,
+            invoke: &MockAuthInvoke {
+                contract: &t.purse.address,
+                fn_name: "buy",
+                args: (e.clone(), t.meter.clone(), USDC, order(&t.env, 1)).into_val(&t.env),
+                sub_invokes: &[],
+            },
+        }])
+        .try_buy(&e, &t.meter, &USDC, &order(&t.env, 1));
+    assert!(r.is_err());
+    let caps = Caps { per_topup: 100 * USDC, per_day: 0, per_week: 0, per_month: 0 };
+    let r = t
+        .purse
+        .mock_auths(&[MockAuth {
+            address: &t.agent,
+            invoke: &MockAuthInvoke {
+                contract: &t.purse.address,
+                fn_name: "set_caps",
+                args: (e.clone(), caps.clone()).into_val(&t.env),
+                sub_invokes: &[],
+            },
+        }])
+        .try_set_caps(&e, &caps);
+    assert!(r.is_err());
+}
+
+#[test]
+fn lagos_periods() {
+    // 2026-11-14 12:00 UTC: Lagos day, a Monday-based week, November 2026.
+    let (_, _, month) = periods(SAT);
+    assert_eq!(month, 2026 * 12 + 10);
+    // 31 Dec 2026 23:30 UTC is already 1 Jan 2027 in Lagos.
+    let (_, _, m) = periods(1_798_759_800);
+    assert_eq!(m, 2027 * 12);
+}

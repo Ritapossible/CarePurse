@@ -14,6 +14,7 @@ import { createPurseStore } from "./purses.mjs";
 import { createWallet } from "./wallet.mjs";
 import { createUnderstander, understandScripted } from "./understand.mjs";
 import { say } from "./replies.mjs";
+import { ContractRefused } from "./purse-contract.mjs";
 
 const MINUTE = 60_000;
 
@@ -59,17 +60,35 @@ export function createMhasibu({
     if (!verdict.ok) return refuse(purse, utility, verdict, lang);
 
     const { order, payPath } = await wallet.createOrder({ utility, ngn, destination });
+    log({ type: "order", id: order.id, utility, ngn, payPath });
     const quote = await wallet.quote(payPath);
-    log({ type: "quote", utility, ngn, amount: quote.amount, payTo: quote.payTo });
+    log({ type: "quote", utility, ngn, amount: quote.amount, payTo: quote.payTo, asset: quote.asset, network: quote.network, url: quote.url });
     // Every rule again, now with the real 402: allowlist and quoted price first.
     verdict = checkPurchase({ purse, utility, ngn, destination, quote, order, expected: wallet.expected, balanceNgn, now: clock() });
     if (!verdict.ok) return refuse(purse, utility, verdict, lang);
+    log({ type: "rules-ok", utility, ngn });
+
+    // Phase 2: the purse contract checks the guardian's rules on-chain and releases exactly this amount.
+    let release = null;
+    if (wallet.release) {
+      log({ type: "contract-check", utility, amount: quote.amount });
+      try {
+        release = await wallet.release({ utility, destination, amount: quote.amount, orderId: order.id });
+        if (release) log({ type: "contract-ok", tx: release.tx, link: explorer.tx(release.tx) });
+      } catch (err) {
+        if (!(err instanceof ContractRefused)) { log({ type: "payment-failed", message: err.message }); return say.failed(lang); }
+        log({ type: "contract-refused", rule: err.rule, code: err.code });
+        const period = { "per day": "day", "per week": "week", "per month": "month", "purse month": "month" }[err.rule];
+        return refuse(purse, utility, { ok: false, rule: err.rule, reason: `the purse contract refused (${err.rule})`, period, onChain: true }, lang);
+      }
+    }
 
     try {
+      log({ type: "signing", amount: quote.amount, payTo: quote.payTo });
       const { result, tx } = await wallet.pay(quote.url, quote);
-      purses.update(purse.id, (p) => p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, tx }));
-      notifyGuardian(purse, "receipt", `Mama bought ₦${ngn.toLocaleString("en-NG")} of ${utility}. ${explorer.tx(tx)}`);
+      purses.update(purse.id, (p) => p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, tx, releaseTx: release?.tx }));
       log({ type: "paid", utility, ngn, tx, link: explorer.tx(tx) });
+      notifyGuardian(purse, "receipt", `Mama bought ₦${ngn.toLocaleString("en-NG")} of ${utility}. ${explorer.tx(tx)}`);
       return say.delivered(lang, { utility, ngn, token: result.token, units: result.units });
     } catch (err) {
       log({ type: "payment-failed", message: err.message });
@@ -84,8 +103,8 @@ export function createMhasibu({
       notifyGuardian(purse, "low-balance", `A ${utility} top-up was refused: the purse balance is too low.`);
       return say.lowBalance(lang, { guardian: purse.guardian.name });
     }
-    if (["allowlist", "quoted price", "destination"].includes(verdict.rule)) {
-      notifyGuardian(purse, "blocked", `Mhasibu refused a payment (${verdict.rule}: ${verdict.reason}).`);
+    if (["allowlist", "quoted price", "destination", "order used", "bad amount", "no caps"].includes(verdict.rule)) {
+      notifyGuardian(purse, "blocked", `${verdict.onChain ? "The purse contract" : "Mhasibu"} refused a payment (${verdict.rule}: ${verdict.reason}).`);
       return say.refused(lang);
     }
     notifyGuardian(purse, "limit-reached", `A ${utility} top-up was refused: ${verdict.reason}.`);
@@ -100,7 +119,9 @@ export function createMhasibu({
       if (!purse) throw new Error(`no purse ${purseId}`);
       const lang = purse.mama.language;
       remember(purse, "mama", text);
+      log({ type: "mama", text });
       const reply = await respond(purse, text, lang);
+      log({ type: "reply", text: reply });
       remember(purses.get(purseId), "mhasibu", reply);
       return reply;
     },

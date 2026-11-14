@@ -7,9 +7,14 @@
   "main": "src/mhasibu.mjs",
   "scripts": {
     "chat": "node bin/chat.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "deploy-purse": "node scripts/deploy-purse.mjs",
+    "overspend": "node scripts/overspend.mjs",
+    "serve": "node bin/serve.mjs"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "latest",
     "@stellar/stellar-sdk": "^16.4.1",

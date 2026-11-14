@@ -16,7 +16,12 @@ npm install
 npm run chat                                                   # chat as Mama
 npm run chat -- "Abeg, light don almost finish" "1"            # send messages and exit
 npm test                                                       # offline tests, no money moves
+npm run serve                                                  # API for the web app (port 4022), with the live log stream
+npm run deploy-purse                                           # Phase 2: deploy the purse contract (see contracts/purse)
+npm run overspend                                              # Phase 2 demo: ask the contract for 7 USDC; refused on-chain
 ```
+
+**Phase 2 (limits on-chain):** with `PURSE_CONTRACT_ID` set, Mhasibu calls the purse contract's `buy` after its own checks and before paying. The contract checks the guardian's caps and saved destination and releases exactly one top-up to the agent wallet; then the x402 payment goes out as usual. If the contract says no, nothing is paid.
 
 The demo purse is Mama Ngozi (Pidgin), guardian Adaeze, meter `45012345678`, phone `08031234567`, Standard limits. It's seeded into `.data/purses.json` until the daughter's dashboard exists.
 
@@ -55,6 +60,9 @@ Run before ordering, and again with the real 402 before signing:
 | `src/wallet.mjs` | Gateway calls, the 402 quote, and the x402 payment with an exact-match policy |
 | `src/purses.mjs` | Purses in `.data/purses.json`, with the seeded demo purse |
 | `bin/chat.mjs` | Terminal chat as Mama |
+| `bin/serve.mjs` | The API for `apps/web`: chat, history, status and the live Agent & x402 Log (Server-Sent Events) |
+| `src/purse-contract.mjs` | Calls to the purse contract (`buy`, reads), error codes, naira to base units for caps |
+| `scripts/deploy-purse.mjs`, `scripts/overspend.mjs` | Deploy and set up the purse contract; the on-chain refusal demo |
 | `test/mhasibu.test.mjs` | Offline tests: golden path, weekly limit, tampered 402s, foreign numbers, expiry, Claude fallback |
 
 **Phase 1 note:** Mhasibu's agent wallet **is** the purse, so its USDC balance is the hard limit (the workshop's third safety layer). One agent wallet per purse.

@@ -7,6 +7,7 @@ import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config as defaultConfig } from "./config.mjs";
+import { addressVal, buyArgs, createSoroban } from "./purse-contract.mjs";
 
 export function createWallet(config = defaultConfig) {
   const json = async (res) => { const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`); return body; };
@@ -14,9 +15,14 @@ export function createWallet(config = defaultConfig) {
   return {
     expected: { host: config.allowedHost, payTo: config.gatewayRecipient, asset: config.usdc.contractId, network: config.network },
 
-    // The agent wallet's USDC balance, in naira at the demo rate. In Phase 1 this wallet IS the purse.
+    // The purse balance in naira at the demo rate. Phase 2: the purse contract's USDC.
+    // Phase 1: the agent wallet's USDC, because that wallet IS the purse.
     async balanceNgn() {
       const address = Keypair.fromSecret(config.agentSecret).publicKey();
+      if (config.purseContractId) {
+        const units = await createSoroban({ rpcUrl: config.rpcUrl }).read(config.usdc.contractId, "balance", [addressVal(config.purseContractId)], address);
+        return (Number(units) / 10 ** config.usdc.decimals) * config.ngnPerUsdc;
+      }
       const account = await new Horizon.Server(config.horizonUrl).loadAccount(address);
       const usdc = account.balances.find((b) => b.asset_code === "USDC" && b.asset_issuer === config.usdc.issuer);
       return Number(usdc?.balance ?? 0) * config.ngnPerUsdc;
@@ -45,6 +51,15 @@ export function createWallet(config = defaultConfig) {
       const offer = header && decodePaymentRequiredHeader(header).accepts.find((a) => a.network === config.network);
       if (!offer) throw new Error("the gateway offered no payment on our network");
       return { url: url.href, host: url.host, amount: offer.amount, payTo: offer.payTo, asset: offer.asset, network: offer.network };
+    },
+
+    // Phase 2: ask the purse contract for exactly this top-up. It checks the guardian's caps and
+    // saved destination on-chain, then sends the amount to the agent wallet. Throws
+    // ContractRefused when the contract says no. Phase 1 (no contract): not defined.
+    release: !config.purseContractId ? undefined : async ({ utility, destination, amount, orderId }) => {
+      const soroban = createSoroban({ rpcUrl: config.rpcUrl });
+      const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "buy", buyArgs({ utility, destination, amount, orderId }));
+      return { tx: hash, contractId: config.purseContractId };
     },
 
     // Pay exactly the approved offer. Anything else is filtered out before signing.

@@ -59,10 +59,10 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)
 - [ ] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome.
 - [ ] "Add to home screen" prompt, shown once.
-- [ ] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction.
+- [x] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction (`apps/web`, `/chat`). 14 Nov.
 - [ ] English and Pidgin replies.
-- [ ] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
-- [ ] **Agent & x402 Log** panel beside the chat (demo view): each step live, from Mama's message, the contract check and the 402 challenge to the signed payment and the Stellar Testnet settlement link. Mama's own chat stays simple.
+- [x] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
+- [x] **Agent & x402 Log** panel beside the chat (`/demo`), 14 Nov: each step live, from Mama's message, the contract check and the 402 challenge to the signed payment and the Stellar Testnet settlement link. Mama's own chat stays simple.
 
 ### Step 4: Daughter's dashboard (19–22 Nov), Should have
 - [ ] The four sign-up screens from `SIGNUP.md` (D1 to D4).
@@ -75,9 +75,10 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Receipts: every top-up with its Stellar transaction link.
 
 ### Step 5: Limits on-chain (20–24 Nov), Must have (one cap check) · Should have (the rest)
-- [ ] Decide: our own purse contract, or token allowances / OpenZeppelin smart accounts (`library.md`).
-- [ ] Write the contract and its tests (`ARCHITECTURE.md`, Phase 2).
-- [ ] Mhasibu calls `buy` before paying.
+- [x] Decide: our own purse contract (per-utility caps and saved destinations, which an allowance can't do).
+- [x] Write the contract and its tests (`contracts/purse`, 10 tests). 14 Nov.
+- [x] Mhasibu calls `buy` before paying (when `PURSE_CONTRACT_ID` is set).
+- [x] **Mentor's demo moment:** "Try to take 7 USDC" in the log panel (or `npm run overspend`) skips Mhasibu's own checks; the contract refuses it on-chain (per top-up cap).
 - [ ] **Demo moment:** ask Mhasibu to pay a number the daughter didn't save. The contract refuses, live.
 
 ### Step 6: Polish and record (24–27 Nov)

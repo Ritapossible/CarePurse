@@ -151,3 +151,39 @@ test("headroom shows the tightest rule", () => {
   assert.equal(headroom(purse, "airtime", { balanceNgn: 1e6, now: MONDAY_10AM }).maxNgn, 500);
   assert.equal(headroom(purse, "airtime", { balanceNgn: 300, now: MONDAY_10AM }).tightest.rule, "purse balance");
 });
+
+// ── Phase 2: the purse contract ───────────────────────────────
+import { ContractRefused, capBaseUnits, contractErrorCode } from "../src/purse-contract.mjs";
+
+test("the purse contract releases the money before Mhasibu pays over x402", async () => {
+  const steps = [];
+  const wallet = fakeWallet();
+  wallet.release = async (r) => { steps.push(["release", r.amount]); return { tx: "rel1" }; };
+  const pay = wallet.pay;
+  wallet.pay = async (...a) => { steps.push(["pay"]); return pay(...a); };
+  const { mhasibu, purses } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "1");
+  assert.deepEqual(steps, [["release", String(500 * 6803)], ["pay"]]);
+  assert.equal(purses.get("demo").spends[0].releaseTx, "rel1");
+});
+
+test("when the purse contract refuses, nothing is paid and the guardian hears about it", async () => {
+  const wallet = fakeWallet();
+  wallet.release = async () => { throw new ContractRefused(3, "Error(Contract, #3)"); };
+  const { mhasibu, purses } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  const reply = await mhasibu.handle("demo", "1");
+  assert.equal(wallet.paid.length, 0);
+  assert.match(reply, /limit Adaeze set has been reached/);
+  assert.equal(purses.get("demo").spends.length, 0);
+  assert.equal(purses.get("demo").notifications.at(-1).kind, "limit-reached");
+});
+
+test("on-chain caps never round stricter than the gateway's prices", () => {
+  // Three ₦5,000 electricity top-ups (34,013,606 base units each, rounded up) fit the ₦15,000 week.
+  assert.ok(capBaseUnits(15_000, 1470, 500) >= 3n * 34_013_606n);
+  assert.ok(capBaseUnits(5_000, 1470, 500) >= 34_013_606n);
+  assert.ok(capBaseUnits(5_000, 1470, 500) < 68_027_211n); // the ₦10,000 tier is still refused
+  assert.equal(contractErrorCode("HostError: Error(Contract, #3)"), 3);
+});
