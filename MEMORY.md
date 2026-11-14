@@ -136,3 +136,13 @@ Note: the assignment described the paid route as `POST /v1/topup`. As built it i
 - **Refund after a failed payment (real bug, fixed):** `buy` releases USDC and counts the spend before x402 runs. If the payment then failed, the USDC sat in the agent wallet and the cap stayed used. The contract now has `refund(order_ref)` (agent only, once per order): it returns the USDC to the purse and takes the spend off the caps. Mhasibu calls it whenever the payment fails after a release; if the refund itself fails, Adaeze is asked to check. Tested live on testnet. New contract v2 `CBKVT2…CDIP`; v1 retired, its USDC returned to the guardian.
 - **Purse cap:** the review said it was never set. On the live v1 contract it was set by `deploy-purse` (read from storage: 81.63 USDC = ₦120,000), but `sync-purse` did not re-send it. `sync-purse` now sets it, and the contract has `purse_cap()` to read it.
 
+## Second review (14 Nov, Grok), each point checked against the code and ARCHITECTURE.md
+
+1. **Failed refund hides the USDC: true.** Fixed by retrying the refund, recording an *unconfirmed* spend when it still fails (code caps match the chain), retrying on the next message, and telling Mama "I can't confirm it yet" instead of "you weren't charged". **Not done as suggested:** adding the agent's stuck USDC to Mama's balance, because `buy` can't spend it, so Mama would be offered money the contract then refuses.
+2. **Refund can restore a cap on a paid order: true, narrower than stated.** The purse total stays right (each refund returns real USDC), but a compromised agent could move spend between utilities. Fixed in the contract with "refund only the latest order", not the proposed `commit` step: same protection, without an extra transaction per top-up.
+3. **Order records not kept alive: true.** My first fix used a 1-day threshold, which never fires on testnet (new entries start at about 7 days), so it did nothing; caught by the live check and fixed (threshold just under 30 days). Live: about 31 days.
+4. **sync-purse could write "no cap": possible, not happening** (our purse had `monthlyCap`). Both scripts now recompute it from the limits and refuse to write 0.
+5. **"card" made "NEPA card" airtime: true.** Removed; "recharge card" still matches via "recharge".
+
+Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, v2 and v3 retired, their USDC returned to the guardian). Tests: contract 14, Mhasibu 22, gateway 12.
+

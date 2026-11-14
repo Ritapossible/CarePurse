@@ -26,6 +26,7 @@ export function createMhasibu({
   wallet = createWallet(config),
   understander = createUnderstander(config.llm),
   clock = () => Date.now(),
+  wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log = () => {},
 } = {}) {
   const notifyGuardian = (purse, kind, text) => {
@@ -99,16 +100,54 @@ export function createMhasibu({
       // The contract already released the money to Mhasibu's wallet. Put it back before replying,
       // so the purse keeps its USDC and Mama keeps her cap room.
       if (release && wallet.refund) {
-        try {
-          const back = await wallet.refund({ orderId: order.id });
-          log({ type: "refunded", tx: back.tx, link: explorer.tx(back.tx), amount: quote.amount });
-        } catch (refundErr) {
-          // Most likely the payment did go through after all (the wallet no longer holds the USDC).
-          log({ type: "refund-failed", message: refundErr.message });
-          notifyGuardian(purse, "check-payment", `A ${utility} payment for order ${order.id} may not have completed, and the refund to the purse failed. Please check Mhasibu's wallet.`);
+        const back = await refundWithRetry(order.id, quote.amount);
+        if (!back) {
+          // The chain still counts this order against the caps, so the code's caps must too: record
+          // it as unconfirmed. The USDC may still be on Mhasibu's wallet (refund retried on the next
+          // message) or the payment may have gone through after all. Don't tell Mama she wasn't charged.
+          purses.update(purse.id, (p) => {
+            p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, releaseTx: release.tx, unconfirmed: true });
+            p.pendingRefund = { orderId: order.id, amount: quote.amount, attempts: 0 };
+          });
+          notifyGuardian(purse, "check-payment", `A ₦${ngn.toLocaleString("en-NG")} ${utility} payment (order ${order.id}) may not have completed, and returning the money to the purse failed. Mhasibu will keep trying; please check its wallet.`);
+          return say.checking(lang, { guardian: purse.guardian.name });
         }
       }
       return err.retryLater ? say.tryLater(lang) : say.failed(lang);
+    }
+  }
+
+  // Try the refund a few times (a single RPC hiccup shouldn't strand the money).
+  async function refundWithRetry(orderId, amount, attempts = 3) {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const back = await wallet.refund({ orderId });
+        log({ type: "refunded", tx: back.tx, link: explorer.tx(back.tx), amount });
+        return back;
+      } catch (err) {
+        log({ type: "refund-failed", message: err.message, attempt: i + 1 });
+        if (err instanceof ContractRefused) return null; // the contract said no: retrying won't help
+        if (i < attempts - 1) await wait(2_000 * (i + 1));
+      }
+    }
+    return null;
+  }
+
+  // A refund that failed earlier is retried before anything else. Once it succeeds, the unconfirmed
+  // spend is removed; if the contract says it can't be refunded (already refunded, or a newer order
+  // exists), it stays counted, which matches the chain.
+  async function settlePendingRefund(purse) {
+    const pending = purse.pendingRefund;
+    if (!pending || !wallet.refund) return;
+    try {
+      const back = await wallet.refund({ orderId: pending.orderId });
+      log({ type: "refunded", tx: back.tx, link: explorer.tx(back.tx), amount: pending.amount });
+      purses.update(purse.id, (p) => { p.spends = p.spends.filter((s) => s.order !== pending.orderId); p.pendingRefund = null; });
+      notifyGuardian(purse, "refunded", `The ${pending.orderId} payment was returned to the purse.`);
+    } catch (err) {
+      log({ type: "refund-failed", message: err.message, pending: true });
+      const final = err instanceof ContractRefused || pending.attempts + 1 >= 5;
+      purses.update(purse.id, (p) => { p.pendingRefund = final ? null : { ...pending, attempts: pending.attempts + 1 }; });
     }
   }
 
@@ -136,6 +175,7 @@ export function createMhasibu({
       const lang = purse.mama.language;
       remember(purse, "mama", text);
       log({ type: "mama", text });
+      await settlePendingRefund(purse);
       const reply = await respond(purse, text, lang);
       log({ type: "reply", text: reply });
       remember(purses.get(purseId), "mhasibu", reply);

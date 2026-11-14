@@ -24,7 +24,7 @@ x402 stays standard: the facilitator still sees a plain USDC `transfer` signed b
 | `set_destination(utility, sha256(number))` | guardian | The saved meter or phone, stored as a hash so the ledger doesn't show where Mama lives |
 | `set_agent`, `pause`, `unpause`, `withdraw` | guardian | |
 | `buy(utility, dest_hash, amount, order_ref)` | agent | Checks the rules, records the spend, releases exactly `amount` |
-| `refund(order_ref)` | agent | The x402 payment failed: returns that order's USDC from the agent to the purse and takes its spend off the caps (periods still current). Once per order |
+| `refund(order_ref)` | agent | The x402 payment failed: returns that order's USDC from the agent to the purse and takes its spend off the caps (periods still current). Once per order, and **only the latest order** |
 | `caps`, `spent`, `purse_cap`, `order`, `paused`, `guardian`, `agent` | anyone | Read-only |
 
 Funding: anyone sends USDC to the contract address with a normal USDC transfer.
@@ -42,7 +42,7 @@ Funding: anyone sends USDC to the contract address with a normal USDC transfer.
 | 4, 5, 6 | `OverDay`, `OverWeek`, `OverMonth` | Utility limits per day, week (from Monday) and calendar month, in Lagos time |
 | 7 | `OverPurseMonth` | The whole-purse monthly cap |
 | 10 | `LowBalance` | The purse holds less than the amount |
-| 12, 13 | `NoOrder`, `AlreadyRefunded` | `refund` only: unknown order, or already refunded |
+| 12, 13, 14 | `NoOrder`, `AlreadyRefunded`, `NotLatestOrder` | `refund` only: unknown order, already refunded, or a newer order exists |
 
 Caps are set in naira on the dashboard and turned into USDC base units at the demo rate (`NGN_PER_USDC`). Rounding always favours the guardian's limit being reachable, never exceeded by more than one base unit per top-up.
 
@@ -50,7 +50,7 @@ Caps are set in naira on the dashboard and turned into USDC base units at the de
 
 ```bash
 cd contracts/purse
-cargo test                      # 12 tests, no network
+cargo test                      # 14 tests, no network
 stellar contract build          # needs stellar-cli; writes target/wasm32v1-none/release/carepurse_purse.wasm
 
 cd ../../packages/mhasibu
@@ -62,9 +62,9 @@ Built with `soroban-sdk` 29.0.1 and `stellar-cli` 30.0.1. Testnet runs protocol 
 
 ## Live on testnet (14 Nov 2026)
 
-- Purse contract v2 (with `refund`): [`CBKVT2YQCQAS5U5CV5UYNJVP3YS5CGL4GJ5VFQN7TY7OKPPY6GTLCDIP`](https://stellar.expert/explorer/testnet/contract/CBKVT2YQCQAS5U5CV5UYNJVP3YS5CGL4GJ5VFQN7TY7OKPPY6GTLCDIP), Standard preset, purse cap ₦120,000 a month (81.63 USDC, readable with `purse_cap()`), 100 USDC in it.
-- Refund tested live: `buy` released ₦100 of airtime (0.0680273 USDC) to the agent, then `refund` returned it and set the day's airtime spend back to 0; a second refund was refused (`AlreadyRefunded`). [buy](https://stellar.expert/explorer/testnet/tx/26e51ff1f9a2ccf00a4ebdfa9f9e80dff05a427edb5c330210cbfde1742d642b) · [refund](https://stellar.expert/explorer/testnet/tx/0e5958c84def9c9fa815c01650d6851c338ca2e4704bc43c9adf728c870e79f9)
-- v1 `CDHX2A…MJAE` (no refund) is retired; its 102.62 USDC went back to the guardian. The full end-to-end run on 14 Nov used v1.
+- Purse contract **v4**: [`CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV`](https://stellar.expert/explorer/testnet/contract/CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV), Standard preset, purse cap ₦120,000 a month (81.63 USDC, `purse_cap()`), 100 USDC in it.
+- v4 adds: `refund` only on the **latest** order (an older order can't be refunded with a newer order's USDC, which would move spend between utilities), and order records kept alive about 30 days. Checked live: refunding an older order is refused (`NotLatestOrder`); the latest one works ([tx](https://stellar.expert/explorer/testnet/tx/e4885df95bf2292087ec1353a0cb42e989c28365af4a64e05207afd2d0a4aa13)); an order record shows 535,679 ledgers (about 31 days) to live.
+- History: v1 `CDHX2A…MJAE` (no refund), v2 `CBKVT2…CDIP` (refund on any order), v3 `CBTGNM…MC57` (order lifetime not actually extended). All retired; their USDC went back to the guardian.
 - The overspend demo: 7 USDC asked, refused on-chain with `OverPerTopup` (Error #3). No USDC moved.
 - Funding: the guardian bought 1,000 test USDC on the testnet exchange (`npm run fund-purse`); the purse holds 100, the guardian keeps the rest for testing and Demo Day.
 - Testnet resets on 16 Dec 2026: run `npm run deploy-purse` again after a reset.

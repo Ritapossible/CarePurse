@@ -5,6 +5,7 @@
 import { xdr } from "@stellar/stellar-sdk";
 import { config } from "../src/config.mjs";
 import { DEMO_PURSE, createPurseStore } from "../src/purses.mjs";
+import { monthlyCap } from "../src/limits.mjs";
 import { bytes32, capBaseUnits, createSoroban, i128, keypair, sha256, symbol } from "../src/purse-contract.mjs";
 
 const MIN_TOPUP = { electricity: 500, airtime: 100, data: 100 };
@@ -31,6 +32,10 @@ for (const [utility, limits] of Object.entries(purse.limits)) {
   const c = await soroban.invoke(guardian, config.purseContractId, "set_caps", [symbol(utility), capsVal(limits, utility)]);
   console.log(`✓ ${utility}: destination and caps saved on-chain · ${link(d.hash)} · ${link(c.hash)}`);
 }
-// The whole-purse monthly cap (₦120,000 on Standard). 0 on-chain would mean no total limit.
-const cap = await soroban.invoke(guardian, config.purseContractId, "set_purse_cap", [i128(capBaseUnits(purse.monthlyCap, config.ngnPerUsdc, 100))]);
-console.log(`✓ purse cap ₦${purse.monthlyCap.toLocaleString("en-NG")} a month saved on-chain · ${link(cap.hash)}`);
+// The whole-purse monthly cap (₦120,000 on Standard), always recomputed from the limits.
+// 0 on-chain means NO total limit, so never write it: stop instead.
+const purseCapNgn = monthlyCap(purse.limits);
+if (!(purseCapNgn > 0)) { console.error("✗ The purse's monthly cap works out to 0 (no limits?). Not writing it: 0 means unlimited on-chain."); process.exit(1); }
+purses.update("demo", (p) => { p.monthlyCap = purseCapNgn; });
+const cap = await soroban.invoke(guardian, config.purseContractId, "set_purse_cap", [i128(capBaseUnits(purseCapNgn, config.ngnPerUsdc, 100))]);
+console.log(`✓ purse cap ₦${purseCapNgn.toLocaleString("en-NG")} a month saved on-chain · ${link(cap.hash)}`);

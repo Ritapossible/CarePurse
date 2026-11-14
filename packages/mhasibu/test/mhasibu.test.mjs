@@ -31,7 +31,7 @@ function setup({ wallet = fakeWallet(), now = MONDAY_10AM, language = "en" } = {
   const purses = createPurseStore(null, { seed: false });
   purses.put(newPurse({ ...DEMO_PURSE, mama: { ...DEMO_PURSE.mama, language } }));
   let clock = now;
-  const mhasibu = createMhasibu({ purses, wallet, understander: createUnderstander(null), clock: () => clock });
+  const mhasibu = createMhasibu({ purses, wallet, understander: createUnderstander(null), clock: () => clock, wait: async () => {} });
   return { mhasibu, purses, wallet, tick: (ms) => { clock += ms; } };
 }
 
@@ -247,4 +247,36 @@ test("if the refund also fails, the guardian is asked to check", async () => {
   await mhasibu.handle("demo", "light don finish");
   await mhasibu.handle("demo", "1");
   assert.equal(purses.get("demo").notifications.at(-1).kind, "check-payment");
+});
+
+test("if the refund keeps failing, the spend is counted (as on-chain), Mama isn't told she wasn't charged, and it's retried next message", async () => {
+  const wallet = fakeWallet();
+  let refundCalls = 0;
+  let refundWorks = false;
+  wallet.release = async () => ({ tx: "rel1" });
+  wallet.refund = async () => { refundCalls++; if (!refundWorks) throw new Error("rpc timeout"); return { tx: "ref1" }; };
+  wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
+  const purses = createPurseStore(null, { seed: false });
+  purses.put(newPurse({ ...DEMO_PURSE, mama: { ...DEMO_PURSE.mama, language: "en" } }));
+  const mhasibu = createMhasibu({ purses, wallet, understander: createUnderstander(null), clock: () => MONDAY_10AM, wait: async () => {} });
+  await mhasibu.handle("demo", "light don finish");
+  const reply = await mhasibu.handle("demo", "1");
+  assert.equal(refundCalls, 3); // retried
+  assert.match(reply, /can't confirm it yet/);
+  assert.doesNotMatch(reply, /weren't charged/);
+  const p = purses.get("demo");
+  assert.equal(p.spends.length, 1);
+  assert.equal(p.spends[0].unconfirmed, true); // the code's caps match the chain's
+  assert.equal(p.notifications.at(-1).kind, "check-payment");
+  // Next message: the refund is retried first; it works, so the unconfirmed spend goes away.
+  refundWorks = true;
+  await mhasibu.handle("demo", "hello");
+  assert.equal(purses.get("demo").spends.length, 0);
+  assert.equal(purses.get("demo").pendingRefund, null);
+});
+
+test("'NEPA card' and 'meter card' are electricity, 'recharge card' is airtime", () => {
+  assert.equal(understandScripted("my NEPA card don finish").utility, "electricity");
+  assert.equal(understandScripted("buy meter card for me").utility, "electricity");
+  assert.equal(understandScripted("buy recharge card").utility, "airtime");
 });

@@ -12,6 +12,7 @@ import crypto from "node:crypto";
 import { Address, Horizon, Keypair, Operation } from "@stellar/stellar-sdk";
 import { config, repoRoot } from "../src/config.mjs";
 import { createPurseStore } from "../src/purses.mjs";
+import { monthlyCap } from "../src/limits.mjs";
 import { addressVal, bytes32, capBaseUnits, createSoroban, i128, sha256, symbol } from "../src/purse-contract.mjs";
 import { xdr } from "@stellar/stellar-sdk";
 
@@ -67,8 +68,11 @@ for (const [utility, limits] of Object.entries(purse.limits)) {
   const d = await soroban.invoke(guardian, contractId, "set_destination", [symbol(utility), bytes32(sha256(purse.destinations[utility]))]);
   console.log(`✓ ${utility}: caps ₦${limits.perTopup.toLocaleString("en-NG")} per top-up, destination saved as a hash · ${link(c.hash)} · ${link(d.hash)}`);
 }
-const cap = await soroban.invoke(guardian, contractId, "set_purse_cap", [i128(capBaseUnits(purse.monthlyCap, config.ngnPerUsdc, 100))]);
-console.log(`✓ purse cap ₦${purse.monthlyCap.toLocaleString("en-NG")} a month · ${link(cap.hash)}`);
+// Always recomputed from the limits; 0 would mean no total limit on-chain, so never write it.
+const purseCapNgn = monthlyCap(purse.limits);
+if (!(purseCapNgn > 0)) { console.error("✗ The purse's monthly cap works out to 0. Not writing it: 0 means unlimited on-chain."); process.exit(1); }
+const cap = await soroban.invoke(guardian, contractId, "set_purse_cap", [i128(capBaseUnits(purseCapNgn, config.ngnPerUsdc, 100))]);
+console.log(`✓ purse cap ₦${purseCapNgn.toLocaleString("en-NG")} a month · ${link(cap.hash)}`);
 
 // 4. Move the agent's USDC into the purse
 const account = await horizon.loadAccount(agent.publicKey());

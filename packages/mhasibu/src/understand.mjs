@@ -19,7 +19,7 @@ const Intent = z.object({
 
 const WORDS = {
   electricity: /\b(light|nepa|electric(ity)?|power|current|meter|token|units?|prepaid|bulb|phcn|disco)\b/i,
-  airtime: /\b(airtime|credit|recharge|call(ing)?|card|top ?up my line|vtu)\b/i,
+  airtime: /\b(airtime|credit|recharge|call(ing)?|top ?up my line|vtu)\b/i,
   data: /\b(data|internet|mb|gb|browse|browsing|whatsapp|network bundle|bundle)\b/i,
   balance: /\b(balance|how much (remain|dey|is left|i get)|wetin remain|wey remain|money (remain|left))\b/i,
   history: /\b(history|wetin i (don )?buy|what (did )?i (buy|bought)|last time|receipts?)\b/i,
@@ -80,7 +80,8 @@ export function understandScripted(text) {
   if (WORDS.cancel.test(t)) return { intent: "cancel", utility: null, choice: 0 };
   if (digits) return { intent: "choose", utility: null, choice: Number(digits[1]) };
   if (WORDS.changeRules.test(t)) return { intent: "change_rules", utility: null, choice: null };
-  // Order matters: "data" and "airtime" before electricity words like "card"/"units".
+  // Order matters: "data" and "airtime" before electricity words like "units". No "card" for airtime:
+  // "NEPA card" and "meter card" are electricity; "recharge card" is caught by "recharge".
   const utility = WORDS.data.test(t) ? "data" : WORDS.airtime.test(t) ? "airtime" : WORDS.electricity.test(t) ? "electricity" : null;
   if (WORDS.balance.test(t)) return { intent: "check_balance", utility, choice: null };
   if (WORDS.history.test(t)) return { intent: "history", utility, choice: null };

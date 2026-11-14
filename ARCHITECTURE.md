@@ -187,6 +187,9 @@ buy(utility, dest_hash, amount, order_ref)         agent only
 ```
 
 - Mhasibu calls `buy` first, then pays the gateway with normal x402 straight away. The agent wallet never holds more than one purchase.
+- **If the payment fails after `buy`** (built 14 Nov): Mhasibu calls `refund(order_ref)`, retried up to 3 times. The contract takes back exactly that order's USDC and its spend. **Only the latest order can be refunded**, so an agent can't pay for one order and refund it with a later order's USDC (that would move spend from one utility's cap to another's). If the refund still fails, Mhasibu records the spend as *unconfirmed* (the chain still counts it, so the code's caps must too), tells Mama it can't confirm yet, asks Adaeze to check, and retries the refund on Mama's next message. Mama's balance stays the purse contract's balance: USDC stuck on the agent can't be spent by `buy`, so it isn't offered.
+- **Order records** live in persistent storage and are extended to about 30 days on every write, so `refund` and the one-time-order check keep working.
+- **The purse monthly cap** is always recomputed from the limits before it's written (`deploy-purse`, `sync-purse`); 0 means "no cap" on-chain, so 0 is never written.
 - The gateway can also check that a `Bought` event exists for the order.
 - Meter and phone numbers are stored as **hashes**, so the public ledger doesn't show where Mama lives.
 - The workshop also suggests **token allowances** (SEP-41 `approve` with a cap and an expiry) or **OpenZeppelin smart accounts**. Look at those before writing the contract; one may be simpler. See `library.md`.

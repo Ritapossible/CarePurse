@@ -20,7 +20,10 @@ use soroban_sdk::{
 const LAGOS_OFFSET: u64 = 3_600;
 const DAY: u64 = 86_400;
 const BUMP_LEDGERS: u32 = 535_680; // about 30 days
-const BUMP_THRESHOLD: u32 = 17_280; // about 1 day
+// extend_ttl only acts when the remaining lifetime is below this threshold. New entries start at
+// the network minimum (about 7 days on testnet), so the threshold sits just under 30 days: every
+// write or call tops the lifetime back up to about 30 days.
+const BUMP_THRESHOLD: u32 = BUMP_LEDGERS - 17_280;
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -39,6 +42,7 @@ pub enum Error {
     OrderUsed = 11,
     NoOrder = 12,
     AlreadyRefunded = 13,
+    NotLatestOrder = 14,
 }
 
 /// Limits for one utility. 0 means "no limit for this period"; a utility with no caps at all
@@ -88,6 +92,7 @@ enum Key {
     Dest(Symbol),
     Spent(Symbol),
     Order(BytesN<32>),
+    LastOrder,
 }
 
 #[contractevent]
@@ -134,6 +139,14 @@ fn guardian(env: &Env) -> Address {
 
 fn bump(env: &Env) {
     env.storage().instance().extend_ttl(BUMP_THRESHOLD, BUMP_LEDGERS);
+}
+
+// Order records live in persistent storage, which has its own lifetime: keep each one alive for
+// the same window as the instance, so `refund` and the one-time-order check keep working.
+fn save_order(env: &Env, order_ref: &BytesN<32>, rec: &OrderRec) {
+    let key = Key::Order(order_ref.clone());
+    env.storage().persistent().set(&key, rec);
+    env.storage().persistent().extend_ttl(&key, BUMP_THRESHOLD, BUMP_LEDGERS);
 }
 
 #[contractimpl]
@@ -262,7 +275,8 @@ impl Purse {
         s.set(&Key::Spent(utility.clone()), &spent);
         s.set(&Key::PurseSpent, &(purse_month, purse_amount + amount));
         let rec = OrderRec { utility: utility.clone(), amount, day, week, month, refunded: false };
-        env.storage().persistent().set(&order_key, &rec);
+        save_order(&env, &order_ref, &rec);
+        s.set(&Key::LastOrder, &order_ref);
         bump(&env);
 
         token.transfer(&me, &agent, &amount);
@@ -272,13 +286,19 @@ impl Purse {
 
     /// The x402 payment for this order failed after `buy`: the agent returns exactly the released
     /// USDC to the purse, and the order's spend is taken off the caps (for periods still current).
-    /// The order stays used; a retry is a new order.
+    /// Only the latest order can be refunded: once a new `buy` happens, older orders are final.
+    /// Otherwise an agent could pay for one order and refund it with a later order's USDC, moving
+    /// spend from one utility's cap to another's. The order stays used; a retry is a new order.
     pub fn refund(env: Env, order_ref: BytesN<32>) -> Result<(), Error> {
         let s = env.storage().instance();
         let agent: Address = s.get(&Key::Agent).unwrap();
         agent.require_auth();
         let order_key = Key::Order(order_ref.clone());
         let mut rec: OrderRec = env.storage().persistent().get(&order_key).ok_or(Error::NoOrder)?;
+        let last: Option<BytesN<32>> = s.get(&Key::LastOrder);
+        if last != Some(order_ref.clone()) {
+            return Err(Error::NotLatestOrder);
+        }
         if rec.refunded {
             return Err(Error::AlreadyRefunded);
         }
@@ -297,7 +317,7 @@ impl Purse {
         }
 
         rec.refunded = true;
-        env.storage().persistent().set(&order_key, &rec);
+        save_order(&env, &order_ref, &rec);
         bump(&env);
         Refunded { utility: rec.utility, amount: rec.amount, order_ref }.publish(&env);
         Ok(())

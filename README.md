@@ -19,9 +19,9 @@ Everything below runs today on Stellar testnet with real sandbox fulfilment.
 | Milestone | Status | Proof |
 |---|---|---|
 | x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 12 tests |
-| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 20 tests |
+| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 22 tests |
 | Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
-| Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 12 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CBKVT2YQCQAS5U5CV5UYNJVP3YS5CGL4GJ5VFQN7TY7OKPPY6GTLCDIP) |
+| Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 14 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV) |
 | On-chain refusal demo: 7 USDC over the cap, refused by the contract | ✅ Done 14 Nov | `npm run overspend` → `OverPerTopup` (Error #3), no USDC moved |
 | Mama's chat and the live **Agent & x402 Log** demo page | ✅ Done 14 Nov | `apps/web`: `/chat`, `/demo` |
 | VTpass sandbox fulfilment: electricity token, airtime, data | ✅ Done 14 Nov | GitHub Actions "VTpass sandbox" |
@@ -43,13 +43,13 @@ Mama typed in Pidgin. Each top-up went through the purse contract, x402 on Stell
 
 On the explorer, the XLM shown is the network fee (about 0.001 XLM, paid by the facilitator). The payment itself is the **USDC transfer** inside the transaction.
 
-**Rerun on the v2 contract (with refunds), 14 Nov 15:07:** 3 of 3 settled ([data payment](https://stellar.expert/explorer/testnet/tx/8e8f38bc2dde4dbbadc2b499a5854d91a661280aa7d29a93dce2af87acde640b)). In two earlier runs VTpass's duplicate guard refused one top-up; each time Mhasibu refunded the released USDC to the purse ([example refund](https://stellar.expert/explorer/testnet/tx/e1fb3d8ded6dd3111f0a76e368a0840aade1e6c88b34eeea455483056cf48191)) and Mama was told to try again in 5 minutes. The workflow now passes when every top-up is either paid or cleanly refunded.
+**Rerun on the v2 contract (with refunds), 14 Nov 15:07** (the live contract is now v4, see below): 3 of 3 settled ([data payment](https://stellar.expert/explorer/testnet/tx/8e8f38bc2dde4dbbadc2b499a5854d91a661280aa7d29a93dce2af87acde640b)). In two earlier runs VTpass's duplicate guard refused one top-up; each time Mhasibu refunded the released USDC to the purse ([example refund](https://stellar.expert/explorer/testnet/tx/e1fb3d8ded6dd3111f0a76e368a0840aade1e6c88b34eeea455483056cf48191)) and Mama was told to try again in 5 minutes. The workflow now passes when every top-up is either paid or cleanly refunded.
 
 ### On testnet now
 
 | What | Address | Holds |
 |---|---|---|
-| Purse contract (Mama's money and Adaeze's rules) | [`CBKVT2…CDIP`](https://stellar.expert/explorer/testnet/contract/CBKVT2YQCQAS5U5CV5UYNJVP3YS5CGL4GJ5VFQN7TY7OKPPY6GTLCDIP) | 100 USDC · purse cap ₦120,000 a month (81.63 USDC) |
+| Purse contract (Mama's money and Adaeze's rules) | [`CBWQ4E…5OBV`](https://stellar.expert/explorer/testnet/contract/CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV) | 100 USDC · purse cap ₦120,000 a month (81.63 USDC) |
 | Mhasibu's agent wallet | [`GC4JIW…OUKO`](https://stellar.expert/explorer/testnet/account/GC4JIWQIQAU3GBIHKEWLEWVJGC477W5XZV7465B5GVTEREOVQSGOOUKO) | 0 USDC between top-ups (the contract releases one top-up at a time) |
 | Gateway wallet (receives x402 payments) | [`GDFFLJ…7CAA`](https://stellar.expert/explorer/testnet/account/GDFFLJ7SQVYJDH7RB7JYIBRLHRHOP7IV4XILUMHS5WPOJ5DAJCTO7CAA) | 2.38 USDC |
 | Guardian wallet (stands in for Adaeze until Privy) | [`GATEMC…SGVS`](https://stellar.expert/explorer/testnet/account/GATEMCQDIHTP2HQSTADGX7ICFF4MJOSIT2OU3FRJ5KIHOX2O4YXISGVS) | About 902 USDC reserve for testing and Demo Day |
@@ -103,7 +103,7 @@ Every top-up moves real testnet USDC from Adaeze's purse to the platform's addre
 |---|---|---|
 | ① Deposit | Adaeze sends USDC to the purse contract (a plain USDC transfer). | Purse contract |
 | ② Ask | Mama: "Abeg, light don almost finish", then "1" for ₦500. Mhasibu runs every rule in code. | Purse contract |
-| ③ Release | Mhasibu calls the contract's `buy()`. **The contract checks Adaeze's caps and saved meter on-chain**, then sends exactly 0.3401361 USDC to Mhasibu's wallet. If any rule fails, nothing moves. If the x402 payment then fails, Mhasibu calls `refund()`: the USDC goes back to the purse and the spend comes off the caps. | Mhasibu's wallet, for a few seconds |
+| ③ Release | Mhasibu calls the contract's `buy()`. **The contract checks Adaeze's caps and saved meter on-chain**, then sends exactly 0.3401361 USDC to Mhasibu's wallet. If any rule fails, nothing moves. If the x402 payment then fails, Mhasibu calls `refund()` (retried, and only allowed on the latest order): the USDC goes back to the purse and the spend comes off the caps. | Mhasibu's wallet, for a few seconds |
 | ④ Pay over x402 | The gateway answers **402 Payment Required**. Mhasibu signs a USDC payment for exactly that amount and retries. | |
 | ⑤ Settle | The facilitator verifies and settles the USDC transfer on Stellar testnet, and pays the XLM network fee. | **Platform wallet** [`GDFFLJ…7CAA`](https://stellar.expert/explorer/testnet/account/GDFFLJ7SQVYJDH7RB7JYIBRLHRHOP7IV4XILUMHS5WPOJ5DAJCTO7CAA) |
 | ⑥ Fulfil | The gateway buys ₦500 of light from VTpass (sandbox), paid from its naira wallet. | |

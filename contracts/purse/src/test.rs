@@ -190,10 +190,12 @@ fn refund_returns_the_usdc_and_gives_back_the_cap() {
     assert_eq!(t.token.balance(&t.agent), 2 * 34_013_606);
     assert_eq!(t.purse.spent(&e).week_amount, 2 * 34_013_606);
     assert!(t.purse.order(&order(&t.env, 3)).unwrap().refunded);
-    // Cap room is back, so a new order goes through; the refunded order can't be reused or refunded twice.
+    assert_eq!(t.purse.try_refund(&order(&t.env, 3)), Err(Ok(Error::AlreadyRefunded)));
+    // Cap room is back, so a new order goes through; the refunded order can't be reused, and after a
+    // newer order it can't be refunded either.
     t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 5));
     assert_eq!(t.purse.try_buy(&e, &t.meter, &USDC, &order(&t.env, 3)), Err(Ok(Error::OrderUsed)));
-    assert_eq!(t.purse.try_refund(&order(&t.env, 3)), Err(Ok(Error::AlreadyRefunded)));
+    assert_eq!(t.purse.try_refund(&order(&t.env, 3)), Err(Ok(Error::NotLatestOrder)));
     assert_eq!(t.purse.try_refund(&order(&t.env, 9)), Err(Ok(Error::NoOrder)));
 }
 
@@ -203,4 +205,34 @@ fn purse_cap_is_readable() {
     assert_eq!(t.purse.purse_cap(), 0);
     t.purse.set_purse_cap(&(80 * USDC));
     assert_eq!(t.purse.purse_cap(), 80 * USDC);
+}
+
+#[test]
+fn only_the_latest_order_can_be_refunded() {
+    // The attack: pay for electricity order A, buy airtime B, then refund A with B's USDC,
+    // which would free electricity's cap while A's token was already issued.
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    let airtime = Symbol::new(&t.env, "airtime");
+    let phone = sha(&t.env, "08011111111");
+    t.purse.set_destination(&airtime, &phone);
+    t.purse.set_caps(&airtime, &Caps { per_topup: 5 * USDC, per_day: 0, per_week: 0, per_month: 0 });
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 1)); // A
+    t.purse.buy(&airtime, &phone, &USDC, &order(&t.env, 2)); // B
+    assert_eq!(t.purse.try_refund(&order(&t.env, 1)), Err(Ok(Error::NotLatestOrder)));
+    assert_eq!(t.purse.spent(&e).week_amount, USDC); // A stays counted
+    t.purse.refund(&order(&t.env, 2)); // the latest one is fine
+    assert_eq!(t.purse.spent(&airtime).day_amount, 0);
+}
+
+#[test]
+fn order_records_are_kept_alive() {
+    use soroban_sdk::testutils::storage::Persistent as _;
+    let t = setup();
+    // Testnet's real minimum lifetime for new persistent entries (about 7 days).
+    t.env.ledger().with_mut(|l| { l.min_persistent_entry_ttl = 120_960; });
+    let e = Symbol::new(&t.env, "electricity");
+    t.purse.buy(&e, &t.meter, &USDC, &order(&t.env, 1));
+    let ttl = t.env.as_contract(&t.purse.address, || t.env.storage().persistent().get_ttl(&Key::Order(order(&t.env, 1))));
+    assert!(ttl >= BUMP_LEDGERS - 1, "order TTL {ttl}");
 }

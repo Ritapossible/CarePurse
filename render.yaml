@@ -55,7 +55,7 @@ services:
       - { key: DEMO_MODE, value: "1" }
       - { key: LLM_BASE_URL, value: https://inference-api.openserv.ai }
       - { key: LLM_MODEL, value: claude-opus-5.5 }
-      - { key: PURSE_CONTRACT_ID, value: CBKVT2YQCQAS5U5CV5UYNJVP3YS5CGL4GJ5VFQN7TY7OKPPY6GTLCDIP }
+      - { key: PURSE_CONTRACT_ID, value: CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV }
       - { key: GATEWAY_URL, sync: false }            # the gateway's https URL
       - { key: GATEWAY_RECIPIENT, sync: false }      # the gateway wallet's public address
       - { key: AGENT_SECRET_KEY, sync: false }       # Mhasibu's testnet wallet secret
