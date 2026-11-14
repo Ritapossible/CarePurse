@@ -19,7 +19,7 @@ import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config as defaultConfig, explorer } from "./config.mjs";
 import { UTILITIES, isTier, isUtility, options, paidRoutes, priceBaseUnits } from "./catalog.mjs";
 import { createStore, isExpired } from "./store.mjs";
-import { createProvider } from "./provider.mjs";
+import { createProvider, NETWORKS, DISCOS } from "./provider.mjs";
 
 const LABEL = "Live Stellar Testnet payment · sandbox utility fulfilment";
 const PHONE = /^0[789][01]\d{8}$/; // Nigerian mobile: 080…, 081…, 090…, 070…, 091…
@@ -40,7 +40,7 @@ export function facilitatorClientFor(fac) {
 export function createApp({
   config = defaultConfig,
   store = createStore(config.ordersFile),
-  provider = createProvider(config.provider),
+  provider = createProvider(config.provider, config.vtpass),
   facilitatorClient = facilitatorClientFor(config.facilitator),
   log = console,
 } = {}) {
@@ -59,7 +59,7 @@ export function createApp({
   });
 
   app.get("/v1/meters/:meter", async (req, res) => {
-    const result = await provider.lookupMeter(req.params.meter);
+    const result = await provider.lookupMeter(req.params.meter, { disco: req.query.disco });
     res.status(result.ok ? 200 : 400).json(result);
   });
 
@@ -72,7 +72,16 @@ export function createApp({
     if (typeof destination !== "string" || !pattern.test(destination)) {
       return res.status(400).json({ error: `destination must be a ${UTILITIES[utility].destination === "meter" ? "meter number" : "Nigerian phone number"}.` });
     }
-    const order = store.create({ utility, ngn, destination, amount: priceOf(utility, ngn), ttlMinutes: config.orderTtlMinutes });
+    // Who delivers it: the mobile network (airtime, data) or the electricity company (meter).
+    const network = req.body?.network ?? "mtn";
+    const disco = req.body?.disco ?? "ikeja-electric";
+    if (utility !== "electricity" && !NETWORKS.includes(network)) return res.status(400).json({ error: `network must be one of: ${NETWORKS.join(", ")}` });
+    if (utility === "electricity" && !DISCOS.includes(disco)) return res.status(400).json({ error: "Unknown electricity company." });
+    // Electricity: VTpass also wants a phone for the receipt; Mhasibu sends Mama's.
+    const contactPhone = req.body?.contactPhone;
+    if (contactPhone !== undefined && (typeof contactPhone !== "string" || !PHONE.test(contactPhone))) return res.status(400).json({ error: "contactPhone must be a Nigerian phone number." });
+    const extra = utility === "electricity" ? { disco, ...(contactPhone ? { contactPhone } : {}) } : { network };
+    const order = store.create({ utility, ngn, destination, amount: priceOf(utility, ngn), ttlMinutes: config.orderTtlMinutes, ...extra });
     res.status(201).json({ order, payPath: `/paid/topup/${utility}/${ngn}?order=${order.id}` });
   });
 
@@ -139,6 +148,7 @@ export function createApp({
 
     try {
       const result = await provider.purchase(order);
+      if (!result.ok) log.error(`provider refused order ${order.id}: ${result.reason ?? "no reason"}`);
       if (!result.ok) return res.status(502).json({ error: "The utility provider refused this top-up. You were not charged." });
       res.json({ order: order.id, utility: order.utility, ngn: order.ngn, destination: order.destination, ...result, fulfilment: "sandbox", label: LABEL });
     } catch (err) {

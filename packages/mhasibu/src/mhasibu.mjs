@@ -59,7 +59,9 @@ export function createMhasibu({
     let verdict = checkPurchase({ purse, utility, ngn, destination, balanceNgn, now: clock() });
     if (!verdict.ok) return refuse(purse, utility, verdict, lang);
 
-    const { order, payPath } = await wallet.createOrder({ utility, ngn, destination });
+    const providers = purse.providers ?? {};
+    const via = utility === "electricity" ? { disco: providers.disco, contactPhone: purse.mama.phone } : { network: providers.network };
+    const { order, payPath } = await wallet.createOrder({ utility, ngn, destination, ...via });
     log({ type: "order", id: order.id, utility, ngn, payPath });
     const quote = await wallet.quote(payPath);
     log({ type: "quote", utility, ngn, amount: quote.amount, payTo: quote.payTo, asset: quote.asset, network: quote.network, url: quote.url });

@@ -18,11 +18,14 @@ export function createStore(file) {
   };
 
   return {
-    create({ utility, ngn, destination, amount, ttlMinutes }) {
+    create({ utility, ngn, destination, amount, ttlMinutes, network, disco, contactPhone }) {
       const id = crypto.randomBytes(8).toString("hex");
       const now = Date.now();
       const order = {
         id, utility, ngn, destination, amount,
+        ...(network ? { network } : {}),
+        ...(disco ? { disco } : {}),
+        ...(contactPhone ? { contactPhone } : {}),
         status: "created",
         createdAt: new Date(now).toISOString(),
         expiresAt: new Date(now + ttlMinutes * 60_000).toISOString(),

@@ -36,9 +36,21 @@ export const config = {
   gatewayUrl: env("GATEWAY_URL", "http://localhost:4021"),
   ngnPerUsdc: number("NGN_PER_USDC", 1470),
   provider: env("UTILITY_PROVIDER", "mock"),
+  vtpass: {
+    baseUrl: env("VTPASS_BASE_URL", "https://sandbox.vtpass.com/api"),
+    apiKey: env("VTPASS_API_KEY"),
+    secretKey: env("VTPASS_SECRET_KEY"),
+    publicKey: env("VTPASS_PUBLIC_KEY"),
+    // VTpass asks for a phone on electricity purchases; Mhasibu sends Mama's, this is the fallback.
+    contactPhone: env("VTPASS_CONTACT_PHONE", "08011111111"),
+  },
   ordersFile: path.resolve(repoRoot, env("ORDERS_FILE", ".data/orders.json")),
   orderTtlMinutes: number("ORDER_TTL_MINUTES", 10),
 };
+
+if (config.provider === "vtpass" && !/^https:\/\/sandbox\.vtpass\.com\//.test(config.vtpass.baseUrl)) {
+  throw new Error("CarePurse uses the VTpass SANDBOX only. Set VTPASS_BASE_URL=https://sandbox.vtpass.com/api");
+}
 
 if (config.network !== "stellar:testnet") {
   throw new Error("CarePurse runs on Stellar testnet only. Set STELLAR_NETWORK=stellar:testnet");

@@ -23,7 +23,7 @@ npm run overspend                                              # Phase 2 demo: a
 
 **Phase 2 (limits on-chain):** with `PURSE_CONTRACT_ID` set, Mhasibu calls the purse contract's `buy` after its own checks and before paying. The contract checks the guardian's caps and saved destination and releases exactly one top-up to the agent wallet; then the x402 payment goes out as usual. If the contract says no, nothing is paid.
 
-The demo purse is Mama Ngozi (Pidgin), guardian Adaeze, meter `45012345678`, phone `08031234567`, Standard limits. It's seeded into `.data/purses.json` until the daughter's dashboard exists.
+The demo purse is Mama Ngozi (Pidgin), guardian Adaeze, meter `1111111111111` and phone `08011111111` (the VTpass sandbox's test numbers), Ikeja Electric, MTN, Standard limits. It's seeded into `.data/purses.json` until the daughter's dashboard exists.
 
 ## Understanding Mama
 

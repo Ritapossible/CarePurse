@@ -35,9 +35,9 @@ export function createWallet(config = defaultConfig) {
       return (await json(await fetch(url))).options;
     },
 
-    async createOrder({ utility, ngn, destination }) {
+    async createOrder({ utility, ngn, destination, network, disco, contactPhone }) {
       const res = await fetch(new URL("/v1/orders", config.gatewayUrl), {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ utility, ngn, destination }),
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ utility, ngn, destination, network, disco, contactPhone }),
       });
       return json(res);
     },
