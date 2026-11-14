@@ -1,46 +1,163 @@
 # CarePurse
 
-Mama in Nigeria asks for electricity, airtime or data in a chat. Our AI agent, **Mhasibu**, pays for it over **x402 on Stellar**, within limits her daughter sets.
+Mama in Nigeria asks for electricity, airtime or data in a chat, in English or Pidgin. Our AI agent, **Mhasibu**, pays for each top-up over **x402 on Stellar**, within limits her daughter sets and a **Soroban contract enforces on-chain**.
 
-Built for **EmpowerHer: Building the Agent Economy**. Stellar **testnet** only.
+Built for **EmpowerHer: Building the Agent Economy** (Stallion). Stellar **testnet** and the VTpass **sandbox** only.
 
 > Live Stellar Testnet payment · sandbox utility fulfilment
 
-## Start here
+**The problem:** Nigerian women living abroad who support elderly mothers at home must repeatedly interrupt their day to arrange prepaid electricity, airtime and data purchases, because existing payment flows require a human checkout. Sending money home does not guarantee that the utility is restored immediately.
 
-Read these in order:
+**CarePurse** lets Mama request a top-up through a controlled chat, while Mhasibu pays an x402-enabled gateway within limits set by her daughter.
 
-1. **[MEMORY.md](MEMORY.md)**: everything we decided (users, sign-up, limits, wording).
-2. **[SIGNUP.md](SIGNUP.md)**: how Mama and her daughter join, screen by screen.
+---
+
+## Status (14 November 2026)
+
+Everything below runs today on Stellar testnet with real sandbox fulfilment.
+
+| Milestone | Status | Proof |
+|---|---|---|
+| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 12 tests |
+| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 18 tests |
+| Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
+| Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 10 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CDHX2A22XCJBWPL2524SZDKNCB66EKYFO736KWHOIISB4HAZNKLLMJAE) |
+| On-chain refusal demo: 7 USDC over the cap, refused by the contract | ✅ Done 14 Nov | `npm run overspend` → `OverPerTopup` (Error #3), no USDC moved |
+| Mama's chat and the live **Agent & x402 Log** demo page | ✅ Done 14 Nov | `apps/web`: `/chat`, `/demo` |
+| VTpass sandbox fulfilment: electricity token, airtime, data | ✅ Done 14 Nov | GitHub Actions "VTpass sandbox" |
+| **Full end-to-end run:** chat → contract → x402 → VTpass | ✅ Done 14 Nov | 3 of 3 settled, see below |
+| Hosting on Render, kept awake with UptimeRobot | ⏳ Next | `render.yaml`, `DEPLOY.md` |
+| Daughter's dashboard (Privy sign-up, limits, funding, invite) | ⏳ Planned | `PLAN.md` Step 4 |
+
+Mentor feedback on our Ideation & MVP assignment asked for a live Soroban spend-cap check and a live x402 log panel. Both are built (see `MEMORY.md`).
+
+### The full end-to-end run (14 Nov, GitHub Actions)
+
+Mama typed in Pidgin. Each top-up went through the purse contract, x402 on Stellar testnet and the VTpass sandbox, in about 16 seconds:
+
+| Mama said | Chose | x402 payment (USDC, Stellar testnet) | Delivered (VTpass sandbox) |
+|---|---|---|---|
+| "Abeg, light don almost finish" | ₦500 | [687531f7…](https://stellar.expert/explorer/testnet/tx/687531f757c71eba83dbe32acb8996f6eeda74c97e3ed5b9e46adbc49e47439a) | Token `2636 2054 4059 8275 7802`, 79.9 kWh |
+| "Abeg recharge my line" | ₦100 | [54a8f2ee…](https://stellar.expert/explorer/testnet/tx/54a8f2ee58958df5a2661050e1c96d4d8f4d36ef413943cde83f1c7acf2deadf) | ₦100 MTN airtime |
+| "My data don finish" | ₦200 | [5e88b966…](https://stellar.expert/explorer/testnet/tx/5e88b966bd2fcc6eba5f0261f195fa52d292b783d8cb44f88151c9520462db83) | 200MB MTN data |
+
+On the explorer, the XLM shown is the network fee (about 0.001 XLM, paid by the facilitator). The payment itself is the **USDC transfer** inside the transaction.
+
+### On testnet now
+
+| What | Address | Holds |
+|---|---|---|
+| Purse contract (Mama's money and Adaeze's rules) | [`CDHX2A…MJAE`](https://stellar.expert/explorer/testnet/contract/CDHX2A22XCJBWPL2524SZDKNCB66EKYFO736KWHOIISB4HAZNKLLMJAE) | 102.62 USDC |
+| Mhasibu's agent wallet | [`GC4JIW…OUKO`](https://stellar.expert/explorer/testnet/account/GC4JIWQIQAU3GBIHKEWLEWVJGC477W5XZV7465B5GVTEREOVQSGOOUKO) | 0 USDC between top-ups (the contract releases one top-up at a time) |
+| Gateway wallet (receives x402 payments) | [`GDFFLJ…7CAA`](https://stellar.expert/explorer/testnet/account/GDFFLJ7SQVYJDH7RB7JYIBRLHRHOP7IV4XILUMHS5WPOJ5DAJCTO7CAA) | 2.38 USDC |
+| Guardian wallet (stands in for Adaeze until Privy) | [`GATEMC…SGVS`](https://stellar.expert/explorer/testnet/account/GATEMCQDIHTP2HQSTADGX7ICFF4MJOSIT2OU3FRJ5KIHOX2O4YXISGVS) | 900 USDC reserve for testing and Demo Day |
+
+Demo purse: Mama Ngozi (Pidgin), guardian Adaeze, Standard preset, meter `1111111111111` (Ikeja Electric) and phone `08011111111` (MTN), the VTpass sandbox test numbers.
+
+**Testnet resets on 16 Dec 2026.** After it: `npm run setup`, `npm run deploy-purse`, `npm run fund-purse`, then update `PURSE_CONTRACT_ID` on Render.
+
+---
+
+## How a top-up works
+
+```
+Mama (chat)  "Abeg, light don almost finish"
+   │
+   ▼
+Mhasibu      understands (Claude via OpenServ, or the keyword parser) → offers sizes within her limits
+   │         Mama: "1"  → checks every rule in code (allowlist, quoted price, saved meter, limits, balance)
+   ▼
+Purse contract (Soroban)   buy(): checks Adaeze's caps and saved meter ON-CHAIN, releases exactly ₦500 of USDC
+   │
+   ▼
+Gateway      GET /paid/topup/electricity/500 → HTTP 402 Payment Required (exact, stellar:testnet, USDC)
+   │         Mhasibu signs a Soroban auth entry for exactly that amount → retries with PAYMENT-SIGNATURE
+   ▼
+Facilitator  verifies and settles the USDC transfer on Stellar testnet (pays the fee)
+   │
+   ▼
+VTpass sandbox   issues the electricity token → Mama sees it in the chat; Adaeze gets a receipt
+```
+
+**The AI proposes, the code decides.** The model only classifies Mama's message. It never sees the limits, never picks an amount and never decides to pay. Limits live in code **and** in the contract.
+
+**If Mhasibu doesn't understand**, it says so and offers a one-digit menu (1 Light, 2 Airtime, 3 Data, 4 How much is left). Nothing is bought on a guess.
+
+**Remove x402, and Mama gets nothing:** the payment is the only way the gateway releases a token.
+
+**Commission:** VTpass charges less than face value (1.5% off electricity, 3.5% off MTN airtime). Mama always gets the full amount; in production the margin funds CarePurse.
+
+---
+
+## Repo layout
+
+```
+apps/web/            Next.js: Mama's chat (/chat) and the demo view with the live Agent & x402 Log (/demo)
+packages/mhasibu/    The agent: understanding, rules, purse contract calls, x402 payments, API (npm run serve)
+services/gateway/    Express + @x402/express: the paid top-up API, with the VTpass sandbox behind it
+contracts/purse/     Soroban (Rust): the purse contract and its spending limits
+.github/workflows/   "VTpass sandbox": provider-only or full end-to-end run, on demand
+render.yaml          Render Blueprint for the three services (see DEPLOY.md)
+```
+
+## Docs
+
+1. **[MEMORY.md](MEMORY.md)**: every decision (users, sign-up, limits, wording, mentor feedback, VTpass findings).
+2. **[SIGNUP.md](SIGNUP.md)**: how the daughter sets up a purse and invites Mama, screen by screen.
 3. **[ARCHITECTURE.md](ARCHITECTURE.md)**: the parts, the flows, the contract and the API.
-4. **[PLAN.md](PLAN.md)**: what to build, in what order, and who does it.
-5. **[library.md](library.md)**: workshop materials and Stellar x402 docs (temporary).
+4. **[PLAN.md](PLAN.md)**: what's done, what's next, and who does it.
+5. **[DEPLOY.md](DEPLOY.md)**: hosting on Render.
+6. **[library.md](library.md)**: workshop materials and the Stellar docs check (temporary).
 
-## How it works
+---
 
-1. **The daughter** signs in with Privy, saves Mama's meter and phone number, sets spending limits per utility, and funds the purse in USDC.
-2. **Mama** logs in with her phone number and chats: "Abeg, light don almost finish".
-3. **Mhasibu** offers fixed options. Mama replies "1".
-4. **The gateway** answers **HTTP 402 Payment Required**. Mhasibu signs a USDC payment, the facilitator settles it on Stellar testnet, and the gateway returns the electricity token.
-5. **Mama** sees the token in the chat, and the daughter gets a receipt with the transaction link.
+## Run it locally
 
-## Repo layout (planned)
-
-```
-apps/web/            Next.js: Mama's chat, the daughter's dashboard, Mhasibu (agent)
-services/gateway/    Express + @x402/express: the paid top-up API
-contracts/purse/     Soroban (Rust): the purse and its spending limits
-```
-
-## Getting started (for teammates)
+Node 22+. Rust and `stellar-cli` only if you rebuild the contract.
 
 ```bash
-git clone https://github.com/Ritapossible/CarePurse.git
-cd CarePurse
-cp .env.example .env     # fill it in; never commit it
+git clone https://github.com/Ritapossible/CarePurse.git && cd CarePurse
+
+cd services/gateway && npm install
+npm run setup          # creates and funds testnet wallets, writes .env (never commit it)
+npm start              # gateway on :4021 (UTILITY_PROVIDER=mock, or vtpass with sandbox keys)
+
+cd ../../packages/mhasibu && npm install
+npm run deploy-purse   # deploys your own purse contract (needs the wasm: cd contracts/purse && stellar contract build)
+npm run fund-purse -- 100 50   # the guardian buys test USDC and deposits 50 into the purse
+npm run serve          # Mhasibu API on :4022
+npm run chat           # or chat in the terminal
+
+cd ../../apps/web && npm install && npm run dev    # http://localhost:3000/demo
 ```
 
-Before writing code, run Koxy's workshop kit once (see `library.md`, section 5), so we know our wallets and the facilitator work. Then follow `PLAN.md`, Step 0.
+Tests (no network, no money): `cargo test` in `contracts/purse`, `npm test` in `services/gateway` and `packages/mhasibu`.
+
+---
+
+## Hosting and keeping it awake
+
+Three Render services from `render.yaml` (see **[DEPLOY.md](DEPLOY.md)**), pinged by **UptimeRobot** so judges never wait for a cold start.
+
+| Service | UptimeRobot monitor (HTTP, every 5 minutes) |
+|---|---|
+| `carepurse-gateway` | `https://<gateway>/health` |
+| `carepurse-mhasibu` | `https://<mhasibu>/v1/status` |
+| `carepurse-web` | `https://<web>/` |
+
+**Watch the free hours:** Render's free plan gives **750 instance hours per month for the whole account**, and a sleeping service uses none. Three services kept awake 24/7 use about 2,160 hours, which runs out in about 10 days, and Render then suspends all free services until the next month. So:
+
+- Keep the monitors **paused** while we build, and **switch them on for judging and Demo Day** (two services awake for a week is about 340 hours).
+- Or serve the web app as a Render **static site** (free, always on, uses no hours), leaving two services to keep awake.
+- Files on the free plan are wiped on every restart, so the code-side spend history resets; the contract's caps and spends stay on-chain.
+
+---
+
+## Security
+
+- Stellar **testnet** and the VTpass **sandbox** only. The gateway refuses any other network or VTpass URL.
+- No secrets in the repo. Keys live in `.env` (git-ignored), GitHub Actions secrets, or Render's dashboard.
+- Only the guardian can change destinations or limits, on-chain. Mhasibu is never told its limits.
 
 ## Team
 

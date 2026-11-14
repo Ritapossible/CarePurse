@@ -24,6 +24,10 @@ Stellar **testnet** and the VTpass **sandbox** only. Three services from one Blu
    - web `NEXT_PUBLIC_MHASIBU_URL` = Mhasibu's URL (read at **build** time, so redeploy the web service after setting it)
 4. Check: open `https://<gateway>/health`, `https://<mhasibu>/v1/status`, then `https://<web>/demo` and send "Abeg, light don almost finish", then "1".
 
+## Keep it awake (UptimeRobot)
+
+Add three HTTP(s) monitors, every 5 minutes: the gateway's `/health`, Mhasibu's `/v1/status` and the web app's `/`. Pause them while we build and switch them on for judging and Demo Day: Render's free plan has **750 hours a month for the whole account**, and three services awake 24/7 use them up in about 10 days (then Render suspends all free services until next month). See the README, "Hosting and keeping it awake".
+
 ## Things to know
 
 - **Free plan sleeps** after 15 minutes idle; the first request takes about a minute. Open all three URLs a few minutes before a demo.
