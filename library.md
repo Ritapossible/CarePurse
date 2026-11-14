@@ -15,6 +15,8 @@ Everything here is **Stellar testnet only**.
 7. [Stellar docs: x402 and the Built on Stellar facilitator](#7-stellar-docs-x402-and-the-built-on-stellar-facilitator)
 8. [How this maps to CarePurse](#8-how-this-maps-to-carepurse)
 9. [Things to check before we rely on them](#9-things-to-check-before-we-rely-on-them)
+10. [Checked against these resources (13 November 2026)](#10-checked-against-these-resources-13-november-2026)
+11. [Stellar Lab and the Stellar docs check (14 November 2026)](#11-stellar-lab-and-the-stellar-docs-check-14-november-2026)
 
 ---
 
@@ -37,6 +39,9 @@ Everything here is **Stellar testnet only**.
 | Stellar docs for AI tools | https://developers.stellar.org/llms.txt |
 | Testnet USDC faucet | https://faucet.circle.com (choose Stellar Testnet) |
 | Testnet explorer | https://stellar.expert/explorer/testnet |
+| Stellar Lab (build, sign, inspect transactions; Friendbot; trustlines) | https://lab.stellar.org |
+| Stellar Lab docs | https://developers.stellar.org/docs/tools/lab |
+| Stellar networks (testnet resets) | https://developers.stellar.org/docs/networks |
 
 ---
 
@@ -322,12 +327,12 @@ curl -si https://stellar.org/x402-demo/api/protected/testnet | grep -i payment-r
 
 | Workshop kit | CarePurse |
 |---|---|
-| Solar Data shop (`src/server.mjs`) | **CarePurse gateway**: one paid route, `POST /v1/topup`, for electricity, airtime and data |
-| Prices fixed per route | Price set per request: the gateway quotes the naira amount as USDC in the 402 |
+| Solar Data shop (`src/server.mjs`) | **CarePurse gateway**: an order (`POST /v1/orders`), then the paid route `GET /paid/topup/:utility/:ngn` for electricity, airtime and data |
+| Prices fixed per route | Fixed price tiers per route (₦500 to ₦10,000 electricity, ₦100 to ₦5,000 airtime and data), quoted as USDC in the 402 |
 | AI agent with 3 tools | **Mhasibu**: tools to read Mama's saved meter and phone, quote a top-up, and buy |
-| Wallet rules in code (Layer 1) | Per-utility caps, the purse cap and saved destinations. The kit keeps these in `.env`; we move them **on-chain** (Soroban), which is the workshop's own "next step" |
-| Human approval above a threshold | Mama confirms every purchase in chat ("Reply 1 to buy") |
-| Agent not told its limits | Same: Mhasibu only learns a limit when the contract refuses |
+| Wallet rules in code (Layer 1) | Per-utility caps, the purse cap and saved destinations, in code (Phase 1). Phase 2 moves them **on-chain** (Soroban), which is the workshop's own "next step" |
+| Human approval above a threshold | Mama picks a numbered option for every purchase; silence for 10 minutes means no |
+| Agent not told its limits | Same: the model only classifies Mama's message and never sees the limits |
 | Solar demo data | Sandbox utility provider returns a demo token |
 | Agent Console | Mama's chat and Adaeze's dashboard |
 
@@ -360,3 +365,49 @@ curl -si https://stellar.org/x402-demo/api/protected/testnet | grep -i payment-r
 8. **Deploy step:** the plan now has a Render deploy step, as in the kit, so the judges get a working prototype link.
 
 **Second workshop link checked:** `docs.google.com/presentation/d/1iLywzcGRrSDlUzPDGRtOsJpDBl4uDRC_3_N96imDNCA` (also shared as `AGENTIC_PAYMENT__X402_ON_STELLAR.pdf`) is the **same deck** as the first link: Koxy's "Agentic Payment & x402 on Stellar", 25 slides, 12 November 2026. Its slides match section 4 above exactly; the PDF just has no speaker notes. Nothing new, and nothing in it goes against our docs.
+
+---
+
+## 11. Stellar Lab and the Stellar docs check (14 November 2026)
+
+### Stellar Lab (https://lab.stellar.org)
+
+Stellar's web tool for building, testing and exploring the network. Nothing to install. What we'll use it for:
+
+| Lab page | What we use it for |
+|---|---|
+| [Create account](https://lab.stellar.org/account/create) | Make and fund testnet wallets with Friendbot, and add the USDC trustline, without our setup script |
+| [Endpoints](https://lab.stellar.org/endpoints) | Look up a wallet's balances and trustlines (Horizon), or call Stellar RPC methods |
+| [Transaction dashboard](https://lab.stellar.org/transaction-dashboard) | Open a top-up's tx hash and see the USDC `transfer`, its result and any failure |
+| [XDR viewer](https://lab.stellar.org/xdr/view) | Decode the signed auth entry or transaction inside a `PAYMENT-SIGNATURE` header, to show judges what Mhasibu signed |
+| [Contract explorer](https://lab.stellar.org/smart-contracts/contract-explorer) and [Deploy](https://lab.stellar.org/smart-contracts/deploy-contract) | Phase 2: deploy the purse contract and call `buy` from the browser |
+| [Simulate](https://lab.stellar.org/transaction/simulate) and [Submit](https://lab.stellar.org/transaction/submit) | Try a transaction before sending it |
+
+Always pick **Testnet** in Lab's network menu.
+
+### Are we following the Stellar docs?
+
+Checked against Stellar Lab's docs, the networks page, the x402 page, the lumens (reserves) page and the `stellar/x402-stellar` repo.
+
+| Stellar docs say | What CarePurse does | OK? |
+|---|---|---|
+| Testnet id `stellar:testnet`, passphrase `Test SDF Network ; September 2015`, Horizon `horizon-testnet.stellar.org`, RPC `soroban-testnet.stellar.org` | Same values in `.env.example`; the gateway refuses to start on any other network | Yes |
+| x402 pays with signed Soroban auth entries for a SEP-41 token; USDC is the default | Mhasibu signs auth entries (`ExactStellarScheme`) for the USDC contract `CBIELTK6…` | Yes |
+| Testnet USDC issuer `GBBD47IF…` and contract `CBIELTK6…`, 7 decimals | Same values; prices are worked out in base units with 7 decimals | Yes |
+| Scheme `exact` | `exact` | Yes |
+| Coinbase facilitator: testnet, sponsored fees. Built on Stellar: testnet and mainnet, needs a key | Coinbase as our working default, Built on Stellar as the switchable alternative | Yes |
+| Classic accounts pay their own reserves: 1 XLM minimum plus 0.5 XLM per trustline | Each wallet gets 10,000 test XLM from Friendbot, then a USDC trustline | Yes |
+| The receiver of an issued asset needs a trustline | The gateway wallet and every agent wallet get a USDC trustline in `npm run setup` | Yes |
+| Testnet resets 2 to 4 times a year and wipes all accounts; build scripts that repopulate | `npm run setup` keeps our keys, re-funds missing wallets and re-adds trustlines; `npm run get-usdc` refills USDC | Yes |
+| The docs name an npm package `x402-stellar` | We use the `@x402/*` 2.30.0 packages from the workshop kit, which we've run live. `stellar/x402-stellar` itself names no published package | Fine, keep the kit's |
+| Mainnet RPC only through third-party providers | Not relevant: testnet only | n/a |
+
+**Nothing we built goes against the Stellar docs.**
+
+### Watch out
+
+1. **Testnet reset on 16 December 2026, 17:00 UTC** (the only one scheduled for 2026). That's after submissions close on 28 November. If Demo Day falls on or after it, every wallet, balance and demo transaction link disappears. Before Demo Day: run `npm run setup` and `npm run get-usdc` again, make fresh demo payments, and don't put old explorer links in the slides.
+2. **Friendbot is rate limited.** Fund wallets once and reuse them; don't call it on every test run.
+3. **Phase 2 (purse contract):** use Lab to deploy it and test `buy` before wiring it into Mhasibu.
+4. **Production, later:** wallets for many purses would need sponsored reserves, so the daughter doesn't hold XLM. See the Sponsored Reserves guide in the Stellar docs.
+
