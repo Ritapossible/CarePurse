@@ -15,6 +15,8 @@ const show = (label, r) => {
   console.log(`${ok ? "✓" : "✗"} ${label}: ${JSON.stringify(rest)}`);
 };
 
+const bal = await provider.balance();
+console.log(`  sandbox wallet: ${JSON.stringify(bal)}`);
 show("verify meter", await provider.lookupMeter(METER));
 show("electricity ₦500", await provider.purchase({ utility: "electricity", ngn: 500, destination: METER, contactPhone: PHONE }));
 show("airtime ₦100 (MTN)", await provider.purchase({ utility: "airtime", ngn: 100, destination: PHONE, network: "mtn" }));

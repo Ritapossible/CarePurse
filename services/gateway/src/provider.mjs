@@ -45,6 +45,9 @@ export function vtpassRequestId(now = Date.now()) {
   return `${stamp}${crypto.randomBytes(6).toString("hex")}`;
 }
 
+// VTpass's own answer, for logs: its code and message, never our keys.
+const vtpassSays = (json) => ({ code: json?.code ?? null, message: json?.response_description ?? json?.message ?? json?.content?.error ?? null });
+
 const cleanToken = (t) => String(t ?? "").replace(/^\s*token\s*:\s*/i, "").trim();
 
 export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, contactPhone, fetchImpl = fetch, clock = Date.now, wait = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
@@ -89,31 +92,37 @@ export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, co
   return {
     name: "VTpass sandbox",
 
+    // The sandbox wallet's balance (VTpass debits it for every purchase).
+    async balance() {
+      const { json } = await call("GET", "/balance");
+      return { ok: json?.code === 1 || json?.code === "000" || json?.contents?.balance !== undefined, balance: json?.contents?.balance ?? json?.content?.balance ?? null, vtpass: vtpassSays(json) };
+    },
+
     async lookupMeter(meter, { disco = "ikeja-electric" } = {}) {
       if (!/^\d{11,13}$/.test(meter)) return { ok: false, reason: "A meter number has 11 to 13 digits." };
       if (!DISCOS.includes(disco)) return { ok: false, reason: "Unknown electricity company." };
       const { json } = await call("POST", "/merchant-verify", { billersCode: meter, serviceID: disco, type: "prepaid" });
       const c = json?.content ?? {};
-      if (json?.code !== "000" || c.WrongBillersCode || c.error) return { ok: false, reason: c.error ?? "The electricity company did not recognise this meter." };
+      if (json?.code !== "000" || c.WrongBillersCode || c.error) return { ok: false, reason: c.error ?? "The electricity company did not recognise this meter.", vtpass: vtpassSays(json) };
       return { ok: true, meter, ownerName: c.Customer_Name, address: c.Address, disco, canVend: c.Can_Vend ?? null };
     },
 
     async purchase({ utility, ngn, destination, network = "mtn", disco = "ikeja-electric", contactPhone: phone }) {
       if (utility === "electricity") {
         const r = await pay({ serviceID: disco, billersCode: destination, variation_code: "prepaid", amount: ngn, phone: phone ?? contactPhone });
-        if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id };
+        if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json) };
         const token = cleanToken(r.json.token ?? r.json.purchased_code ?? r.json.mainToken ?? r.json.content?.transactions?.token);
         return { ok: true, token: token.replace(/\D/g, "").match(/.{1,4}/g)?.join(" ") ?? token, units: r.json.units ?? r.json.mainTokenUnits ?? null, reference: r.request_id, provider: "VTpass sandbox" };
       }
       if (utility === "airtime") {
         const r = await pay({ serviceID: network, amount: ngn, phone: destination });
-        if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id };
+        if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json) };
         return { ok: true, reference: r.request_id, note: `₦${ngn} ${network.toUpperCase()} airtime sent to ${destination}`, provider: "VTpass sandbox" };
       }
       const bundle = await dataVariation(network, ngn);
       if (!bundle) return { ok: false, reason: `No ${network} data bundle at or under ₦${ngn}.` };
       const r = await pay({ serviceID: `${network}-data`, billersCode: destination, variation_code: bundle.code, amount: bundle.amount, phone: destination });
-      if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id };
+      if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json) };
       return { ok: true, reference: r.request_id, bundle: bundle.name, note: `${bundle.name} sent to ${destination}`, provider: "VTpass sandbox" };
     },
   };
