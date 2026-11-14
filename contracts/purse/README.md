@@ -56,4 +56,11 @@ npm run deploy-purse            # testnet: deploy, set caps and destinations, mo
 npm run overspend               # the demo: ask for 7 USDC, skipping Mhasibu's code. Refused on-chain.
 ```
 
-Built with `soroban-sdk` 29.0.1. Testnet runs protocol 30.
+Built with `soroban-sdk` 29.0.1 and `stellar-cli` 30.0.1. Testnet runs protocol 30. On Linux, installing the CLI with `cargo install --locked stellar-cli` needs `libdbus-1-dev`, `libudev-dev` and `pkg-config`.
+
+## Live on testnet (14 Nov 2026)
+
+- Purse contract: [`CDHX2A22XCJBWPL2524SZDKNCB66EKYFO736KWHOIISB4HAZNKLLMJAE`](https://stellar.expert/explorer/testnet/contract/CDHX2A22XCJBWPL2524SZDKNCB66EKYFO736KWHOIISB4HAZNKLLMJAE), Standard preset, 3.50 USDC in it.
+- A ₦500 electricity top-up: the contract released 0.3401361 USDC, then x402 settled it.
+- The overspend demo: 7 USDC asked, refused on-chain with `OverPerTopup` (Error #3). No USDC moved.
+- Testnet resets on 16 Dec 2026: run `npm run deploy-purse` again after a reset.
