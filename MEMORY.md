@@ -127,6 +127,6 @@ Note: the assignment described the paid route as `POST /v1/topup`. As built it i
 - **Commission:** VTpass charges us less than face value; Mama still gets the full amount. Electricity 1.5% (₦500 cost ₦492.50), MTN airtime 3.5% (₦100 cost ₦96.50). In production that margin is CarePurse's revenue.
 - **Account setup that blocked us:** API Settings needs "API Keys" chosen **and SUBMIT pressed** (else `087 INVALID CREDENTIALS`); each product must be switched on in Product Settings (else `028 PRODUCT IS NOT WHITELISTED`).
 - **`019 LIKELY DUPLICATE TRANSACTION`:** VTpass refuses a second purchase to the same number within a few minutes. The gateway refuses the top-up, so x402 doesn't settle and Mama isn't charged. Mhasibu should tell her to try again in a few minutes (to do).
-- **Data bundles:** the variation list mixes data with talk-time bundles ("Xtratalk"); we now pick only MB/GB bundles.
+- **Data bundles:** the variation list mixes data with talk-time bundles ("Xtratalk"); we pick only MB/GB bundles, and only at **exactly** the tier price. A tier with no exact bundle is hidden from Mama (MTN sandbox has no ₦500 data bundle), so she never pays ₦500 for a ₦200 bundle.
 - VTpass needs two key headers per request, so in cloud sessions the keys live in GitHub secrets / Render env vars, not the session's network secret.
 
