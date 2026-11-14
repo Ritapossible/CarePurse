@@ -42,7 +42,7 @@ const USDC = "#2b8a3e", MSG = "#1e1e1e", PLAN = "#c92a2a";
 
 // Title
 text(40, 10, "CarePurse: how the money moves", { size: 36, color: "#1e1e1e" });
-text(40, 60, "Live Stellar Testnet payment · sandbox utility fulfilment   ·   example: Mama buys ₦500 of light (0.34 USDC)", { size: 18, color: "#495057" });
+text(40, 60, "Live Stellar Testnet payment · sandbox utility fulfilment   ·   example: Mama gets ₦500 of light; the purse pays ₦515 incl. 3% service fee (0.35 USDC)", { size: 18, color: "#495057" });
 
 // Parties
 box(40, 130, 330, 130, "Adaeze (daughter abroad)", "guardian · funds the purse\nsets limits · saves Mama's meter", C.purple);
@@ -50,7 +50,7 @@ box(560, 130, 360, 130, "Purse contract (Soroban)", "holds Mama's USDC\nenforces
 box(40, 470, 330, 130, "Mama in Lagos", "chats in English or Pidgin\n“Abeg, light don almost finish”", C.green);
 box(560, 470, 360, 130, "Mhasibu (AI agent)", "checks every rule in code\nwallet holds 0 between top-ups", C.blue);
 box(1110, 260, 330, 120, "x402 facilitator", "verifies + settles on Stellar\npays the XLM network fee", C.grey);
-box(1110, 470, 330, 130, "CarePurse gateway", "platform wallet GDFFLJ…7CAA\nanswers HTTP 402 · gets paid", C.teal);
+box(1110, 470, 330, 130, "CarePurse gateway", "platform wallet GDFFLJ…7CAA\nanswers HTTP 402 · keeps 3% fee", C.teal);
 box(1110, 720, 330, 120, "VTpass (sandbox)", "issues the token, airtime\nor data · naira wallet", C.orange);
 box(1560, 590, 300, 120, "Off-ramp", "USDC → naira\n(Nigerian anchor / exchange)", C.red, { dashed: true });
 
@@ -59,7 +59,7 @@ arrow([[370, 195], [560, 195]], { color: USDC, width: 3, label: "① deposit USD
 // ② Mama asks Mhasibu
 arrow([[370, 535], [560, 535]], { color: MSG, label: "② asks, then\nreplies “1” (₦500)", lx: 385, ly: 480 });
 // ③ contract releases exactly the top-up
-arrow([[740, 260], [740, 470]], { color: USDC, width: 3, label: "③ buy(): caps + saved meter OK\n→ releases exactly 0.34 USDC", lx: 755, ly: 330, lsize: 18 });
+arrow([[740, 260], [740, 470]], { color: USDC, width: 3, label: "③ buy(): caps + saved meter OK\n→ releases exactly 0.35 USDC", lx: 755, ly: 330, lsize: 18 });
 // ④ x402 payment to the platform
 arrow([[920, 520], [1110, 520]], { color: USDC, width: 3, label: "④ x402 USDC\n402 · sign · retry", lx: 935, ly: 448, lsize: 16 });
 // ⑤ facilitator settles
