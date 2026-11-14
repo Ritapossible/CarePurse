@@ -23,6 +23,13 @@ console.log(`  sandbox wallet: ${JSON.stringify(bal)}`);
 show("verify meter", await provider.lookupMeter(METER));
 if (only.has("electricity")) show("electricity ₦500", await provider.purchase({ utility: "electricity", ngn: 500, destination: METER, contactPhone: PHONE }));
 if (only.has("airtime")) show("airtime ₦100 (MTN)", await provider.purchase({ utility: "airtime", ngn: 100, destination: PHONE, network: "mtn" }));
-if (only.has("data")) show("data ₦500 (MTN)", await provider.purchase({ utility: "data", ngn: 500, destination: PHONE, network: "mtn" }));
+if (only.has("data")) {
+  // Only sizes MTN sells at exactly that price are offered; show which, then buy one.
+  const sold = await provider.dataTiers("mtn");
+  const tiers = [100, 200, 500, 1000, 2000, 5000].filter((t) => sold.has(t));
+  console.log(`  MTN data sizes we can offer: ${tiers.map((t) => `₦${t}`).join(", ") || "none"}`);
+  const ngn = tiers.includes(200) ? 200 : tiers[0];
+  show(`data ₦${ngn} (MTN)`, await provider.purchase({ utility: "data", ngn, destination: PHONE, network: "mtn" }));
+}
 console.log(failures ? `\n${failures} check(s) failed.` : "\nAll VTpass sandbox checks passed.");
 process.exit(failures ? 1 : 0);

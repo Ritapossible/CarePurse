@@ -37,7 +37,7 @@ export function createMhasibu({
     if (purse.paused) return say.paused(lang, { guardian: purse.guardian.name });
     const balanceNgn = await wallet.balanceNgn();
     const room = headroom(purse, utility, { balanceNgn, now });
-    const options = room.maxNgn > 0 ? await wallet.options(utility, room.maxNgn) : [];
+    const options = room.maxNgn > 0 ? await wallet.options(utility, room.maxNgn, purse.providers?.network) : [];
     if (!options.length) {
       if (room.tightest.rule === "purse balance") {
         notifyGuardian(purse, "low-balance", `Mama asked for ${utility}, but the purse balance is too low.`);

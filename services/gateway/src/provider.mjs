@@ -80,19 +80,33 @@ export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, co
     return { request_id, json, result: outcome(json) };
   }
 
-  async function dataVariation(network, ngn) {
+  const bundleCache = new Map();
+  async function dataBundles(network) {
+    const hit = bundleCache.get(network);
+    if (hit && clock() - hit.at < 10 * 60_000) return hit.list;
     const { json } = await call("GET", `/service-variations?serviceID=${network}-data`);
     const list = (json?.content?.variations ?? json?.content?.varations ?? [])
       .map((v) => ({ code: v.variation_code, name: v.name, amount: Number(v.variation_amount) }))
       // Internet data only: the list also holds talk-time bundles ("Xtratalk") and others.
       .filter((v) => /\d+(\.\d+)?\s?(MB|GB)\b/i.test(v.name) && !/talk|voice|sms|minutes?/i.test(v.name))
-      .filter((v) => v.amount > 0 && v.amount <= ngn)
-      .sort((a, b) => b.amount - a.amount);
-    return list[0] ?? null; // the biggest bundle that fits the tier
+      .filter((v) => v.amount > 0);
+    bundleCache.set(network, { at: clock(), list });
+    return list;
+  }
+
+  // The bundle that costs exactly this tier. Never a cheaper one: Mama pays the tier price, so
+  // she must get a bundle of that price (first match in VTpass's list).
+  async function dataVariation(network, ngn) {
+    return (await dataBundles(network)).find((v) => v.amount === ngn) ?? null;
   }
 
   return {
     name: "VTpass sandbox",
+
+    // Data tiers this network really sells at exactly that price (others are hidden).
+    async dataTiers(network = "mtn") {
+      return new Set((await dataBundles(network)).map((v) => v.amount));
+    },
 
     // The sandbox wallet's balance (VTpass debits it for every purchase).
     async balance() {
@@ -122,7 +136,7 @@ export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, co
         return { ok: true, reference: r.request_id, note: `₦${ngn} ${network.toUpperCase()} airtime sent to ${destination}`, provider: "VTpass sandbox" };
       }
       const bundle = await dataVariation(network, ngn);
-      if (!bundle) return { ok: false, reason: `No ${network} data bundle at or under ₦${ngn}.` };
+      if (!bundle) return { ok: false, reason: `No ${network} data bundle costs exactly ₦${ngn}.` };
       const r = await pay({ serviceID: `${network}-data`, billersCode: destination, variation_code: bundle.code, amount: bundle.amount, phone: destination });
       if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json) };
       return { ok: true, reference: r.request_id, bundle: bundle.name, note: `${bundle.name} sent to ${destination}`, provider: "VTpass sandbox" };

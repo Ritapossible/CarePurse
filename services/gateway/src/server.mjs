@@ -50,12 +50,24 @@ export function createApp({
 
   app.get("/health", (_req, res) => res.json({ ok: true, network: config.network, label: LABEL }));
 
-  app.get("/v1/options", (req, res) => {
+  app.get("/v1/options", async (req, res) => {
     const { utility } = req.query;
     if (!isUtility(utility)) return res.status(400).json({ error: `utility must be one of: ${Object.keys(UTILITIES).join(", ")}` });
     const maxNgn = req.query.max_ngn === undefined ? undefined : Number(req.query.max_ngn);
     if (maxNgn !== undefined && !(maxNgn > 0)) return res.status(400).json({ error: "max_ngn must be a positive number" });
-    res.json({ utility, options: options(utility, { ngnPerUsdc: config.ngnPerUsdc, decimals: config.usdc.decimals, maxNgn }) });
+    let list = options(utility, { ngnPerUsdc: config.ngnPerUsdc, decimals: config.usdc.decimals, maxNgn });
+    // Data: only the sizes the network sells at exactly that price (VTpass bundle list).
+    if (utility === "data" && provider.dataTiers) {
+      const network = NETWORKS.includes(req.query.network) ? req.query.network : "mtn";
+      try {
+        const sold = await provider.dataTiers(network);
+        list = list.filter((o) => sold.has(o.ngn));
+      } catch (err) {
+        log.error(err);
+        return res.status(502).json({ error: "Could not load data bundles right now." });
+      }
+    }
+    res.json({ utility, options: list });
   });
 
   app.get("/v1/meters/:meter", async (req, res) => {

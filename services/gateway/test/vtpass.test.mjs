@@ -44,7 +44,7 @@ test("electricity: verify the meter, then buy and return the token", async () =>
   assert.equal(pay.body.amount, 500);
 });
 
-test("airtime goes to the network's serviceID; data picks the biggest bundle that fits", async () => {
+test("airtime goes to the network's serviceID; data is sold only at exact bundle prices", async () => {
   const { provider, calls } = fakeVtpass({
     "/pay": delivered(),
     "/service-variations": { content: { variations: [
@@ -56,7 +56,10 @@ test("airtime goes to the network's serviceID; data picks the biggest bundle tha
   });
   assert.equal((await provider.purchase({ utility: "airtime", ngn: 100, destination: "08011111111", network: "glo" })).ok, true);
   assert.equal(calls.at(-1).body.serviceID, "glo");
-  const data = await provider.purchase({ utility: "data", ngn: 500, destination: "08011111111", network: "mtn" });
+  // ₦500: only a talk bundle costs ₦500, so no data is bought (Mama is never charged ₦500 for less).
+  assert.equal((await provider.purchase({ utility: "data", ngn: 500, destination: "08011111111", network: "mtn" })).ok, false);
+  assert.deepEqual([...(await provider.dataTiers("mtn"))].sort((a, b) => a - b), [100, 200, 1000]);
+  const data = await provider.purchase({ utility: "data", ngn: 200, destination: "08011111111", network: "mtn" });
   assert.equal(data.bundle, "200MB");
   const get = calls.find((c) => c.method === "GET");
   assert.deepEqual(get.headers, { "api-key": "A", "public-key": "P" });

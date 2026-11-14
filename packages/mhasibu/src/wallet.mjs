@@ -28,9 +28,10 @@ export function createWallet(config = defaultConfig) {
       return Number(usdc?.balance ?? 0) * config.ngnPerUsdc;
     },
 
-    async options(utility, maxNgn) {
+    async options(utility, maxNgn, network) {
       const url = new URL("/v1/options", config.gatewayUrl);
       url.searchParams.set("utility", utility);
+      if (network) url.searchParams.set("network", network);
       url.searchParams.set("max_ngn", String(Math.max(1, maxNgn)));
       return (await json(await fetch(url))).options;
     },
