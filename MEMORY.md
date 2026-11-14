@@ -121,3 +121,12 @@ Two tips, both now **Must have**:
 
 Note: the assignment described the paid route as `POST /v1/topup`. As built it is `POST /v1/orders`, then `GET /paid/topup/:utility/:ngn` (the x402 route). Use the built routes in the final deck.
 
+## VTpass sandbox: tested 14 Nov (GitHub Actions, "VTpass sandbox" workflow)
+
+- Works: meter check ("TESTMETER1", Ikeja Electric), ₦500 electricity with a 20-digit token (79.9 kWh), ₦100 MTN airtime, ₦500 MTN data.
+- **Commission:** VTpass charges us less than face value; Mama still gets the full amount. Electricity 1.5% (₦500 cost ₦492.50), MTN airtime 3.5% (₦100 cost ₦96.50). In production that margin is CarePurse's revenue.
+- **Account setup that blocked us:** API Settings needs "API Keys" chosen **and SUBMIT pressed** (else `087 INVALID CREDENTIALS`); each product must be switched on in Product Settings (else `028 PRODUCT IS NOT WHITELISTED`).
+- **`019 LIKELY DUPLICATE TRANSACTION`:** VTpass refuses a second purchase to the same number within a few minutes. The gateway refuses the top-up, so x402 doesn't settle and Mama isn't charged. Mhasibu should tell her to try again in a few minutes (to do).
+- **Data bundles:** the variation list mixes data with talk-time bundles ("Xtratalk"); we now pick only MB/GB bundles.
+- VTpass needs two key headers per request, so in cloud sessions the keys live in GitHub secrets / Render env vars, not the session's network secret.
+

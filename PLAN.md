@@ -107,6 +107,6 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Every payment has a transaction link anyone can open.
 - [ ] No step is simulated except the utility provider (sandbox), and the UI says so.
 
-## Open: VTpass sandbox keys (14 Nov)
+## VTpass sandbox: done (14 Nov)
 
-The VTpass sandbox provider is built and tested offline (`services/gateway/test/vtpass.test.mjs`). A live sandbox run needs the three VTpass sandbox keys as environment variables (`VTPASS_API_KEY`, `VTPASS_SECRET_KEY`, `VTPASS_PUBLIC_KEY`), here and on Render. VTpass needs two key headers per request, so it can't use the cloud session's one-header network secret.
+Electricity, airtime and data all pass in the VTpass sandbox (GitHub Actions workflow "VTpass sandbox"). Still to do: the "full" mode run (needs the `AGENT_SECRET_KEY` secret), and a friendly reply for VTpass's duplicate guard (`019`). See `MEMORY.md`.

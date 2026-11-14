@@ -84,6 +84,8 @@ export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, co
     const { json } = await call("GET", `/service-variations?serviceID=${network}-data`);
     const list = (json?.content?.variations ?? json?.content?.varations ?? [])
       .map((v) => ({ code: v.variation_code, name: v.name, amount: Number(v.variation_amount) }))
+      // Internet data only: the list also holds talk-time bundles ("Xtratalk") and others.
+      .filter((v) => /\d+(\.\d+)?\s?(MB|GB)\b/i.test(v.name) && !/talk|voice|sms|minutes?/i.test(v.name))
       .filter((v) => v.amount > 0 && v.amount <= ngn)
       .sort((a, b) => b.amount - a.amount);
     return list[0] ?? null; // the biggest bundle that fits the tier

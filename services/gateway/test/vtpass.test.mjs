@@ -51,6 +51,7 @@ test("airtime goes to the network's serviceID; data picks the biggest bundle tha
       { variation_code: "mtn-100", name: "100MB", variation_amount: "100" },
       { variation_code: "mtn-200", name: "200MB", variation_amount: "200" },
       { variation_code: "mtn-1000", name: "1.5GB", variation_amount: "1000" },
+      { variation_code: "mtn-xtratalk-500", name: "MTN N500 Xtratalk Weekly Bundle", variation_amount: "500" },
     ] } },
   });
   assert.equal((await provider.purchase({ utility: "airtime", ngn: 100, destination: "08011111111", network: "glo" })).ok, true);
