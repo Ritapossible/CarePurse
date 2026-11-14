@@ -6,8 +6,8 @@
 
 | Priority | Scope |
 |---|---|
-| **Must have** | The x402 payment flow on Stellar testnet: Mhasibu asks, the gateway answers 402, Mhasibu signs and pays, the gateway returns the token. Electricity, airtime and data all use this one flow, with sandbox fulfilment. |
-| **Should have** | Spend limits on-chain in a Soroban contract (per-utility caps, saved meter and phone), a transaction receipt log, and the daughter's funding and limits dashboard. |
+| **Must have** | The x402 payment flow on Stellar testnet: Mhasibu asks, the gateway answers 402, Mhasibu signs and pays, the gateway returns the token. Electricity, airtime and data all use this one flow, with sandbox fulfilment. **At least one live Soroban spend-cap check** (a top-up over the cap is refused on-chain), and a live **Agent & x402 Log** panel beside Mama's chat (mentor feedback, 13 Nov). |
+| **Should have** | The rest of the on-chain rules (all caps, saved meter and phone), a transaction receipt log, and the daughter's funding and limits dashboard. |
 | **Could have** | Price comparison across bills providers, scheduled weekly top-ups, several relatives funding one purse, Yoruba, Igbo and Hausa. |
 | **Won't have** | Live tokens from a real biller, cash-out to naira, fiat bank KYC, mobile apps, WhatsApp. |
 
@@ -62,6 +62,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction.
 - [ ] English and Pidgin replies.
 - [ ] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
+- [ ] **Agent & x402 Log** panel beside the chat (demo view): each step live, from Mama's message, the contract check and the 402 challenge to the signed payment and the Stellar Testnet settlement link. Mama's own chat stays simple.
 
 ### Step 4: Daughter's dashboard (19–22 Nov), Should have
 - [ ] The four sign-up screens from `SIGNUP.md` (D1 to D4).
@@ -73,7 +74,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Invite status on the dashboard, and **[Send a new invite]** that cancels the old link.
 - [ ] Receipts: every top-up with its Stellar transaction link.
 
-### Step 5: Limits on-chain (20–24 Nov), Should have
+### Step 5: Limits on-chain (20–24 Nov), Must have (one cap check) · Should have (the rest)
 - [ ] Decide: our own purse contract, or token allowances / OpenZeppelin smart accounts (`library.md`).
 - [ ] Write the contract and its tests (`ARCHITECTURE.md`, Phase 2).
 - [ ] Mhasibu calls `buy` before paying.
@@ -95,7 +96,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 1. **The problem (20 s):** Adaeze in London, Mama Ngozi in Lagos, the light running out.
 2. **Set up (30 s):** Adaeze's dashboard: Mama's meter saved, limits set, purse funded.
 3. **The golden path (60 s):** Mama: "Abeg, light don almost finish" → options → "1" → **402** → Mhasibu pays → token in chat. Show the transaction on the Stellar testnet explorer.
-4. **The rules hold (40 s):** ask Mhasibu to top up a stranger's number → refused. Ask past the airtime limit → refused, and Adaeze is notified.
+4. **The rules hold (40 s):** ask Mhasibu to top up a stranger's number → refused. Then the on-chain check: an agent tries to take more than Adaeze's per-top-up cap (for example 7 USDC) → **the Soroban contract refuses it live**, shown in the log panel.
 5. **Why x402 (30 s):** remove the payment and Mama gets nothing. One payment per top-up, no sign-up, no card.
 
 ## Definition of done for the Must have

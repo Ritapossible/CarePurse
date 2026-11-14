@@ -110,3 +110,14 @@ At sign-up she picks one of two presets, shown in naira. The app converts to USD
 - We use **OpenServ** for Mhasibu's reasoning: Claude Opus 5.5 through its Anthropic-compatible `/v1/messages`, so the code stays on the Anthropic SDK and only `LLM_BASE_URL` changes.
 - Opus over Sonnet: in our test Sonnet read "give my neighbour airtime" as a buy. Opus sent it to the guardian. The code also sends such requests to the guardian whatever the model says.
 - NEAR AI Cloud (private inference) is a later option if privacy of Mama's messages becomes a judging point.
+
+## Mentor feedback on the Ideation & MVP assignment (Abdul Malik Ibrahim, 13 Nov)
+
+Praised: the two personas (Adaeze the human delegator, Mhasibu the autonomous agent), Soroban spend limits with saved meter IDs as the answer to the trust problem, the clear wire-level x402 flow, and the disciplined MoSCoW cuts (no live billers, KYC or WhatsApp).
+
+Two tips, both now **Must have**:
+1. **One live Soroban spend-cap check in the core demo**, e.g. blocking a top-up over 7 USDC, so judges see Adaeze's rules enforced on-chain.
+2. **A live "Agent & x402 Log" panel next to Mama's chat** during the demo, so judges watch the 402 challenge and the Stellar Testnet settlement happen. Mama's chat itself stays very simple.
+
+Note: the assignment described the paid route as `POST /v1/topup`. As built it is `POST /v1/orders`, then `GET /paid/topup/:utility/:ngn` (the x402 route). Use the built routes in the final deck.
+
