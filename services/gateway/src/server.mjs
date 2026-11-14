@@ -161,7 +161,7 @@ export function createApp({
     try {
       const result = await provider.purchase(order);
       if (!result.ok) log.error(`provider refused order ${order.id}: ${result.reason ?? "no reason"}`);
-      if (!result.ok) return res.status(502).json({ error: "The utility provider refused this top-up. You were not charged." });
+      if (!result.ok) return res.status(502).json({ error: "The utility provider refused this top-up. You were not charged.", retryLater: Boolean(result.retryLater) });
       res.json({ order: order.id, utility: order.utility, ngn: order.ngn, destination: order.destination, ...result, fulfilment: "sandbox", label: LABEL });
     } catch (err) {
       log.error(err);

@@ -126,19 +126,19 @@ export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, co
     async purchase({ utility, ngn, destination, network = "mtn", disco = "ikeja-electric", contactPhone: phone }) {
       if (utility === "electricity") {
         const r = await pay({ serviceID: disco, billersCode: destination, variation_code: "prepaid", amount: ngn, phone: phone ?? contactPhone });
-        if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json) };
+        if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json), retryLater: r.json?.code === "019" || r.result === "pending" };
         const token = cleanToken(r.json.token ?? r.json.purchased_code ?? r.json.mainToken ?? r.json.content?.transactions?.token);
         return { ok: true, token: token.replace(/\D/g, "").match(/.{1,4}/g)?.join(" ") ?? token, units: r.json.units ?? r.json.mainTokenUnits ?? null, reference: r.request_id, provider: "VTpass sandbox" };
       }
       if (utility === "airtime") {
         const r = await pay({ serviceID: network, amount: ngn, phone: destination });
-        if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json) };
+        if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json), retryLater: r.json?.code === "019" || r.result === "pending" };
         return { ok: true, reference: r.request_id, note: `₦${ngn} ${network.toUpperCase()} airtime sent to ${destination}`, provider: "VTpass sandbox" };
       }
       const bundle = await dataVariation(network, ngn);
       if (!bundle) return { ok: false, reason: `No ${network} data bundle costs exactly ₦${ngn}.` };
       const r = await pay({ serviceID: `${network}-data`, billersCode: destination, variation_code: bundle.code, amount: bundle.amount, phone: destination });
-      if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json) };
+      if (r.result !== "delivered") return { ok: false, reason: r.json?.response_description ?? r.result, reference: r.request_id, vtpass: vtpassSays(r.json), retryLater: r.json?.code === "019" || r.result === "pending" };
       return { ok: true, reference: r.request_id, bundle: bundle.name, note: `${bundle.name} sent to ${destination}`, provider: "VTpass sandbox" };
     },
   };

@@ -28,8 +28,54 @@ const WORDS = {
   cancel: /^\s*(0|no|cancel|stop|leave am|forget am|no be am|no need)\s*[.!]*\s*$/i,
 };
 
+// ── Typo tolerance ────────────────────────────────────────────
+// Words the keyword rules look for. A word Mama types that is one letter off (two for long words)
+// is read as the nearest of these: "ligt" → light, "recharj" → recharge, "airtym" → airtime.
+const VOCAB = [
+  "light", "nepa", "electricity", "electric", "power", "current", "meter", "token", "units", "prepaid",
+  "airtime", "credit", "recharge", "calling", "data", "internet", "browse", "browsing", "whatsapp", "bundle", "network",
+  "balance", "remain", "history", "receipt", "receipts", "bought", "finish", "purse", "cancel",
+  "limit", "increase", "neighbour", "neighbor", "another", "number", "change",
+];
+// Real words that sit one letter from a keyword and must stay as they are.
+const KEEP = new Set(["date", "late", "like", "might", "night", "right", "fight", "sight", "tight", "eight", "bight", "lights",
+  "meet", "metre", "units", "unit", "taken", "token", "data", "dada", "browser", "bound", "remains", "remind", "finished",
+  "credits", "cancer", "limits", "number", "numbers", "another", "change", "changed", "power", "powers", "current", "purses", "nurse"]);
+
+// Damerau-Levenshtein distance (adjacent swaps count as one), capped for speed.
+function distance(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length];
+}
+
+export function correctTypos(text) {
+  return String(text ?? "").replace(/[a-z]+/gi, (word) => {
+    const w = word.toLowerCase().replace(/(.)\1{2,}/g, "$1$1"); // "dataaa" → "dataa"
+    if (w.length < 4 || VOCAB.includes(w) || KEEP.has(w)) return word;
+    const squeezed = w.replace(/(.)\1+/g, "$1"); // "dataa" → "data"
+    if (VOCAB.includes(squeezed)) return squeezed;
+    const max = w.length >= 6 ? 2 : 1;
+    let best = null;
+    let bestD = max + 1;
+    for (const v of VOCAB) {
+      const dist = distance(w, v, max);
+      if (dist < bestD) { best = v; bestD = dist; }
+    }
+    return best ?? word;
+  });
+}
+
 export function understandScripted(text) {
-  const t = String(text ?? "").trim();
+  const t = correctTypos(String(text ?? "").trim());
   const digits = t.match(/^\s*(\d{1,2})\s*[.!]*\s*$/);
   if (WORDS.cancel.test(t)) return { intent: "cancel", utility: null, choice: 0 };
   if (digits) return { intent: "choose", utility: null, choice: Number(digits[1]) };

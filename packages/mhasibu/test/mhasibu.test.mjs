@@ -187,3 +187,39 @@ test("on-chain caps never round stricter than the gateway's prices", () => {
   assert.ok(capBaseUnits(5_000, 1470, 500) < 68_027_211n); // the ₦10,000 tier is still refused
   assert.equal(contractErrorCode("HostError: Error(Contract, #3)"), 3);
 });
+
+// ── Typos and "I didn't understand" ───────────────────────────
+test("the keyword fallback understands common typos, and leaves ordinary words alone", () => {
+  const u = (t) => { const r = understandScripted(t); return `${r.intent}${r.utility ? `·${r.utility}` : ""}`; };
+  assert.equal(u("ligt don almst finsh"), "buy·electricity");
+  assert.equal(u("electrisity finish pls"), "buy·electricity");
+  assert.equal(u("abeg recharj my lyn"), "buy·airtime");
+  assert.equal(u("pls by me airtym"), "buy·airtime");
+  assert.equal(u("my dataa don finsh o"), "buy·data");
+  assert.equal(u("how much remain for my purs"), "check_balance");
+  assert.equal(u("the date is today"), "unknown");
+  assert.equal(u("I like it"), "unknown");
+});
+
+test("when Mhasibu doesn't understand, it says so and offers a one-digit menu", async () => {
+  const { mhasibu, purses } = setup();
+  const reply = await mhasibu.handle("demo", "qwerty zxcv");
+  assert.match(reply, /didn't understand/);
+  assert.match(reply, /1\) Light\n2\) Airtime\n3\) Data\n4\) How much is left/);
+  assert.equal(purses.get("demo").pending.menu, true);
+  // "3" on the menu offers data, and nothing is bought until she picks a size.
+  const data = await mhasibu.handle("demo", "3");
+  assert.match(data, /I can buy data/);
+  assert.equal(purses.get("demo").spends.length, 0);
+  // "4" on a fresh menu shows the balance.
+  await mhasibu.handle("demo", "hello");
+  assert.match(await mhasibu.handle("demo", "4"), /what you can buy right now/);
+});
+
+test("if the provider says wait (duplicate guard), Mama is told to try again in 5 minutes", async () => {
+  const wallet = fakeWallet();
+  wallet.pay = async () => { const e = new Error("payment not confirmed (HTTP 502)"); e.retryLater = true; throw e; };
+  const { mhasibu } = setup({ wallet });
+  await mhasibu.handle("demo", "recharge my line");
+  assert.match(await mhasibu.handle("demo", "1"), /try again in 5 minutes/);
+});

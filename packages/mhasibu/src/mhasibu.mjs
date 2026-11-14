@@ -17,6 +17,8 @@ import { say } from "./replies.mjs";
 import { ContractRefused } from "./purse-contract.mjs";
 
 const MINUTE = 60_000;
+// The one-digit menu shown with help and "I didn't understand" (same order as MENU in replies.mjs).
+const MENU_CHOICES = [null, "electricity", "airtime", "data", "check_balance"];
 
 export function createMhasibu({
   config = defaultConfig,
@@ -94,7 +96,7 @@ export function createMhasibu({
       return say.delivered(lang, { utility, ngn, token: result.token, units: result.units });
     } catch (err) {
       log({ type: "payment-failed", message: err.message });
-      return say.failed(lang);
+      return err.retryLater ? say.tryLater(lang) : say.failed(lang);
     }
   }
 
@@ -150,24 +152,39 @@ export function createMhasibu({
       return say.cancelled(lang);
     }
     if (intent === "choose") {
-      if (!pending) return say.help(lang, { name: purse.mama.name, guardian: purse.guardian.name });
+      if (!pending) return showMenu(purse, say.notUnderstood(lang));
       if (!pendingLive) { purses.update(purse.id, (p) => { p.pending = null; }); return say.expired(lang); }
+      if (pending.menu) {
+        const pick = MENU_CHOICES[choice];
+        purses.update(purse.id, (p) => { p.pending = null; });
+        if (!pick) return showMenu(purse, say.notAnOption(lang));
+        return pick === "check_balance" ? balance(purse, lang) : offer(purses.get(purse.id), pick, lang);
+      }
       const ngn = pending.options[choice - 1];
       if (!ngn) return say.notAnOption(lang);
       purses.update(purse.id, (p) => { p.pending = null; });
       return buy(purses.get(purse.id), pending.utility, ngn, lang);
     }
     if (intent === "buy" && utility) return offer(purse, utility, lang);
-    if (intent === "check_balance") {
-      const balanceNgn = await wallet.balanceNgn();
-      const lines = ["electricity", "airtime", "data"].map((u) => ({ utility: u, maxNgn: headroom(purse, u, { balanceNgn, now: clock() }).maxNgn }));
-      return say.balance(lang, { lines });
-    }
+    if (intent === "check_balance") return balance(purse, lang);
     if (intent === "history") return say.history(lang, { spends: purse.spends });
     if (intent === "change_rules") {
       notifyGuardian(purse, "change-request", `Mama asked: "${text.slice(0, 200)}"`);
       return say.changeRules(lang, { guardian: purse.guardian.name });
     }
-    return say.help(lang, { name: purse.mama.name, guardian: purse.guardian.name });
+    if (intent === "help") return showMenu(purse, say.help(lang, { name: purse.mama.name, guardian: purse.guardian.name }));
+    // Not understood: say so and offer the one-digit menu. Nothing is ever bought on a guess.
+    return showMenu(purse, say.notUnderstood(lang));
+  }
+
+  function showMenu(purse, reply) {
+    purses.update(purse.id, (p) => { p.pending = { menu: true, expiresAt: new Date(clock() + config.optionsTtlMinutes * MINUTE).toISOString() }; });
+    return reply;
+  }
+
+  async function balance(purse, lang) {
+    const balanceNgn = await wallet.balanceNgn();
+    const lines = ["electricity", "airtime", "data"].map((u) => ({ utility: u, maxNgn: headroom(purse, u, { balanceNgn, now: clock() }).maxNgn }));
+    return say.balance(lang, { lines });
   }
 }

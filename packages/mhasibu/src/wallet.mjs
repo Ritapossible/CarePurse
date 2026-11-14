@@ -74,7 +74,12 @@ export function createWallet(config = defaultConfig) {
       const res = await paidFetch(url);
       const header = res.headers.get("payment-response");
       const settlement = header ? decodePaymentResponseHeader(header) : null;
-      if (!res.ok || !settlement?.success) throw new Error(`payment not confirmed (HTTP ${res.status})`);
+      if (!res.ok || !settlement?.success) {
+        const body = await res.json().catch(() => ({}));
+        const err = new Error(`payment not confirmed (HTTP ${res.status})`);
+        err.retryLater = Boolean(body.retryLater);
+        throw err;
+      }
       return { result: await res.json(), tx: settlement.transaction };
     },
   };

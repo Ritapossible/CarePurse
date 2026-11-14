@@ -31,7 +31,11 @@ The demo purse is Mama Ngozi (Pidgin), guardian Adaeze, meter `1111111111111` an
 | Mode | When | How |
 |---|---|---|
 | **Claude** | `LLM_API_KEY` (or `ANTHROPIC_API_KEY`) is set | Claude Opus 5.5 through OpenServ (`LLM_BASE_URL=https://inference-api.openserv.ai`, `LLM_MODEL=claude-opus-5.5`), or Anthropic directly with `LLM_BASE_URL` empty and `claude-opus-5-5`. Effort `low`, structured output with a fixed schema: `intent`, `utility`, `choice` |
-| **Scripted** | No key, or Claude fails or refuses | Keyword rules for English and Pidgin ("light don finish", "my data don finish", "recharge my line") |
+| **Scripted** | No key, or Claude fails or refuses | Keyword rules for English and Pidgin ("light don finish", "my data don finish", "recharge my line"), with typo correction: a word one letter off (two for long words) is read as the nearest keyword ("ligt" → light, "airtym" → airtime) |
+
+**When Mhasibu doesn't understand,** it says so and offers a one-digit menu: 1) Light 2) Airtime 3) Data 4) How much is left. A greeting gets the same menu. Nothing is ever bought on a guess: Mama still picks a size, and every rule still runs.
+
+**When the provider says wait** (VTpass refuses a repeat to the same number within minutes), Mama hears "try again in 5 minutes". The gateway refused, so x402 didn't settle and she wasn't charged.
 
 One model call per message, well under the workshop kit's cap of 8 steps.
 

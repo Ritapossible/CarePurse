@@ -10,6 +10,12 @@ const WHEN = {
   pcm: { day: "tomorrow", week: "for Monday", month: "next month" },
 };
 
+// The menu Mama answers with one digit (same order as MENU_CHOICES in mhasibu.mjs).
+const MENU = {
+  en: "1) Light\n2) Airtime\n3) Data\n4) How much is left",
+  pcm: "1) Light\n2) Airtime\n3) Data\n4) Wetin remain",
+};
+
 export const say = {
   options(lang, { utility, options, destinationLabel, recentNgn }) {
     const list = options.map((o, i) => `${i + 1}) ${naira(o.ngn)}`).join("\n");
@@ -56,6 +62,8 @@ export const say = {
   expired(lang) { return lang === "pcm" ? "Those options don expire. Tell me again wetin you need." : "Those options have expired. Tell me again what you need."; },
   cancelled(lang) { return lang === "pcm" ? "No wahala, I no buy anything." : "No problem, I haven't bought anything."; },
   failed(lang) { return lang === "pcm" ? "Sorry, e no work this time and nobody charge you. Try again small time." : "Sorry, that didn't work and you weren't charged. Please try again in a moment."; },
+  // The provider asked us to wait (e.g. the same number was topped up a moment ago). Not charged.
+  tryLater(lang) { return lang === "pcm" ? "The network say make we wait small. Nobody charge you. Try again after 5 minutes." : "The network asked us to wait a little. You weren't charged. Please try again in 5 minutes."; },
   refused(lang) { return lang === "pcm" ? "I no fit do that one. Nothing don pay." : "I can't do that one. Nothing was paid."; },
 
   balance(lang, { lines }) {
@@ -71,7 +79,14 @@ export const say = {
 
   help(lang, { name, guardian }) {
     return lang === "pcm"
-      ? `Mama ${name}, I be Mhasibu. ${guardian} set up CarePurse for you. Tell me when your light, airtime or data dey low.`
-      : `Mama ${name}, I'm Mhasibu. ${guardian} set up CarePurse for you. Tell me when your light, airtime or data is low.`;
+      ? `Mama ${name}, I be Mhasibu. ${guardian} set up CarePurse for you. Tell me when your light, airtime or data dey low, or reply with a number:\n${MENU.pcm}`
+      : `Mama ${name}, I'm Mhasibu. ${guardian} set up CarePurse for you. Tell me when your light, airtime or data is low, or reply with a number:\n${MENU.en}`;
+  },
+
+  // When Mhasibu can't tell what Mama wants: say so, and give her a menu she answers with one digit.
+  notUnderstood(lang) {
+    return lang === "pcm"
+      ? `Sorry Mama, I no understand. Reply with a number:\n${MENU.pcm}`
+      : `Sorry Mama, I didn't understand that. Reply with a number:\n${MENU.en}`;
   },
 };

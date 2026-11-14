@@ -79,3 +79,10 @@ test("a pending purchase that becomes delivered on requery succeeds", async () =
   const { provider } = fakeVtpass({ "/pay": { code: "099", content: { transactions: { status: "pending" } } }, "/requery": delivered() });
   assert.equal((await provider.purchase({ utility: "airtime", ngn: 100, destination: "08011111111" })).ok, true);
 });
+
+test("VTpass's duplicate guard (019) is reported as try-again-later", async () => {
+  const { provider } = fakeVtpass({ "/pay": { code: "019", response_description: "LIKELY DUPLICATE TRANSACTION" } });
+  const r = await provider.purchase({ utility: "airtime", ngn: 100, destination: "08011111111" });
+  assert.equal(r.ok, false);
+  assert.equal(r.retryLater, true);
+});
