@@ -18,7 +18,7 @@ import { ContractRefused } from "./purse-contract.mjs";
 
 const MINUTE = 60_000;
 // The one-digit menu shown with help and "I didn't understand" (same order as MENU in replies.mjs).
-const MENU_CHOICES = [null, "electricity", "airtime", "data", "check_balance"];
+const MENU_CHOICES = [null, "electricity", "airtime", "data", "check_balance", "my_token"];
 
 export function createMhasibu({
   config = defaultConfig,
@@ -91,9 +91,12 @@ export function createMhasibu({
     try {
       log({ type: "signing", amount: quote.amount, payTo: quote.payTo });
       const { result, tx } = await wallet.pay(quote.url, quote);
-      purses.update(purse.id, (p) => p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, tx, releaseTx: release?.tx }));
+      // Keep what was delivered with the purchase, so Mama can always see her token again.
+      const kept = Object.fromEntries(Object.entries({ token: result.token, units: result.units, reference: result.reference, bundle: result.bundle }).filter(([, v]) => v != null));
+      purses.update(purse.id, (p) => p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, tx, releaseTx: release?.tx, ...kept }));
       log({ type: "paid", utility, ngn, tx, link: explorer.tx(tx) });
-      notifyGuardian(purse, "receipt", `Mama bought ₦${ngn.toLocaleString("en-NG")} of ${utility}. ${explorer.tx(tx)}`);
+      // The token goes in Adaeze's receipt too, so she can read it to Mama on the phone.
+      notifyGuardian(purse, "receipt", `Mama bought ₦${ngn.toLocaleString("en-NG")} of ${utility}.${result.token ? ` Token: ${result.token}${result.units ? ` (${result.units})` : ""}.` : ""} ${explorer.tx(tx)}`);
       return say.delivered(lang, { utility, ngn, token: result.token, units: result.units });
     } catch (err) {
       log({ type: "payment-failed", message: err.message });
@@ -210,7 +213,9 @@ export function createMhasibu({
         const pick = MENU_CHOICES[choice];
         purses.update(purse.id, (p) => { p.pending = null; });
         if (!pick) return showMenu(purse, say.notAnOption(lang));
-        return pick === "check_balance" ? balance(purse, lang) : offer(purses.get(purse.id), pick, lang);
+        if (pick === "check_balance") return balance(purse, lang);
+        if (pick === "my_token") return lastToken(purse, lang);
+        return offer(purses.get(purse.id), pick, lang);
       }
       const ngn = pending.options[choice - 1];
       if (!ngn) return say.notAnOption(lang);
@@ -220,6 +225,7 @@ export function createMhasibu({
     if (intent === "buy" && utility) return offer(purse, utility, lang);
     if (intent === "check_balance") return balance(purse, lang);
     if (intent === "history") return say.history(lang, { spends: purse.spends });
+    if (intent === "my_token") return lastToken(purse, lang);
     if (intent === "change_rules") {
       notifyGuardian(purse, "change-request", `Mama asked: "${text.slice(0, 200)}"`);
       return say.changeRules(lang, { guardian: purse.guardian.name });
@@ -232,6 +238,11 @@ export function createMhasibu({
   function showMenu(purse, reply) {
     purses.update(purse.id, (p) => { p.pending = { menu: true, expiresAt: new Date(clock() + config.optionsTtlMinutes * MINUTE).toISOString() }; });
     return reply;
+  }
+
+  function lastToken(purse, lang) {
+    const spend = [...purse.spends].reverse().find((s) => s.utility === "electricity" && s.token);
+    return say.lastToken(lang, { spend });
   }
 
   async function balance(purse, lang) {

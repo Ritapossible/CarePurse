@@ -18,8 +18,8 @@ Everything below runs today on Stellar testnet with real sandbox fulfilment.
 
 | Milestone | Status | Proof |
 |---|---|---|
-| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 12 tests |
-| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 22 tests |
+| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 13 tests |
+| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 24 tests |
 | Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
 | Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 14 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV) |
 | On-chain refusal demo: 7 USDC over the cap, refused by the contract | ✅ Done 14 Nov | `npm run overspend` → `OverPerTopup` (Error #3), no USDC moved |
@@ -82,6 +82,8 @@ VTpass sandbox   issues the electricity token → Mama sees it in the chat; Adae
 ```
 
 **The AI proposes, the code decides.** The model only classifies Mama's message. It never sees the limits, never picks an amount and never decides to pay. Limits live in code **and** in the contract.
+
+**Mama's token never disappears.** It's shown in the chat, pinned at the top as "Last light token", kept on the order and the purchase record, and included in Adaeze's receipt. Mama can ask again any time ("send my token again", or 5 on the menu).
 
 **If Mhasibu doesn't understand**, it says so and offers a one-digit menu (1 Light, 2 Airtime, 3 Data, 4 How much is left). Nothing is bought on a guess.
 

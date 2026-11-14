@@ -88,3 +88,29 @@ test("options endpoint lists sizes and prices for people to read", async () => {
     assert.deepEqual(body.options.map((o) => [o.ngn, o.usdc]), [[100, "0.07"], [200, "0.14"]]);
   } finally { await gw.close(); }
 });
+
+// A whole paid delivery with a facilitator that verifies and settles (no real money).
+test("after a paid delivery, the token is kept on the order and can be looked up again", async () => {
+  const { encodePaymentSignatureHeader } = await import("@x402/core/http");
+  const settling = {
+    ...fakeFacilitator,
+    verify: async () => ({ isValid: true, payer: "GPAYER" }),
+    settle: async () => ({ success: true, transaction: "a".repeat(64), network: "stellar:testnet", payer: "GPAYER" }),
+  };
+  const gw = await startGateway({ facilitatorClient: settling });
+  try {
+    const { order, payPath } = await (await post(`${gw.base}/v1/orders`, { utility: "electricity", ngn: 500, destination: "1111111111111" })).json();
+    const required = decodePaymentRequiredHeader((await fetch(`${gw.base}${payPath}`)).headers.get("payment-required"));
+    const signature = encodePaymentSignatureHeader({ x402Version: 2, resource: required.resource, accepted: required.accepts[0], payload: { transaction: "AAAA" } });
+    const paid = await fetch(`${gw.base}${payPath}`, { headers: { "PAYMENT-SIGNATURE": signature } });
+    assert.equal(paid.status, 200);
+    const body = await paid.json();
+    assert.match(body.token, /^\d{4}( \d{4}){4}$/);
+    // Later, from the order record alone:
+    await new Promise((r) => setTimeout(r, 50)); // the delivery is recorded when the response finishes
+    const looked = await (await fetch(`${gw.base}/v1/orders/${order.id}`)).json();
+    assert.equal(looked.order.status, "delivered");
+    assert.equal(looked.order.token, body.token);
+    assert.ok(looked.order.units);
+  } finally { await gw.close(); }
+});

@@ -60,6 +60,8 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome.
 - [ ] "Add to home screen" prompt, shown once.
 - [x] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction (`apps/web`, `/chat`). 14 Nov.
+- [x] The token never disappears: pinned "Last light token" card, "send my token again" in any words, menu 5, kept on the order and purchase record, in Adaeze's receipt. 14 Nov.
+- [ ] SMS the token to Mama's phone (production; needs an SMS provider).
 - [ ] English and Pidgin replies.
 - [x] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
 - [x] **Agent & x402 Log** panel beside the chat (`/demo`), 14 Nov: each step live, from Mama's message, the contract check and the 402 challenge to the signed payment and the Stellar Testnet settlement link. Mama's own chat stays simple.

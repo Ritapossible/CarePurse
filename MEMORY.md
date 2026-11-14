@@ -146,3 +146,9 @@ Note: the assignment described the paid route as `POST /v1/topup`. As built it i
 
 Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, v2 and v3 retired, their USDC returned to the guardian). Tests: contract 14, Mhasibu 22, gateway 12.
 
+## How Mama gets her electricity token (14 Nov)
+
+- **In the chat**, right after paying. VTpass does not send an SMS itself (its docs say the seller should show the token and may SMS or email it), and the sandbox sends nothing.
+- **It must never be shown once and lost.** Now: kept on the gateway's order and on Mhasibu's purchase record; included in Adaeze's receipt; Mama can ask again in any words or press 5 on the menu; the chat pins "Last light token" with a Copy button.
+- **Still to do:** SMS to Mama's phone (production, via an SMS provider), and a database before hosting, because Render's free plan wipes files on restart and would lose stored tokens.
+

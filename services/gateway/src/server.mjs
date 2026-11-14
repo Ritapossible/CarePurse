@@ -144,16 +144,21 @@ export function createApp({
     const order = store.transition(req.order.id, "created", "fulfilling");
     if (!order) return res.status(409).json({ error: "This order is already being processed." });
 
+    // What the provider delivered (token, units, reference), kept on the order so it can always be
+    // looked up again: GET /v1/orders/:id. Mama must never lose a token because a chat message did.
+    let delivered = null;
+
     // Record the outcome once the response (and settlement) is finished.
     res.on("finish", () => {
       const header = res.getHeader("payment-response");
       let settlement = null;
       try { settlement = header ? decodePaymentResponseHeader(String(header)) : null; } catch { /* unreadable */ }
       if (res.statusCode === 200 && settlement?.success && store.claimTransaction(settlement.transaction, order.id)) {
-        store.transition(order.id, "fulfilling", "delivered", { txHash: settlement.transaction, payer: settlement.payer });
+        store.transition(order.id, "fulfilling", "delivered", { txHash: settlement.transaction, payer: settlement.payer, ...delivered });
         log.info(`  ✓ ${order.utility} ₦${order.ngn} delivered · ${explorer.tx(settlement.transaction)}`);
       } else {
-        store.transition(order.id, "fulfilling", "failed", { reason: `HTTP ${res.statusCode}, settlement ${settlement?.success ? "reused" : "failed"}` });
+        // If the provider issued something but settlement failed, keep it too, for reconciliation.
+        store.transition(order.id, "fulfilling", "failed", { reason: `HTTP ${res.statusCode}, settlement ${settlement?.success ? "reused" : "failed"}`, ...(delivered ? { issued: delivered } : {}) });
         log.warn(`  ✗ order ${order.id} failed (HTTP ${res.statusCode})`);
       }
     });
@@ -162,6 +167,7 @@ export function createApp({
       const result = await provider.purchase(order);
       if (!result.ok) log.error(`provider refused order ${order.id}: ${result.reason ?? "no reason"}`);
       if (!result.ok) return res.status(502).json({ error: "The utility provider refused this top-up. You were not charged.", retryLater: Boolean(result.retryLater) });
+      delivered = Object.fromEntries(Object.entries({ token: result.token, units: result.units, reference: result.reference, bundle: result.bundle, note: result.note }).filter(([, v]) => v != null));
       res.json({ order: order.id, utility: order.utility, ngn: order.ngn, destination: order.destination, ...result, fulfilment: "sandbox", label: LABEL });
     } catch (err) {
       log.error(err);

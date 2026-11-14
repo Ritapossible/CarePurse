@@ -1,6 +1,7 @@
 // Mhasibu's API for the web app. Holds the agent wallet's key, so it runs server-side only.
 //   POST /v1/chat            { purse, text } → { reply }
 //   GET  /v1/history?purse=  Mama's chat so far
+//   GET  /v1/tokens?purse=   her electricity tokens, newest first
 //   GET  /v1/events?purse=   live Agent & x402 Log (Server-Sent Events)
 //   GET  /v1/status          phase, understander, contract and wallet addresses (public keys only)
 //   POST /v1/demo/overspend  { usdc } demo only (DEMO_MODE=1): bypass Mhasibu's code checks and ask
@@ -67,6 +68,14 @@ const server = http.createServer(async (req, res) => {
       const purse = purses.get(url.searchParams.get("purse") ?? "demo");
       if (!purse) return send(res, 404, { error: "no such purse" });
       return send(res, 200, { mama: { name: purse.mama.name, language: purse.mama.language }, guardian: purse.guardian.name, history: purse.history.slice(-50) });
+    }
+    // Mama's electricity tokens, newest first: the chat pins the latest one so it never scrolls away.
+    if (req.method === "GET" && url.pathname === "/v1/tokens") {
+      const purse = purses.get(url.searchParams.get("purse") ?? "demo");
+      if (!purse) return send(res, 404, { error: "no such purse" });
+      const tokens = purse.spends.filter((s) => s.utility === "electricity" && s.token).reverse().slice(0, 10)
+        .map((s) => ({ at: s.at, ngn: s.ngn, token: s.token, units: s.units ?? null, meter: purse.destinations.electricity }));
+      return send(res, 200, { tokens });
     }
     if (req.method === "GET" && url.pathname === "/v1/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive", "access-control-allow-origin": allowOrigin });

@@ -1,7 +1,31 @@
 "use client";
 // Mama's chat. Deliberately plain: big text, numbered options, the token easy to read.
 import { useEffect, useRef, useState } from "react";
-import { type ChatLine, loadHistory, sendMessage } from "@/lib/mhasibu";
+import { type ChatLine, type TokenRecord, loadHistory, loadTokens, sendMessage } from "@/lib/mhasibu";
+
+// Her latest electricity token, pinned above the chat so it never scrolls away.
+function LastToken({ record }: { record: TokenRecord }) {
+  const [copied, setCopied] = useState(false);
+  const when = new Date(record.at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" });
+  return (
+    <div className="mx-4 mt-3 rounded-2xl border border-accent bg-accent-soft px-4 py-3">
+      <div className="flex items-center justify-between text-sm text-accent">
+        <span className="font-semibold">Last light token</span>
+        <span>₦{record.ngn.toLocaleString("en-NG")} · {when}</span>
+      </div>
+      <div className="mt-1 whitespace-nowrap font-mono text-[19px] font-semibold tracking-wide text-foreground">{record.token}</div>
+      <div className="mt-1 flex items-center justify-between text-sm text-muted">
+        <span>{record.units ? `${record.units} · ` : ""}meter {record.meter}</span>
+        <button
+          onClick={() => navigator.clipboard?.writeText(record.token.replace(/\s/g, "")).then(() => setCopied(true)).catch(() => {})}
+          className="rounded-full border border-accent px-3 py-1 text-accent"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const LINK = /(https:\/\/stellar\.expert\/\S+)/;
 const IS_LINK = /^https:\/\/stellar\.expert\//;
@@ -36,6 +60,8 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
   const [text, setText] = useState("");
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastToken, setLastToken] = useState<TokenRecord | null>(null);
+  const refreshToken = () => loadTokens(purse).then((t) => setLastToken(t[0] ?? null)).catch(() => {});
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,6 +71,8 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
         setLines(h.history.slice(-20));
       })
       .catch(() => setError("Mhasibu is not reachable right now."));
+    refreshToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [purse]);
 
   useEffect(() => {
@@ -61,6 +89,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
     try {
       const reply = await sendMessage(t, purse);
       setLines((l) => [...l, { from: "mhasibu", text: reply }]);
+      refreshToken();
     } catch {
       setError("Mhasibu could not answer. Try again.");
     } finally {
@@ -78,6 +107,8 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
         </div>
       </header>
 
+      {lastToken && <LastToken record={lastToken} />}
+
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5">
         {lines.length === 0 && !error && (
           <p className="text-center text-muted">Say hello, or tell Mhasibu what you need. For example: &ldquo;Abeg, light don almost finish&rdquo;.</p>
@@ -90,8 +121,8 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
         <div ref={end} />
       </div>
 
-      <div className="flex gap-2 px-4 pb-2">
-        {["Light don almost finish", "My data don finish", "Recharge my line"].map((q) => (
+      <div className="flex flex-wrap gap-2 px-4 pb-2">
+        {["Light don almost finish", "My data don finish", "Recharge my line", "Send my token again"].map((q) => (
           <button key={q} onClick={() => submit(q)} disabled={waiting} className="rounded-full border border-line bg-white px-3 py-1.5 text-sm hover:border-accent disabled:opacity-50">
             {q}
           </button>

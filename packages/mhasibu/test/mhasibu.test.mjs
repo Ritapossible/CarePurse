@@ -280,3 +280,27 @@ test("'NEPA card' and 'meter card' are electricity, 'recharge card' is airtime",
   assert.equal(understandScripted("buy meter card for me").utility, "electricity");
   assert.equal(understandScripted("buy recharge card").utility, "airtime");
 });
+
+// ── The token never disappears ────────────────────────────────
+test("the token is kept with the purchase, in Adaeze's receipt, and Mama can ask for it again", async () => {
+  const { mhasibu, purses } = setup();
+  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "1");
+  const p = purses.get("demo");
+  assert.equal(p.spends[0].token, "1111 2222 3333 4444 5555");
+  assert.equal(p.spends[0].units, "8.9 kWh (demo)");
+  assert.match(p.notifications.find((n) => n.kind === "receipt").text, /Token: 1111 2222 3333 4444 5555/);
+  // Many messages later, in different words:
+  for (const t of ["hello", "how much remain", "recharge my line", "0"]) await mhasibu.handle("demo", t);
+  assert.match(await mhasibu.handle("demo", "send my token again"), /Your last electricity token \(₦500, .*\) is:\n1111 2222 3333 4444 5555\n\(8\.9 kWh \(demo\)\)/);
+  assert.match(await mhasibu.handle("demo", "I no see the token"), /1111 2222 3333 4444 5555/);
+  // From the menu (5), and in her purchase history.
+  await mhasibu.handle("demo", "qwerty");
+  assert.match(await mhasibu.handle("demo", "5"), /1111 2222 3333 4444 5555/);
+  assert.match(await mhasibu.handle("demo", "what did I buy"), /token 1111 2222 3333 4444 5555/);
+});
+
+test("'my token don finish' is a purchase, not a request to see the old token", () => {
+  assert.equal(understandScripted("my token don finish").intent, "buy");
+  assert.equal(understandScripted("send my token again").intent, "my_token");
+});

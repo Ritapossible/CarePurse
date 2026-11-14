@@ -57,6 +57,14 @@ export async function loadHistory(purse = "demo") {
   return (await res.json()) as { mama: { name: string; language: string }; guardian: string; history: ChatLine[] };
 }
 
+export type TokenRecord = { at: string; ngn: number; token: string; units: string | null; meter: string };
+
+export async function loadTokens(purse = "demo"): Promise<TokenRecord[]> {
+  const res = await fetch(`${MHASIBU_URL}/v1/tokens?purse=${purse}`);
+  if (!res.ok) return [];
+  return (await res.json()).tokens;
+}
+
 export async function loadStatus(): Promise<Status> {
   const res = await fetch(`${MHASIBU_URL}/v1/status`);
   return res.json();

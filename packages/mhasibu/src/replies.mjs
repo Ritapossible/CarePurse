@@ -12,8 +12,8 @@ const WHEN = {
 
 // The menu Mama answers with one digit (same order as MENU_CHOICES in mhasibu.mjs).
 const MENU = {
-  en: "1) Light\n2) Airtime\n3) Data\n4) How much is left",
-  pcm: "1) Light\n2) Airtime\n3) Data\n4) Wetin remain",
+  en: "1) Light\n2) Airtime\n3) Data\n4) How much is left\n5) My last light token",
+  pcm: "1) Light\n2) Airtime\n3) Data\n4) Wetin remain\n5) My last light token",
 };
 
 export const say = {
@@ -73,9 +73,18 @@ export const say = {
     return lang === "pcm" ? `This na wetin you fit buy now:\n${body}` : `Here's what you can buy right now:\n${body}`;
   },
 
+  // Her last electricity token, any time she asks. Tokens are kept with every purchase.
+  lastToken(lang, { spend }) {
+    if (!spend) return lang === "pcm" ? "You never buy light token yet." : "You haven't bought an electricity token yet.";
+    const when = new Date(spend.at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" });
+    return lang === "pcm"
+      ? `Your last light token (${naira(spend.ngn)}, ${when}) na:\n${spend.token}${spend.units ? `\n(${spend.units})` : ""}`
+      : `Your last electricity token (${naira(spend.ngn)}, ${when}) is:\n${spend.token}${spend.units ? `\n(${spend.units})` : ""}`;
+  },
+
   history(lang, { spends }) {
     if (!spends.length) return lang === "pcm" ? "You never buy anything yet." : "You haven't bought anything yet.";
-    const body = spends.slice(-5).reverse().map((s) => `${new Date(s.at).toLocaleDateString("en-NG", { timeZone: "Africa/Lagos" })}: ${naira(s.ngn)} ${LABEL[lang][s.utility]}`).join("\n");
+    const body = spends.slice(-5).reverse().map((s) => `${new Date(s.at).toLocaleDateString("en-NG", { timeZone: "Africa/Lagos" })}: ${naira(s.ngn)} ${LABEL[lang][s.utility]}${s.token ? ` · token ${s.token}` : ""}`).join("\n");
     return lang === "pcm" ? `Wetin you don buy last:\n${body}` : `Your last top-ups:\n${body}`;
   },
 
