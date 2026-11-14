@@ -43,6 +43,8 @@ Mama typed in Pidgin. Each top-up went through the purse contract, x402 on Stell
 
 On the explorer, the XLM shown is the network fee (about 0.001 XLM, paid by the facilitator). The payment itself is the **USDC transfer** inside the transaction.
 
+**Rerun on the v2 contract (with refunds), 14 Nov 15:07:** 3 of 3 settled ([data payment](https://stellar.expert/explorer/testnet/tx/8e8f38bc2dde4dbbadc2b499a5854d91a661280aa7d29a93dce2af87acde640b)). In two earlier runs VTpass's duplicate guard refused one top-up; each time Mhasibu refunded the released USDC to the purse ([example refund](https://stellar.expert/explorer/testnet/tx/e1fb3d8ded6dd3111f0a76e368a0840aade1e6c88b34eeea455483056cf48191)) and Mama was told to try again in 5 minutes. The workflow now passes when every top-up is either paid or cleanly refunded.
+
 ### On testnet now
 
 | What | Address | Holds |
