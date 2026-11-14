@@ -26,7 +26,7 @@ const soroban = createSoroban({ rpcUrl: config.rpcUrl });
 const link = (h) => `${config.explorerUrl}/tx/${h}`;
 const capsVal = (l, u) => xdr.ScVal.scvMap([
   ["per_day", l.perDay], ["per_month", l.perMonth], ["per_topup", l.perTopup], ["per_week", l.perWeek],
-].map(([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, config.ngnPerUsdc, MIN_TOPUP[u])) })));
+].map(([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, config.ngnPerUsdc, MIN_TOPUP[u], config.usdc.decimals, config.serviceFeeBps)) })));
 for (const [utility, limits] of Object.entries(purse.limits)) {
   const d = await soroban.invoke(guardian, config.purseContractId, "set_destination", [symbol(utility), bytes32(sha256(purse.destinations[utility]))]);
   const c = await soroban.invoke(guardian, config.purseContractId, "set_caps", [symbol(utility), capsVal(limits, utility)]);
@@ -37,6 +37,6 @@ for (const [utility, limits] of Object.entries(purse.limits)) {
 const purseCapNgn = monthlyCap(purse.limits);
 if (!(purseCapNgn > 0)) { console.error("✗ The purse's monthly cap works out to 0 (no limits?). Not writing it: 0 means unlimited on-chain."); process.exit(1); }
 purses.update("demo", (p) => { p.monthlyCap = purseCapNgn; });
-const cap = await soroban.invoke(guardian, config.purseContractId, "set_purse_cap", [i128(capBaseUnits(purseCapNgn, config.ngnPerUsdc, 100))]);
+const cap = await soroban.invoke(guardian, config.purseContractId, "set_purse_cap", [i128(capBaseUnits(purseCapNgn, config.ngnPerUsdc, 100, config.usdc.decimals, config.serviceFeeBps))]);
 console.log(`✓ purse cap ₦${purseCapNgn.toLocaleString("en-NG")} a month saved on-chain · ${link(cap.hash)}`);
 await purses.close();

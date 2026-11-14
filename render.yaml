@@ -23,6 +23,7 @@ services:
       - { key: FACILITATOR, value: backup }
       - { key: FACILITATOR_BACKUP_URL, value: https://x402.org/facilitator }
       - { key: NGN_PER_USDC, value: "1470" }
+      - { key: SERVICE_FEE_BPS, value: "300" }        # 3% service fee; same on both services
       - { key: ORDER_TTL_MINUTES, value: "10" }
       - { key: UTILITY_PROVIDER, value: vtpass }
       - { key: VTPASS_BASE_URL, value: https://sandbox.vtpass.com/api }
@@ -53,6 +54,7 @@ services:
       - { key: USDC_ISSUER, value: GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5 }
       - { key: USDC_DECIMALS, value: "7" }
       - { key: NGN_PER_USDC, value: "1470" }
+      - { key: SERVICE_FEE_BPS, value: "300" }        # 3% service fee; same on both services
       - { key: DEMO_MODE, value: "1" }
       - { key: LLM_BASE_URL, value: https://inference-api.openserv.ai }
       - { key: LLM_MODEL, value: claude-opus-5.5 }

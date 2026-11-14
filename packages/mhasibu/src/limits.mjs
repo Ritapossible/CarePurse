@@ -42,7 +42,9 @@ export function spentSince(spends, since, utility) {
 }
 
 // How much more Mama may spend on this utility right now, and which rule is tightest.
-export function headroom(purse, utility, { balanceNgn, now = Date.now() }) {
+// Limits are in face value (what Mama gets). The purse pays face value + the service fee, so the
+// balance rule asks how much face value the balance can cover once the fee is added.
+export function headroom(purse, utility, { balanceNgn, now = Date.now(), feeBps = 0 }) {
   const limits = purse.limits[utility];
   const checks = [];
   if (limits.perTopup !== undefined) checks.push({ rule: "per top-up", left: limits.perTopup });
@@ -50,13 +52,13 @@ export function headroom(purse, utility, { balanceNgn, now = Date.now() }) {
   if (limits.perWeek !== undefined) checks.push({ rule: "per week", left: limits.perWeek - spentSince(purse.spends, periodStart("week", now), utility), period: "week" });
   if (limits.perMonth !== undefined) checks.push({ rule: "per month", left: limits.perMonth - spentSince(purse.spends, periodStart("month", now), utility), period: "month" });
   checks.push({ rule: "purse per month", left: purse.monthlyCap - spentSince(purse.spends, periodStart("month", now)), period: "month" });
-  checks.push({ rule: "purse balance", left: Math.floor(balanceNgn) });
+  checks.push({ rule: "purse balance", left: Math.floor((balanceNgn * 10_000) / (10_000 + feeBps)) });
   const tightest = checks.reduce((a, b) => (b.left < a.left ? b : a));
   return { maxNgn: Math.max(0, tightest.left), tightest };
 }
 
 // The rules, in order. The first "no" wins. Returns { ok: true } or { ok: false, rule, reason }.
-export function checkPurchase({ purse, utility, ngn, destination, quote, order, expected, balanceNgn, now = Date.now() }) {
+export function checkPurchase({ purse, utility, ngn, destination, quote, order, expected, balanceNgn, now = Date.now(), feeBps = 0 }) {
   if (quote) {
     // 1. Allowlist: right host, right payee, testnet USDC, testnet.
     if (quote.host !== expected.host) return { ok: false, rule: "allowlist", reason: `${quote.host} is not our gateway` };
@@ -71,7 +73,7 @@ export function checkPurchase({ purse, utility, ngn, destination, quote, order, 
   // 7. Paused (checked early: nothing else matters if the purse is paused).
   if (purse.paused) return { ok: false, rule: "paused", reason: "the guardian paused this purse" };
   // 4 to 6. Per top-up, utility day/week/month, purse month, and the balance.
-  const room = headroom(purse, utility, { balanceNgn, now });
+  const room = headroom(purse, utility, { balanceNgn, now, feeBps });
   if (ngn > room.maxNgn) return { ok: false, rule: room.tightest.rule, reason: `over the ${room.tightest.rule} limit`, period: room.tightest.period };
   return { ok: true };
 }

@@ -36,6 +36,9 @@ export const config = {
   port: Number(process.env.PORT) || number("GATEWAY_PORT", 4021),
   gatewayUrl: env("GATEWAY_URL", "http://localhost:4021"),
   ngnPerUsdc: number("NGN_PER_USDC", 1470),
+  // CarePurse's service fee on top of face value, in basis points (300 = 3%). Paid from the purse;
+  // Mama never sees it, Adaeze does (receipts). 0 to switch it off.
+  serviceFeeBps: number("SERVICE_FEE_BPS", 300),
   provider: env("UTILITY_PROVIDER", "mock"),
   vtpass: {
     baseUrl: env("VTPASS_BASE_URL", "https://sandbox.vtpass.com/api"),
@@ -53,6 +56,10 @@ export const config = {
 
 if (config.provider === "vtpass" && !/^https:\/\/sandbox\.vtpass\.com\//.test(config.vtpass.baseUrl)) {
   throw new Error("CarePurse uses the VTpass SANDBOX only. Set VTPASS_BASE_URL=https://sandbox.vtpass.com/api");
+}
+
+if (!(config.serviceFeeBps >= 0 && config.serviceFeeBps <= 1000)) {
+  throw new Error("SERVICE_FEE_BPS must be between 0 and 1000 (0% to 10%).");
 }
 
 if (config.network !== "stellar:testnet") {

@@ -18,7 +18,7 @@ function describe(e: LogEvent): Row | null {
     case "order":
       return { tone: "plain", label: "Order", detail: `${e.id} → GET ${e.payPath?.split("?")[0]}` };
     case "quote":
-      return { tone: "x402", label: "402 Payment Required", detail: `scheme exact · ${e.network} · ${usdc(e.amount)} USDC to ${short(e.payTo)} (PAYMENT-REQUIRED)` };
+      return { tone: "x402", label: "402 Payment Required", detail: `scheme exact · ${e.network} · ${usdc(e.amount)} USDC to ${short(e.payTo)} (PAYMENT-REQUIRED)${e.feeNgn ? ` · ₦${e.ngn?.toLocaleString("en-NG")} + ₦${e.feeNgn.toLocaleString("en-NG")} service fee` : ""}` };
     case "contract-check":
       return { tone: "chain", label: "Soroban purse contract", detail: `buy(${e.utility}, ${usdc(e.amount)} USDC): checking Adaeze's caps and saved destination on-chain` };
     case "contract-ok":

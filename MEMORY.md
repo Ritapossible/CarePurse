@@ -175,3 +175,10 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - **Added `upgrade` (guardian only)** at the user's request: v6 `CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC` is the last redeploy; later fixes keep the address (`npm run upgrade-purse`).
 - Tests: contract 17, Mhasibu 29, gateway 14. Live: upgrade in place; timeout and lost-id cases refunded; normal top-up committed.
 
+## Service fee (14 Nov), modelled on Ponte
+
+- **Ponte** (`src/lib/catalog.ts`): `SPEND_FEE = 0.03`, a 3% markup on provider-delivered items "covering provider fees and price movement", shown as "incl. 3% fee"; live CoinGecko rate at order time; gift codes at face value; swaps 0.5%. It also keeps the aggregators' (VTpass, ClubKonnect) reseller discount.
+- **CarePurse:** 3% service fee on top of face value (`SERVICE_FEE_BPS=300`), carried by the x402 price, paid from the purse. **Mama never sees it** (decision 14 Nov); Adaeze does, in receipts. Limits in face value; balance rule and on-chain caps include the fee (caps re-sent with `sync-purse`). Revenue = fee + VTpass discount (about 4.5% on electricity, 6.5% on MTN airtime) before off-ramp costs.
+- **Found while testing:** `@x402/fetch` has a default `$1` per-payment ceiling, so every top-up above about ₦1,470 had been silently refused (earlier tests only bought ₦500 or less). Now set to the largest top-up plus fee ($7.01). Live: ₦5,000 of light paid 3.5034014 USDC, receipt "Charged ₦5,150 (₦5,000 + ₦150 service fee)".
+- Production: replace the fixed `NGN_PER_USDC` with a live rate at order time (Ponte uses CoinGecko).
+

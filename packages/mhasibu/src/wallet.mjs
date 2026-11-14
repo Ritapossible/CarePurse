@@ -9,6 +9,13 @@ import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config as defaultConfig } from "./config.mjs";
 import { addressVal, buyArgs, createSoroban, i128, orderRef, refArgs } from "./purse-contract.mjs";
 
+// The largest top-up we sell (10,000 naira of electricity) plus the service fee, in USD, rounded up.
+export const LARGEST_TOPUP_NGN = 10_000;
+export function maxPaymentUsd(config) {
+  const usd = (LARGEST_TOPUP_NGN * (10_000 + (config.serviceFeeBps ?? 0))) / 10_000 / config.ngnPerUsdc;
+  return "$" + (Math.ceil(usd * 100) / 100).toFixed(2);
+}
+
 export function createWallet(config = defaultConfig) {
   const json = async (res) => { const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`); return body; };
 
@@ -121,6 +128,11 @@ export function createWallet(config = defaultConfig) {
       const signer = createEd25519Signer(config.agentSecret, config.network);
       const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
         schemes: [{ network: config.network, client: new ExactStellarScheme(signer, { url: config.rpcUrl }) }],
+        // The x402 client's own ceiling per payment. Its default is $1, which silently refused every
+        // top-up above about 1,470 naira. Set it to our largest real top-up (10,000 naira + the
+        // service fee), so it still stops anything bigger, on top of the exact-price policy, our
+        // limits and the contract.
+        spendControls: { maxAmountPerPayment: maxPaymentUsd(config) },
         policies: [(_version, offers) => offers.filter((o) =>
           o.amount === approved.amount && o.payTo === approved.payTo && o.asset === approved.asset && o.network === approved.network)],
       });

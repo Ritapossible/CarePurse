@@ -18,7 +18,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { decodePaymentResponseHeader } from "@x402/core/http";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config as defaultConfig, explorer } from "./config.mjs";
-import { UTILITIES, isTier, isUtility, options, paidRoutes, priceBaseUnits } from "./catalog.mjs";
+import { UTILITIES, chargedNgn, feeNgn, isTier, isUtility, options, paidRoutes, priceBaseUnits } from "./catalog.mjs";
 import { createStore, openStore, isExpired } from "./store.mjs";
 import { createProvider, NETWORKS, DISCOS } from "./provider.mjs";
 
@@ -47,7 +47,8 @@ export function createApp({
 } = {}) {
   const app = express();
   app.use(express.json());
-  const priceOf = (utility, ngn) => priceBaseUnits(ngn, config.ngnPerUsdc, config.usdc.decimals);
+  const feeBps = config.serviceFeeBps ?? 0;
+  const priceOf = (utility, ngn) => priceBaseUnits(ngn, config.ngnPerUsdc, config.usdc.decimals, feeBps);
 
   app.get("/health", (_req, res) => res.json({ ok: true, network: config.network, label: LABEL }));
 
@@ -56,7 +57,7 @@ export function createApp({
     if (!isUtility(utility)) return res.status(400).json({ error: `utility must be one of: ${Object.keys(UTILITIES).join(", ")}` });
     const maxNgn = req.query.max_ngn === undefined ? undefined : Number(req.query.max_ngn);
     if (maxNgn !== undefined && !(maxNgn > 0)) return res.status(400).json({ error: "max_ngn must be a positive number" });
-    let list = options(utility, { ngnPerUsdc: config.ngnPerUsdc, decimals: config.usdc.decimals, maxNgn });
+    let list = options(utility, { ngnPerUsdc: config.ngnPerUsdc, decimals: config.usdc.decimals, maxNgn, feeBps });
     // Data: only the sizes the network sells at exactly that price (VTpass bundle list).
     if (utility === "data" && provider.dataTiers) {
       const network = NETWORKS.includes(req.query.network) ? req.query.network : "mtn";
@@ -94,7 +95,7 @@ export function createApp({
     const contactPhone = req.body?.contactPhone;
     if (contactPhone !== undefined && (typeof contactPhone !== "string" || !PHONE.test(contactPhone))) return res.status(400).json({ error: "contactPhone must be a Nigerian phone number." });
     const extra = utility === "electricity" ? { disco, ...(contactPhone ? { contactPhone } : {}) } : { network };
-    const order = store.create({ utility, ngn, destination, amount: priceOf(utility, ngn), ttlMinutes: config.orderTtlMinutes, ...extra });
+    const order = store.create({ utility, ngn, destination, amount: priceOf(utility, ngn), feeNgn: feeNgn(ngn, feeBps), chargedNgn: chargedNgn(ngn, feeBps), ttlMinutes: config.orderTtlMinutes, ...extra });
     res.status(201).json({ order, payPath: `/paid/topup/${utility}/${ngn}?order=${order.id}` });
   });
 
@@ -139,6 +140,7 @@ export function createApp({
     .onSettleFailure(async ({ error }) => log.warn(`  ✗ settle failed: ${error?.message ?? error}`));
 
   const routes = paidRoutes({
+    feeBps,
     ngnPerUsdc: config.ngnPerUsdc,
     decimals: config.usdc.decimals,
     asset: config.usdc.contractId,

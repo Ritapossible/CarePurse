@@ -12,6 +12,8 @@ export type LogEvent = {
   utility?: string | null;
   choice?: number | null;
   ngn?: number;
+  feeNgn?: number;
+  chargedNgn?: number;
   amount?: string;
   payTo?: string;
   asset?: string;

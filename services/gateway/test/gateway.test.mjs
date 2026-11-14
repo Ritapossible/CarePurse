@@ -56,7 +56,9 @@ test("the paid route answers 402 with the exact price, network and payee", async
     assert.equal(accept.scheme, "exact");
     assert.equal(accept.network, "stellar:testnet");
     assert.equal(accept.amount, order.amount);
-    assert.equal(accept.amount, "34013606");
+    assert.equal(accept.amount, "35034014"); // ₦5,000 + 3% service fee = ₦5,150 at ₦1,470 per USDC
+    assert.equal(order.feeNgn, 150);
+    assert.equal(order.chargedNgn, 5150);
     assert.equal(accept.asset, config.usdc.contractId);
     assert.equal(accept.payTo, recipient);
   } finally { await gw.close(); }
@@ -126,3 +128,14 @@ test("an order can be found by the purse contract's reference (sha256 of its id)
     assert.equal((await fetch(`${gw.base}/v1/orders/by-ref/nothex`)).status, 400);
   } finally { await gw.close(); }
 });
+
+test("the service fee is added on top of face value; 0 switches it off", async () => {
+  const { priceBaseUnits, options, feeNgn } = await import("../src/catalog.mjs");
+  assert.equal(priceBaseUnits(500, 1470, 7, 300), "3503402"); // ₦515
+  assert.equal(priceBaseUnits(100, 1470, 7, 300), "700681"); // ₦103
+  assert.equal(priceBaseUnits(500, 1470, 7, 0), "3401361"); // face value only
+  assert.equal(feeNgn(500, 300), 15);
+  const [first] = options("electricity", { ngnPerUsdc: 1470, feeBps: 300 });
+  assert.deepEqual([first.ngn, first.feeNgn, first.chargedNgn, first.amount], [500, 15, 515, "3503402"]);
+});
+

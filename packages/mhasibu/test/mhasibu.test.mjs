@@ -383,3 +383,49 @@ test("'my token don finish' is a purchase, not a request to see the old token", 
   assert.equal(understandScripted("my token don finish").intent, "buy");
   assert.equal(understandScripted("send my token again").intent, "my_token");
 });
+
+// ── Service fee: Adaeze sees it, Mama never does ──────────────
+function feeWallet(balanceNgn = 100_000) {
+  const wallet = fakeWallet({ balanceNgn });
+  const createOrder = wallet.createOrder;
+  wallet.createOrder = async (args) => {
+    const r = await createOrder(args);
+    return { ...r, order: { ...r.order, feeNgn: args.ngn * 0.03, chargedNgn: args.ngn * 1.03 } };
+  };
+  return wallet;
+}
+
+test("the 3% service fee is in Adaeze's receipt and the purchase record, never in Mama's chat", async () => {
+  const wallet = feeWallet();
+  const { mhasibu, purses } = setup({ wallet });
+  const replies = [];
+  for (const t of ["light don finish", "1", "send my token again", "what did I buy", "how much remain"]) replies.push(await mhasibu.handle("demo", t));
+  for (const r of replies) assert.doesNotMatch(r, /fee|₦515|515/i); // Mama sees face value only
+  assert.match(replies[1], /₦500/);
+  const p = purses.get("demo");
+  assert.equal(p.spends[0].ngn, 500);
+  assert.equal(p.spends[0].feeNgn, 15);
+  assert.equal(p.spends[0].chargedNgn, 515);
+  assert.match(p.notifications.find((n) => n.kind === "receipt").text, /Charged ₦515 \(₦500 \+ ₦15 service fee\)/);
+});
+
+test("the balance rule includes the fee: ₦5,100 in the purse can't buy ₦5,000 of light (₦5,150 with the fee)", async () => {
+  const room = headroom(newPurse(DEMO_PURSE), "electricity", { balanceNgn: 5100, now: MONDAY_10AM, feeBps: 300 });
+  assert.equal(room.tightest.rule, "purse balance");
+  assert.ok(room.maxNgn < 5000 && room.maxNgn >= 4951);
+  const { mhasibu } = setup({ wallet: feeWallet(5100) });
+  assert.doesNotMatch(await mhasibu.handle("demo", "light don finish"), /₦5,000/);
+});
+
+test("on-chain caps include the fee, so they never refuse what the code allows", () => {
+  // Three ₦5,000 top-ups at ₦5,150 each (35,034,014 base units, rounded up) fit the ₦15,000 week cap.
+  assert.ok(capBaseUnits(15_000, 1470, 500, 7, 300) >= 3n * 35_034_014n);
+  assert.ok(capBaseUnits(5_000, 1470, 500, 7, 300) >= 35_034_014n);
+  assert.ok(capBaseUnits(5_000, 1470, 500, 7, 300) < 70_068_027n); // the ₦10,000 tier is still refused
+});
+
+test("the x402 client's ceiling covers the largest top-up (10,000 naira + fee) and nothing much bigger", async () => {
+  const { maxPaymentUsd } = await import("../src/wallet.mjs");
+  assert.equal(maxPaymentUsd({ serviceFeeBps: 300, ngnPerUsdc: 1470 }), "$7.01"); // 10,300 / 1,470 = 7.0068
+  assert.equal(maxPaymentUsd({ serviceFeeBps: 0, ngnPerUsdc: 1470 }), "$6.81");
+});

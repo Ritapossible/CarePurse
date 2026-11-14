@@ -29,6 +29,9 @@ export const config = {
   // Empty = Phase 1, where the agent wallet is the purse.
   purseContractId: env("PURSE_CONTRACT_ID"),
   ngnPerUsdc: Number(env("NGN_PER_USDC", "1470")),
+  // CarePurse's service fee on top of face value (basis points, 300 = 3%), same as the gateway's.
+  // Limits stay in face value; the on-chain caps add the fee (capBaseUnits).
+  serviceFeeBps: Number(env("SERVICE_FEE_BPS", "300")),
   pursesFile: path.resolve(repoRoot, env("PURSES_FILE", ".data/purses.json")),
   // Postgres for purses, purchases, tokens and chat, so they survive restarts. Empty = the JSON file.
   databaseUrl: env("DATABASE_URL"),

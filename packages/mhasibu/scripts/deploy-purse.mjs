@@ -64,7 +64,7 @@ const purse = store.get("demo");
 await store.close();
 const capsVal = (l, u) => xdr.ScVal.scvMap([
   ["per_day", l.perDay], ["per_month", l.perMonth], ["per_topup", l.perTopup], ["per_week", l.perWeek],
-].map(([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, config.ngnPerUsdc, MIN_TOPUP[u])) })));
+].map(([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, config.ngnPerUsdc, MIN_TOPUP[u], config.usdc.decimals, config.serviceFeeBps)) })));
 for (const [utility, limits] of Object.entries(purse.limits)) {
   const c = await soroban.invoke(guardian, contractId, "set_caps", [symbol(utility), capsVal(limits, utility)]);
   const d = await soroban.invoke(guardian, contractId, "set_destination", [symbol(utility), bytes32(sha256(purse.destinations[utility]))]);
@@ -73,7 +73,7 @@ for (const [utility, limits] of Object.entries(purse.limits)) {
 // Always recomputed from the limits; 0 would mean no total limit on-chain, so never write it.
 const purseCapNgn = monthlyCap(purse.limits);
 if (!(purseCapNgn > 0)) { console.error("✗ The purse's monthly cap works out to 0. Not writing it: 0 means unlimited on-chain."); process.exit(1); }
-const cap = await soroban.invoke(guardian, contractId, "set_purse_cap", [i128(capBaseUnits(purseCapNgn, config.ngnPerUsdc, 100))]);
+const cap = await soroban.invoke(guardian, contractId, "set_purse_cap", [i128(capBaseUnits(purseCapNgn, config.ngnPerUsdc, 100, config.usdc.decimals, config.serviceFeeBps))]);
 console.log(`✓ purse cap ₦${purseCapNgn.toLocaleString("en-NG")} a month · ${link(cap.hash)}`);
 
 // 4. Move the agent's USDC into the purse

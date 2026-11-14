@@ -29,6 +29,8 @@ export function createMhasibu({
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log = () => {},
 } = {}) {
+  // CarePurse's service fee (basis points). Mama never sees it; Adaeze's receipts do.
+  const feeBps = config.serviceFeeBps ?? 0;
   const notifyGuardian = (purse, kind, text) => {
     purses.update(purse.id, (p) => p.notifications.push({ at: new Date(clock()).toISOString(), kind, text, read: false }));
     log({ type: "notify-guardian", kind, text });
@@ -41,7 +43,7 @@ export function createMhasibu({
     const now = clock();
     if (purse.paused) return say.paused(lang, { guardian: purse.guardian.name });
     const balanceNgn = await wallet.balanceNgn();
-    const room = headroom(purse, utility, { balanceNgn, now });
+    const room = headroom(purse, utility, { balanceNgn, now, feeBps });
     const options = room.maxNgn > 0 ? await wallet.options(utility, room.maxNgn, purse.providers?.network) : [];
     if (!options.length) {
       if (room.tightest.rule === "purse balance") {
@@ -63,7 +65,7 @@ export function createMhasibu({
     const destination = purse.destinations[utility];
     const balanceNgn = await wallet.balanceNgn();
     // Rules before ordering (destination, paused, limits, balance).
-    let verdict = checkPurchase({ purse, utility, ngn, destination, balanceNgn, now: clock() });
+    let verdict = checkPurchase({ purse, utility, ngn, destination, balanceNgn, now: clock(), feeBps });
     if (!verdict.ok) return refuse(purse, utility, verdict, lang);
 
     const providers = purse.providers ?? {};
@@ -71,9 +73,9 @@ export function createMhasibu({
     const { order, payPath } = await wallet.createOrder({ utility, ngn, destination, ...via });
     log({ type: "order", id: order.id, utility, ngn, payPath });
     const quote = await wallet.quote(payPath);
-    log({ type: "quote", utility, ngn, amount: quote.amount, payTo: quote.payTo, asset: quote.asset, network: quote.network, url: quote.url });
+    log({ type: "quote", utility, ngn, feeNgn: order.feeNgn, chargedNgn: order.chargedNgn, amount: quote.amount, payTo: quote.payTo, asset: quote.asset, network: quote.network, url: quote.url });
     // Every rule again, now with the real 402: allowlist and quoted price first.
-    verdict = checkPurchase({ purse, utility, ngn, destination, quote, order, expected: wallet.expected, balanceNgn, now: clock() });
+    verdict = checkPurchase({ purse, utility, ngn, destination, quote, order, expected: wallet.expected, balanceNgn, now: clock(), feeBps });
     if (!verdict.ok) return refuse(purse, utility, verdict, lang);
     log({ type: "rules-ok", utility, ngn });
 
@@ -117,12 +119,12 @@ export function createMhasibu({
       // Keep what was delivered with the purchase, so Mama can always see her token again.
       const kept = deliveredFields(result);
       purses.update(purse.id, (p) => {
-        p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, order: order.id, tx, releaseTx: release?.tx, ...kept });
+        p.spends.push({ at: new Date(clock()).toISOString(), utility, ngn, ...feeFields(order), order: order.id, tx, releaseTx: release?.tx, ...kept });
         if (p.openOrder) p.openOrder.paid = true;
       });
       log({ type: "paid", utility, ngn, tx, link: explorer.tx(tx) });
       // The token goes in Adaeze's receipt too, so she can read it to Mama on the phone.
-      notifyGuardian(purse, "receipt", `Mama bought ₦${ngn.toLocaleString("en-NG")} of ${utility}.${result.token ? ` Token: ${result.token}${result.units ? ` (${result.units})` : ""}.` : ""} ${explorer.tx(tx)}`);
+      notifyGuardian(purse, "receipt", `Mama bought ₦${ngn.toLocaleString("en-NG")} of ${utility}.${feeLine(order)}${result.token ? ` Token: ${result.token}${result.units ? ` (${result.units})` : ""}.` : ""} ${explorer.tx(tx)}`);
       // Close the order on-chain. If that fails, it's retried on the next message (the order is
       // already marked paid, so it will be committed, never refunded).
       if (release) await commitOpen(purses.get(purse.id));
@@ -143,6 +145,11 @@ export function createMhasibu({
       return say.checking(lang, { guardian: purse.guardian.name });
     }
   }
+
+  // The fee on an order, for the purchase record and Adaeze's receipt (never Mama's chat).
+  const feeFields = (order) => (order?.feeNgn !== undefined ? { feeNgn: order.feeNgn, chargedNgn: order.chargedNgn } : {});
+  const naira = (n) => `₦${Number(n).toLocaleString("en-NG")}`;
+  const feeLine = (order) => (order?.feeNgn ? ` Charged ${naira(order.chargedNgn)} (${naira(order.ngn)} + ${naira(order.feeNgn)} service fee).` : "");
 
   const deliveredFields = (r = {}) => Object.fromEntries(Object.entries({ token: r.token, units: r.units, reference: r.reference, bundle: r.bundle }).filter(([, v]) => v != null));
 
@@ -177,7 +184,7 @@ export function createMhasibu({
     const issued = status?.issued ?? (status?.token ? deliveredFields(status) : null);
     const keep = (extra) => purses.update(purse.id, (p) => {
       p.spends = p.spends.filter((s) => s.order !== orderId);
-      p.spends.push({ at: open.at ?? new Date(clock()).toISOString(), utility: open.utility, ngn: open.ngn ?? status?.ngn, order: orderId, releaseTx: open.releaseTx, ...deliveredFields(issued ?? {}), ...extra });
+      p.spends.push({ at: open.at ?? new Date(clock()).toISOString(), utility: open.utility, ngn: open.ngn ?? status?.ngn, ...feeFields(status), order: orderId, releaseTx: open.releaseTx, ...deliveredFields(issued ?? {}), ...extra });
       if (p.openOrder) p.openOrder.paid = true;
     });
 
@@ -359,7 +366,7 @@ export function createMhasibu({
 
   async function balance(purse, lang) {
     const balanceNgn = await wallet.balanceNgn();
-    const lines = ["electricity", "airtime", "data"].map((u) => ({ utility: u, maxNgn: headroom(purse, u, { balanceNgn, now: clock() }).maxNgn }));
+    const lines = ["electricity", "airtime", "data"].map((u) => ({ utility: u, maxNgn: headroom(purse, u, { balanceNgn, now: clock(), feeBps }).maxNgn }));
     return say.balance(lang, { lines });
   }
 }

@@ -16,14 +16,16 @@ export const symbol = (s) => nativeToScVal(s, { type: "symbol" });
 export const i128 = (n) => nativeToScVal(BigInt(n), { type: "i128" });
 export const bytes32 = (buf) => xdr.ScVal.scvBytes(Buffer.from(buf));
 
-// Naira to USDC base units (7 decimals), rounded up like the gateway's prices. Caps add one
-// base unit per possible top-up, so rounding never makes the contract stricter than the code.
-export function capBaseUnits(ngn, ngnPerUsdc, minTopupNgn, decimals = 7) {
+// A face-value naira limit as an on-chain cap in USDC base units (7 decimals). The purse pays face
+// value + the service fee, so the cap includes the fee, rounded up like the gateway's prices, plus
+// one base unit per possible top-up, so rounding never makes the contract stricter than the code.
+export function capBaseUnits(ngn, ngnPerUsdc, minTopupNgn, decimals = 7, feeBps = 0) {
   if (!ngn) return 0n;
   const scale = 10n ** BigInt(decimals);
   const rate = BigInt(Math.round(ngnPerUsdc * 1e6));
-  const base = (BigInt(ngn) * scale * 1_000_000n + rate - 1n) / rate;
-  return base + BigInt(Math.ceil(ngn / minTopupNgn));
+  const num = BigInt(ngn) * BigInt(10_000 + feeBps) * scale * 1_000_000n;
+  const den = rate * 10_000n;
+  return (num + den - 1n) / den + BigInt(Math.ceil(ngn / minTopupNgn));
 }
 
 export function contractErrorCode(message) {

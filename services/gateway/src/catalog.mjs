@@ -10,13 +10,19 @@ export const UTILITIES = {
 export const isUtility = (name) => Object.hasOwn(UTILITIES, name);
 export const isTier = (utility, ngn) => isUtility(utility) && UTILITIES[utility].tiers.includes(ngn);
 
-// Exact price in USDC base units (USDC has 7 decimals on Stellar), as a string for x402.
-// Integer maths only, rounded up to the nearest base unit so the gateway is never short.
-export function priceBaseUnits(ngn, ngnPerUsdc, decimals = 7) {
+// CarePurse's service fee, in basis points (300 = 3%), added on top of the face value. Mama gets the
+// full face value; the purse (Adaeze's money) pays face value + fee. Like Ponte's 3% markup.
+export const feeNgn = (ngn, feeBps = 0) => (ngn * feeBps) / 10_000;
+export const chargedNgn = (ngn, feeBps = 0) => ngn + feeNgn(ngn, feeBps);
+
+// Exact price in USDC base units (USDC has 7 decimals on Stellar), as a string for x402: the face
+// value plus the service fee. Integer maths only, rounded up so the gateway is never short.
+export function priceBaseUnits(ngn, ngnPerUsdc, decimals = 7, feeBps = 0) {
   const scale = 10n ** BigInt(decimals);
   const rateMilli = BigInt(Math.round(ngnPerUsdc * 1000));
-  const numerator = BigInt(ngn) * scale * 1000n;
-  return ((numerator + rateMilli - 1n) / rateMilli).toString();
+  const numerator = BigInt(ngn) * BigInt(10_000 + feeBps) * scale * 1000n;
+  const denominator = rateMilli * 10_000n;
+  return ((numerator + denominator - 1n) / denominator).toString();
 }
 
 // "3.4013605" → "3.40" for people to read. Never used for payment.
@@ -25,24 +31,25 @@ export function toDisplayUsdc(baseUnits, decimals = 7) {
 }
 
 // The tiers for one utility, optionally only those at or below maxNgn.
-export function options(utility, { ngnPerUsdc, decimals = 7, maxNgn } = {}) {
+// ngn is the face value (what Mama gets); amount/chargedNgn include the service fee.
+export function options(utility, { ngnPerUsdc, decimals = 7, maxNgn, feeBps = 0 } = {}) {
   if (!isUtility(utility)) return [];
   return UTILITIES[utility].tiers
     .filter((ngn) => maxNgn === undefined || ngn <= maxNgn)
     .map((ngn) => {
-      const amount = priceBaseUnits(ngn, ngnPerUsdc, decimals);
-      return { utility, ngn, amount, usdc: toDisplayUsdc(amount, decimals), path: `/paid/topup/${utility}/${ngn}` };
+      const amount = priceBaseUnits(ngn, ngnPerUsdc, decimals, feeBps);
+      return { utility, ngn, feeNgn: feeNgn(ngn, feeBps), chargedNgn: chargedNgn(ngn, feeBps), amount, usdc: toDisplayUsdc(amount, decimals), path: `/paid/topup/${utility}/${ngn}` };
     });
 }
 
 // Every paid route, for the x402 middleware: "GET /topup/electricity/500" → price.
-export function paidRoutes({ ngnPerUsdc, decimals, asset, network, payTo }) {
+export function paidRoutes({ ngnPerUsdc, decimals, asset, network, payTo, feeBps = 0 }) {
   const routes = {};
   for (const [utility, { label, tiers }] of Object.entries(UTILITIES)) {
     for (const ngn of tiers) {
       routes[`GET /topup/${utility}/${ngn}`] = {
-        accepts: { scheme: "exact", price: { amount: priceBaseUnits(ngn, ngnPerUsdc, decimals), asset }, network, payTo },
-        description: `${label} top-up, ₦${ngn.toLocaleString("en-NG")} (sandbox fulfilment)`,
+        accepts: { scheme: "exact", price: { amount: priceBaseUnits(ngn, ngnPerUsdc, decimals, feeBps), asset }, network, payTo },
+        description: `${label} top-up, ₦${ngn.toLocaleString("en-NG")}${feeBps ? ` + ₦${feeNgn(ngn, feeBps).toLocaleString("en-NG")} service fee` : ""} (sandbox fulfilment)`,
         mimeType: "application/json",
       };
     }

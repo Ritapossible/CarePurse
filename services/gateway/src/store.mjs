@@ -32,11 +32,12 @@ export function createStore(file, { records = null } = {}) {
   };
 
   return {
-    create({ utility, ngn, destination, amount, ttlMinutes, network, disco, contactPhone }) {
+    create({ utility, ngn, destination, amount, feeNgn, chargedNgn, ttlMinutes, network, disco, contactPhone }) {
       const id = crypto.randomBytes(8).toString("hex");
       const now = Date.now();
       const order = {
         id, utility, ngn, destination, amount,
+        ...(feeNgn !== undefined ? { feeNgn, chargedNgn } : {}),
         ...(network ? { network } : {}),
         ...(disco ? { disco } : {}),
         ...(contactPhone ? { contactPhone } : {}),

@@ -18,8 +18,8 @@ Everything below runs today on Stellar testnet with real sandbox fulfilment.
 
 | Milestone | Status | Proof |
 |---|---|---|
-| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 14 tests |
-| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 29 tests |
+| x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 15 tests |
+| Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 33 tests |
 | Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
 | Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 17 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC) |
 | On-chain refusal demo: 7 USDC over the cap, refused by the contract | ✅ Done 14 Nov | `npm run overspend` → `OverPerTopup` (Error #3), no USDC moved |
@@ -89,7 +89,7 @@ VTpass sandbox   issues the electricity token → Mama sees it in the chat; Adae
 
 **Remove x402, and Mama gets nothing:** the payment is the only way the gateway releases a token.
 
-**Commission:** VTpass charges less than face value (1.5% off electricity, 3.5% off MTN airtime). Mama always gets the full amount; in production the margin funds CarePurse.
+**How CarePurse earns (like Ponte):** a **3% service fee** on top of face value (`SERVICE_FEE_BPS=300`), paid from the purse, plus VTpass's reseller discount (1.5% off electricity, 3.5% off MTN airtime). Mama always gets the full face value and **never sees the fee**; Adaeze sees it in every receipt ("Charged ₦5,150 (₦5,000 + ₦150 service fee)"). Her limits are in face value; the on-chain caps include the fee. Example: ₦500 of light costs the purse ₦515, VTpass charges ₦492.50, so CarePurse keeps ₦22.50 (4.5%) before off-ramp costs.
 
 ---
 
