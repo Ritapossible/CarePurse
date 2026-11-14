@@ -70,8 +70,11 @@ jobs:
           (cd services/gateway && npm start > ../../gateway.log 2>&1 &)
           for i in $(seq 1 30); do curl -sf localhost:4021/health >/dev/null && break; sleep 1; done
           cd packages/mhasibu && npm ci
-          # Options: electricity 1) ₦500; airtime 1) ₦100; MTN data 2) ₦200 (exact bundle prices only)
-          npm run chat -- "Abeg, light don almost finish" "1" "Abeg recharge my line" "1" "My data don finish" "2" | tee ../../chat.log
+          # Options: electricity 1) ₦500; airtime 1) ₦100; MTN data 2) ₦200 (exact bundle prices only).
+          # VTpass refuses a second purchase to the same phone within minutes (019), so data waits.
+          npm run chat -- "Abeg, light don almost finish" "1" "Abeg recharge my line" "1" | tee ../../chat.log
+          sleep 240
+          npm run chat -- "My data don finish" "2" | tee -a ../../chat.log
           paid=$(grep -c "paid on Stellar testnet" ../../chat.log || true)
           echo "Settled payments: $paid of 3"
           grep -i "provider refused" ../../gateway.log || true

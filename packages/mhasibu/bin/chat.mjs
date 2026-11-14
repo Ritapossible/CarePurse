@@ -14,6 +14,10 @@ const mhasibu = createMhasibu({
     else if (e.type === "refused") console.log(`   · refused by rule "${e.rule}": ${e.reason}`);
     else if (e.type === "notify-guardian") console.log(`   · guardian notified (${e.kind})`);
     else if (e.type === "payment-failed") console.log(`   · payment failed: ${e.message}`);
+    else if (e.type === "contract-ok") console.log(`   · purse contract released the top-up: ${e.link}`);
+    else if (e.type === "contract-refused") console.log(`   · purse contract refused: ${e.rule} (Error #${e.code})`);
+    else if (e.type === "refunded") console.log(`   · refunded to the purse: ${e.link}`);
+    else if (e.type === "refund-failed") console.log(`   · refund failed: ${e.message}`);
   },
 });
 
