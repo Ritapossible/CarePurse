@@ -89,6 +89,38 @@ VTpass sandbox   issues the electricity token → Mama sees it in the chat; Adae
 
 ---
 
+## How the money moves
+
+![CarePurse money flow: Adaeze deposits USDC into the purse contract; the contract releases exactly one top-up to Mhasibu; Mhasibu pays the CarePurse gateway over x402; the facilitator settles on Stellar; VTpass delivers the token to Mama](docs/money-flow.png)
+
+<sub>Editable source: [`docs/money-flow.excalidraw`](docs/money-flow.excalidraw) (open it at [excalidraw.com](https://excalidraw.com)) · vector: [`docs/money-flow.svg`](docs/money-flow.svg)</sub>
+
+Every top-up moves real testnet USDC from Adaeze's purse to the platform's address. Example: Mama buys ₦500 of light (0.3401361 USDC).
+
+| Step | What happens | Where the money is |
+|---|---|---|
+| ① Deposit | Adaeze sends USDC to the purse contract (a plain USDC transfer). | Purse contract |
+| ② Ask | Mama: "Abeg, light don almost finish", then "1" for ₦500. Mhasibu runs every rule in code. | Purse contract |
+| ③ Release | Mhasibu calls the contract's `buy()`. **The contract checks Adaeze's caps and saved meter on-chain**, then sends exactly 0.3401361 USDC to Mhasibu's wallet. If any rule fails, nothing moves. | Mhasibu's wallet, for a few seconds |
+| ④ Pay over x402 | The gateway answers **402 Payment Required**. Mhasibu signs a USDC payment for exactly that amount and retries. | |
+| ⑤ Settle | The facilitator verifies and settles the USDC transfer on Stellar testnet, and pays the XLM network fee. | **Platform wallet** [`GDFFLJ…7CAA`](https://stellar.expert/explorer/testnet/account/GDFFLJ7SQVYJDH7RB7JYIBRLHRHOP7IV4XILUMHS5WPOJ5DAJCTO7CAA) |
+| ⑥ Fulfil | The gateway buys ₦500 of light from VTpass (sandbox), paid from its naira wallet. | |
+| ⑦ Token | Mama sees `2636 2054 4059 8275 7802` in her chat. | |
+| ⑧ Receipt | Adaeze gets a receipt with the Stellar transaction link. | |
+
+**Live today vs production:**
+
+| | Today (hackathon) | Production |
+|---|---|---|
+| Adaeze funds the purse | A script from a guardian wallet we hold (`npm run fund-purse`) | The dashboard: she signs in with Privy and deposits from her own wallet |
+| USDC: purse → Mhasibu → platform | ✅ Live on Stellar testnet | Same, on mainnet |
+| Naira to pay the biller | VTpass sandbox wallet (play money) | **Off-ramp** (red, dashed): the platform sells its USDC through a Nigerian Stellar anchor or exchange to refill its naira float with VTpass |
+| Platform revenue | None charged | VTpass commission (1.5% electricity, 3.5% MTN airtime), or a small visible fee |
+
+On the explorer, the XLM you see on a payment is the network fee (about 0.001 XLM, paid by the facilitator). The payment itself is the **USDC transfer** inside the transaction.
+
+---
+
 ## Repo layout
 
 ```
