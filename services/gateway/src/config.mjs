@@ -46,6 +46,8 @@ export const config = {
     contactPhone: env("VTPASS_CONTACT_PHONE", "08011111111"),
   },
   ordersFile: path.resolve(repoRoot, env("ORDERS_FILE", ".data/orders.json")),
+  // Postgres for orders (and their tokens), so they survive restarts. Empty = the JSON file.
+  databaseUrl: env("DATABASE_URL"),
   orderTtlMinutes: number("ORDER_TTL_MINUTES", 10),
 };
 

@@ -182,6 +182,9 @@ export function createMhasibu({
       const reply = await respond(purse, text, lang);
       log({ type: "reply", text: reply });
       remember(purses.get(purseId), "mhasibu", reply);
+      // Stored before Mama sees it (a token is never shown but not kept). A database hiccup is
+      // logged, not shown to her: the reply still goes out.
+      await purses.flush?.().catch((err) => log({ type: "error", message: `could not store the chat yet: ${err.message}` }));
       return reply;
     },
   };

@@ -32,6 +32,7 @@ services:
       - { key: VTPASS_API_KEY, sync: false }
       - { key: VTPASS_SECRET_KEY, sync: false }
       - { key: VTPASS_PUBLIC_KEY, sync: false }
+      - { key: DATABASE_URL, sync: false }           # Neon Postgres: orders and tokens survive restarts
 
   # Mhasibu: holds the agent wallet, asks the purse contract, pays the gateway over x402.
   - type: web
@@ -61,6 +62,7 @@ services:
       - { key: AGENT_SECRET_KEY, sync: false }       # Mhasibu's testnet wallet secret
       - { key: LLM_API_KEY, sync: false }            # OpenServ key; empty = keyword parser
       - { key: WEB_ORIGIN, sync: false }             # the web app's https URL (CORS)
+      - { key: DATABASE_URL, sync: false }           # same Neon database: purses, purchases, tokens, chat
 
   # Mama's chat and the judges' demo view.
   - type: web

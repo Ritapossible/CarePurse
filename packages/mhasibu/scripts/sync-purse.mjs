@@ -4,12 +4,12 @@
 //   npm run sync-purse
 import { xdr } from "@stellar/stellar-sdk";
 import { config } from "../src/config.mjs";
-import { DEMO_PURSE, createPurseStore } from "../src/purses.mjs";
+import { DEMO_PURSE, openPurseStore } from "../src/purses.mjs";
 import { monthlyCap } from "../src/limits.mjs";
 import { bytes32, capBaseUnits, createSoroban, i128, keypair, sha256, symbol } from "../src/purse-contract.mjs";
 
 const MIN_TOPUP = { electricity: 500, airtime: 100, data: 100 };
-const purses = createPurseStore(config.pursesFile);
+const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 purses.update("demo", (p) => {
   p.mama = { ...p.mama, ...DEMO_PURSE.mama };
   p.destinations = { ...DEMO_PURSE.destinations };
@@ -18,7 +18,7 @@ purses.update("demo", (p) => {
 const purse = purses.get("demo");
 console.log(`✓ demo purse: meter ${purse.destinations.electricity} (${purse.providers.disco}), phone ${purse.destinations.airtime} (${purse.providers.network})`);
 
-if (!config.purseContractId) { console.log("No PURSE_CONTRACT_ID: nothing to update on-chain."); process.exit(0); }
+if (!config.purseContractId) { console.log("No PURSE_CONTRACT_ID: nothing to update on-chain."); await purses.close(); process.exit(0); }
 const guardianSecret = process.env.GUARDIAN_SECRET?.trim();
 if (!guardianSecret) { console.error("GUARDIAN_SECRET missing in .env (npm run deploy-purse creates it)."); process.exit(1); }
 const guardian = keypair(guardianSecret);
@@ -39,3 +39,4 @@ if (!(purseCapNgn > 0)) { console.error("✗ The purse's monthly cap works out t
 purses.update("demo", (p) => { p.monthlyCap = purseCapNgn; });
 const cap = await soroban.invoke(guardian, config.purseContractId, "set_purse_cap", [i128(capBaseUnits(purseCapNgn, config.ngnPerUsdc, 100))]);
 console.log(`✓ purse cap ₦${purseCapNgn.toLocaleString("en-NG")} a month saved on-chain · ${link(cap.hash)}`);
+await purses.close();

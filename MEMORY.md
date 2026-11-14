@@ -152,3 +152,10 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - **It must never be shown once and lost.** Now: kept on the gateway's order and on Mhasibu's purchase record; included in Adaeze's receipt; Mama can ask again in any words or press 5 on the menu; the chat pins "Last light token" with a Copy button.
 - **Still to do:** SMS to Mama's phone (production, via an SMS provider), and a database before hosting, because Render's free plan wipes files on restart and would lose stored tokens.
 
+## Database (14 Nov)
+
+- **Postgres via `DATABASE_URL`**, one table `carepurse_records (kind, id, doc jsonb)`; the gateway and Mhasibu can share it. Without a URL, the JSON files in `.data/` are used (local dev, tests, GitHub Actions).
+- **Design:** the stores stay in memory and synchronous (so the payment logic and its conditional status changes don't change), load from Postgres at start, write every change in order, and wait for the write before answering Mama or returning a token. A database error is logged and never blocks a token already issued. Assumes one instance per service.
+- **Host:** Neon free tier (doesn't expire). Not Render's free Postgres (deleted after 30 days, mid-December) or Supabase free (pauses after a week idle).
+- **Tested:** real Postgres tests (`TEST_DATABASE_URL`), and live: bought ₦500 of light, restarted both services, "send my token again" returned the same token.
+

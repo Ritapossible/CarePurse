@@ -11,7 +11,7 @@ import http from "node:http";
 import { Keypair } from "@stellar/stellar-sdk";
 import { config, explorer } from "../src/config.mjs";
 import { createMhasibu } from "../src/mhasibu.mjs";
-import { createPurseStore } from "../src/purses.mjs";
+import { openPurseStore } from "../src/purses.mjs";
 import { ContractRefused, buyArgs, createSoroban } from "../src/purse-contract.mjs";
 
 const port = Number(process.env.PORT) || Number(process.env.MHASIBU_PORT ?? 4022); // Render sets PORT
@@ -29,7 +29,8 @@ function emit(event) {
   for (const res of clients) res.write(line);
 }
 
-const purses = createPurseStore(config.pursesFile);
+const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
+console.log(config.databaseUrl ? "Purses: Postgres (DATABASE_URL)" : `Purses: ${config.pursesFile} (set DATABASE_URL to keep them across restarts)`);
 const mhasibu = createMhasibu({ purses, log: emit });
 const agentAddress = Keypair.fromSecret(config.agentSecret).publicKey();
 

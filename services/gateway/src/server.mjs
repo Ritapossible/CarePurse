@@ -18,7 +18,7 @@ import { decodePaymentResponseHeader } from "@x402/core/http";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config as defaultConfig, explorer } from "./config.mjs";
 import { UTILITIES, isTier, isUtility, options, paidRoutes, priceBaseUnits } from "./catalog.mjs";
-import { createStore, isExpired } from "./store.mjs";
+import { createStore, openStore, isExpired } from "./store.mjs";
 import { createProvider, NETWORKS, DISCOS } from "./provider.mjs";
 
 const LABEL = "Live Stellar Testnet payment · sandbox utility fulfilment";
@@ -168,6 +168,10 @@ export function createApp({
       if (!result.ok) log.error(`provider refused order ${order.id}: ${result.reason ?? "no reason"}`);
       if (!result.ok) return res.status(502).json({ error: "The utility provider refused this top-up. You were not charged.", retryLater: Boolean(result.retryLater) });
       delivered = Object.fromEntries(Object.entries({ token: result.token, units: result.units, reference: result.reference, bundle: result.bundle, note: result.note }).filter(([, v]) => v != null));
+      // Keep what was issued on the order before answering, so a token is never shown but not stored.
+      store.transition(order.id, "fulfilling", "fulfilling", { issued: delivered });
+      // A database hiccup must not cost Mama a token the provider already issued: log and deliver.
+      await store.flush().catch((err) => log.error(`order ${order.id}: could not store the token yet (${err.message})`));
       res.json({ order: order.id, utility: order.utility, ngn: order.ngn, destination: order.destination, ...result, fulfilment: "sandbox", label: LABEL });
     } catch (err) {
       log.error(err);
@@ -180,7 +184,9 @@ export function createApp({
 
 // Run directly: npm start
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const app = createApp();
+  const store = await openStore({ file: defaultConfig.ordersFile, databaseUrl: defaultConfig.databaseUrl });
+  console.log(defaultConfig.databaseUrl ? "Orders: Postgres (DATABASE_URL)" : `Orders: ${defaultConfig.ordersFile} (set DATABASE_URL to keep them across restarts)`);
+  const app = createApp({ store });
   app.listen(defaultConfig.port, () => {
     console.log(`CarePurse gateway on ${defaultConfig.gatewayUrl}`);
     console.log(`Facilitator: ${defaultConfig.facilitator.name} · ${LABEL}`);

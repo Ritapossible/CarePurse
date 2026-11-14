@@ -27,7 +27,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 
 ## Step by step
 
-### Step 0: Set up (day 1, 12–13 Nov)
+### Step 0: Set up (day 1, 12-13 Nov)
 - [ ] Both: run Koxy's workshop kit end to end (`library.md`, section 5). Get one paid request working on testnet. This proves our machines, wallets and facilitator work.
 - [ ] Create the folders: `apps/web`, `services/gateway` (done), `contracts/purse`.
 - [x] Add `.gitignore` (with `.env`) and `.env.example`.
@@ -35,7 +35,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Sign up for the VTpass sandbox and note the test meter and phone numbers.
 - [ ] **Check Privy's Stellar support** (see `ARCHITECTURE.md`, Accounts and wallets). Decide Privy or Stellar Wallets Kit.
 
-### Step 1: The paid gateway (14–16 Nov), Must have · **done 13 Nov**
+### Step 1: The paid gateway (14-16 Nov), Must have · **done 13 Nov**
 - [x] Gateway in `services/gateway`, following the kit's `server.mjs` pattern.
 - [x] `GET /v1/options?utility=&max_ngn=` returns the sizes (from ₦500 for electricity, from ₦100 for airtime and data) up to `max_ngn` (free). Mhasibu works out `max_ngn` from the limits and balance.
 - [x] `POST /v1/orders` creates an order (free).
@@ -44,7 +44,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] One payment per order; fail closed.
 - [x] **Test:** `npm run peek` shows the 402; `npm run pay` paid ₦500 electricity and ₦100 airtime on Stellar testnet in about 3 s each. Offline tests: `npm test`.
 
-### Step 2: Mhasibu pays (16–18 Nov), Must have · **done 13 Nov** (`packages/mhasibu`)
+### Step 2: Mhasibu pays (16-18 Nov), Must have · **done 13 Nov** (`packages/mhasibu`)
 - [x] An agent module with `@x402/fetch` + `@x402/stellar`, with an exact-match `policies` filter before signing.
 - [x] Rule checks in code before signing: allowlist, quoted price, destination, paused, limits, Mama's confirmation.
 - [x] One agent wallet per purse; its balance is the hard limit in Phase 1.
@@ -55,7 +55,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] Claude live through OpenServ (`LLM_BASE_URL`, model `claude-opus-5.5`): about 2 s per message, Pidgin understood, injection attempt classed as unknown. Tested 13 Nov.
 - [ ] Have a native speaker check the Pidgin replies in `src/replies.mjs`.
 
-### Step 3: Mama's chat (18–20 Nov), Must have
+### Step 3: Mama's chat (18-20 Nov), Must have
 - [ ] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)
 - [ ] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome.
 - [ ] "Add to home screen" prompt, shown once.
@@ -66,7 +66,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
 - [x] **Agent & x402 Log** panel beside the chat (`/demo`), 14 Nov: each step live, from Mama's message, the contract check and the 402 challenge to the signed payment and the Stellar Testnet settlement link. Mama's own chat stays simple.
 
-### Step 4: Daughter's dashboard (19–22 Nov), Should have
+### Step 4: Daughter's dashboard (19-22 Nov), Should have
 - [ ] The four sign-up screens from `SIGNUP.md` (D1 to D4).
 - [ ] D1 Privy login; the daughter becomes guardian.
 - [ ] D2 Mama: name, phone, language.
@@ -76,21 +76,22 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Invite status on the dashboard, and **[Send a new invite]** that cancels the old link.
 - [ ] Receipts: every top-up with its Stellar transaction link.
 
-### Step 5: Limits on-chain (20–24 Nov), Must have (one cap check) · Should have (the rest)
+### Step 5: Limits on-chain (20-24 Nov), Must have (one cap check) · Should have (the rest)
 - [x] Decide: our own purse contract (per-utility caps and saved destinations, which an allowance can't do).
 - [x] Write the contract and its tests (`contracts/purse`, 10 tests). 14 Nov.
 - [x] Mhasibu calls `buy` before paying (when `PURSE_CONTRACT_ID` is set).
 - [x] **Mentor's demo moment:** "Try to take 7 USDC" in the log panel (or `npm run overspend`) skips Mhasibu's own checks; the contract refuses it on-chain (per top-up cap).
 - [ ] **Demo moment:** ask Mhasibu to pay a number the daughter didn't save. The contract refuses, live.
 
-### Step 6: Polish and record (24–27 Nov)
+### Step 6: Polish and record (24-27 Nov)
 - [ ] Run the golden path five times in a row without failure.
 - [ ] Record the demo video (live or recorded x402 flow).
 - [ ] Update the pitch deck from the Ideation & MVP slides.
 - [ ] README with setup steps, architecture and the GitHub link.
-- [ ] Deploy for the judges (Render, as in the kit): `render.yaml` Blueprint and `DEPLOY.md` ready (14 Nov); gateway + Mhasibu + web app. Use a small testnet balance, label it testnet, and move orders from the JSON file to a database (Render's disk is wiped on restart).
+- [ ] Deploy for the judges (Render, as in the kit): `render.yaml` Blueprint and `DEPLOY.md` ready (14 Nov); gateway + Mhasibu + web app. Use a small testnet balance and label it testnet.
+- [x] Move orders, purses, purchases, tokens and chat to Postgres (`DATABASE_URL`), tested with a restart: the token comes back. 14 Nov. Hosted database: Neon (see `DEPLOY.md`).
 
-### Step 7: Submit (27–28 Nov)
+### Step 7: Submit (27-28 Nov)
 - [ ] Submission checklist: working prototype, live or recorded x402 flow, architecture docs, GitHub repo.
 - [ ] Final check: no `.env` or secrets in the repo.
 

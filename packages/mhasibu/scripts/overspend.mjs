@@ -4,11 +4,13 @@
 //   npm run overspend [usdc]          (default 7)
 import { config } from "../src/config.mjs";
 import { ContractRefused, buyArgs, createSoroban, keypair } from "../src/purse-contract.mjs";
-import { createPurseStore } from "../src/purses.mjs";
+import { openPurseStore } from "../src/purses.mjs";
 
 if (!config.purseContractId) { console.error("No PURSE_CONTRACT_ID. Run: npm run deploy-purse"); process.exit(1); }
 const usdc = Number(process.argv[2] ?? 7);
-const purse = createPurseStore(config.pursesFile).get("demo");
+const store = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
+const purse = store.get("demo");
+await store.close();
 const soroban = createSoroban({ rpcUrl: config.rpcUrl });
 const amount = BigInt(Math.round(usdc * 10 ** config.usdc.decimals));
 console.log(`Agent asks the purse contract for ${usdc} USDC of electricity (skipping Mhasibu's own checks)…`);

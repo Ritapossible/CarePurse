@@ -14,6 +14,14 @@ Stellar **testnet** and the VTpass **sandbox** only. Three services from one Blu
 2. **Wallet values** from our local `.env` (ask Rita; never paste them in chat or commit them): `GATEWAY_RECIPIENT` (public address) and `AGENT_SECRET_KEY` (Mhasibu's testnet secret).
 3. **OpenServ key** for Claude (optional; without it Mhasibu uses the keyword parser).
 
+## The database (do this first)
+
+1. Sign up at **https://neon.tech** (free; GitHub login works) and create a project, for example `carepurse`, region close to Render's (Frankfurt or US East).
+2. Copy the **connection string** (it looks like `postgresql://user:password@ep-xxxx.neon.tech/neondb?sslmode=require`).
+3. Paste it as `DATABASE_URL` for **carepurse-gateway** and **carepurse-mhasibu** in Render. Nothing else to set up: the table is created on first start.
+
+Why Neon: Render's free Postgres is deleted after 30 days (mid-December, around Demo Day); Supabase's free tier pauses after a week without use.
+
 ## Steps
 
 1. Render dashboard → **New → Blueprint** → connect GitHub → pick `Ritapossible/CarePurse` → it reads `render.yaml`.
@@ -31,6 +39,6 @@ Add three HTTP(s) monitors, every 5 minutes: the gateway's `/health`, Mhasibu's 
 ## Things to know
 
 - **Free plan sleeps** after 15 minutes idle; the first request takes about a minute. Open all three URLs a few minutes before a demo.
-- **Files are wiped on restart** (`.data/orders.json`, `.data/purses.json`). The demo purse is re-seeded; the code-side spend history resets, but **the purse contract's caps and spends stay on-chain**. Moving these files to a database is in `PLAN.md`, Step 6.
+- **Set `DATABASE_URL`** on the gateway and on Mhasibu (the same database is fine). Render's free plan wipes files on every restart; with the database, orders, purchases, Mama's tokens and her chat survive. Without it they'd reset after each restart.
 - **No secrets in `render.yaml`.** The gateway only needs its public address; only Mhasibu holds a secret key.
 - **Testnet resets on 16 Dec 2026:** run `npm run setup`, `npm run get-usdc` and `npm run deploy-purse` locally again, then update `PURSE_CONTRACT_ID` on Render.

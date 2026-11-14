@@ -185,7 +185,7 @@ Three Render services from `render.yaml` (see **[DEPLOY.md](DEPLOY.md)**), pinge
 
 - Keep the monitors **paused** while we build, and **switch them on for judging and Demo Day** (two services awake for a week is about 340 hours).
 - Or serve the web app as a Render **static site** (free, always on, uses no hours), leaving two services to keep awake.
-- Files on the free plan are wiped on every restart, so the code-side spend history resets; the contract's caps and spends stay on-chain.
+- Files on the free plan are wiped on every restart, so set `DATABASE_URL` (Neon, free): orders, purchases, Mama's tokens and her chat are kept in Postgres and survive restarts.
 
 ---
 

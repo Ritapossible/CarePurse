@@ -30,6 +30,8 @@ export const config = {
   purseContractId: env("PURSE_CONTRACT_ID"),
   ngnPerUsdc: Number(env("NGN_PER_USDC", "1470")),
   pursesFile: path.resolve(repoRoot, env("PURSES_FILE", ".data/purses.json")),
+  // Postgres for purses, purchases, tokens and chat, so they survive restarts. Empty = the JSON file.
+  databaseUrl: env("DATABASE_URL"),
   llm: {
     // Claude understands Mama's message. Without a key, the built-in scripted parser does it.
     // LLM_BASE_URL points the Anthropic SDK at another Messages-compatible host, e.g. OpenServ

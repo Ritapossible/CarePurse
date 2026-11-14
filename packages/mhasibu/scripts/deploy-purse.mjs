@@ -11,7 +11,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { Address, Horizon, Keypair, Operation } from "@stellar/stellar-sdk";
 import { config, repoRoot } from "../src/config.mjs";
-import { createPurseStore } from "../src/purses.mjs";
+import { openPurseStore } from "../src/purses.mjs";
 import { monthlyCap } from "../src/limits.mjs";
 import { addressVal, bytes32, capBaseUnits, createSoroban, i128, sha256, symbol } from "../src/purse-contract.mjs";
 import { xdr } from "@stellar/stellar-sdk";
@@ -59,7 +59,9 @@ console.log(`✓ created the purse contract ${contractId} · ${link(created.hash
 write("PURSE_CONTRACT_ID", contractId);
 
 // 3. Caps and destinations, from the demo purse
-const purse = createPurseStore(config.pursesFile).get("demo");
+const store = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
+const purse = store.get("demo");
+await store.close();
 const capsVal = (l, u) => xdr.ScVal.scvMap([
   ["per_day", l.perDay], ["per_month", l.perMonth], ["per_topup", l.perTopup], ["per_week", l.perWeek],
 ].map(([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, config.ngnPerUsdc, MIN_TOPUP[u])) })));

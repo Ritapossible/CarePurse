@@ -3,10 +3,14 @@
 //   npm run chat -- "Abeg, light don almost finish" "1"   → send these messages and exit
 import readline from "node:readline/promises";
 import { createMhasibu } from "../src/mhasibu.mjs";
+import { openPurseStore } from "../src/purses.mjs";
+import { config } from "../src/config.mjs";
 
 const verbose = !process.argv.includes("--quiet");
 const scripted = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 const mhasibu = createMhasibu({
+  purses,
   log: (e) => {
     if (!verbose) return;
     if (e.type === "paid") console.log(`   · paid on Stellar testnet: ${e.link}`);
@@ -29,6 +33,7 @@ const send = async (text) => {
 
 if (scripted.length) {
   for (const text of scripted) await send(text);
+  await purses.close();
 } else {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   for (;;) {
@@ -38,4 +43,5 @@ if (scripted.length) {
     await send(text);
   }
   rl.close();
+  await purses.close();
 }

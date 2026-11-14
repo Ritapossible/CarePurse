@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { PRESETS, monthlyCap } from "./limits.mjs";
+import { openRecords } from "./records.mjs";
 
 // Uses the VTpass sandbox's test numbers (meter 1111111111111, phone 08011111111), which the
 // sandbox always fulfils. The mock provider accepts them too.
@@ -21,10 +22,22 @@ export function newPurse({ id, mama, guardian, destinations, providers = { disco
   return { id, mama, guardian, destinations, providers, preset, limits, monthlyCap: monthlyCap(limits), paused: false, spends: [], notifications: [], pending: null, history: [] };
 }
 
-export function createPurseStore(file, { seed = true } = {}) {
+// Use this to start Mhasibu: Postgres if DATABASE_URL is set (purses, purchases, tokens and chat
+// survive restarts), the JSON file otherwise.
+export async function openPurseStore({ file, databaseUrl, seed = true, log } = {}) {
+  if (!databaseUrl) return createPurseStore(file, { seed });
+  const records = await openRecords(databaseUrl, ["purse"], { log });
+  return createPurseStore(null, { seed, records });
+}
+
+export function createPurseStore(file, { seed = true, records = null } = {}) {
   let state = { purses: {} };
-  if (file && fs.existsSync(file)) state = JSON.parse(fs.readFileSync(file, "utf8"));
-  if (seed && !state.purses[DEMO_PURSE.id]) state.purses[DEMO_PURSE.id] = newPurse(DEMO_PURSE);
+  if (records) for (const r of records.rows) state.purses[r.id] = r.doc;
+  else if (file && fs.existsSync(file)) state = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (seed && !state.purses[DEMO_PURSE.id]) {
+    state.purses[DEMO_PURSE.id] = newPurse(DEMO_PURSE);
+    records?.save("purse", DEMO_PURSE.id, state.purses[DEMO_PURSE.id]);
+  }
 
   const save = () => {
     if (!file) return;
@@ -36,7 +49,10 @@ export function createPurseStore(file, { seed = true } = {}) {
 
   return {
     get: (id) => state.purses[id] ?? null,
-    put(purse) { state.purses[purse.id] = purse; save(); return purse; },
-    update(id, fn) { const purse = state.purses[id]; fn(purse); save(); return purse; },
+    put(purse) { state.purses[purse.id] = purse; records?.save("purse", purse.id, purse); save(); return purse; },
+    update(id, fn) { const purse = state.purses[id]; fn(purse); records?.save("purse", id, purse); save(); return purse; },
+    // Wait until every change so far is stored.
+    flush: async () => { await records?.flush(); },
+    close: async () => { await records?.close(); },
   };
 }

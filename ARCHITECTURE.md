@@ -234,7 +234,13 @@ The full list, with comments, is in [`.env.example`](.env.example). `cd services
 | `AGENT_SECRET_KEY` | Mhasibu's wallet. Never share or show on screen. |
 | `NGN_PER_USDC` | The demo rate used to price each size |
 | `UTILITY_PROVIDER` | `mock` (built-in sandbox tokens) for now |
-| `PRIVY_*`, `LLM_*`, `DATABASE_URL` | For the web app, later |
+| `DATABASE_URL` | Postgres for orders, purses, purchases, tokens and chat (built 14 Nov). Empty = JSON files in `.data/`. Hosted on Neon (free, doesn't expire) |
+| `LLM_*` | Claude via OpenServ for Mhasibu |
+| `PRIVY_*` | For the daughter's dashboard, later |
+
+### Storage (built 14 Nov)
+
+One Postgres table, `carepurse_records (kind, id, doc jsonb)`: `order` and `tx` from the gateway, `purse` from Mhasibu (with its purchases, tokens, notifications and chat). Each service keeps its records in memory as before (the payment logic and its conditional status changes are unchanged), loads them at start, writes every change in order, and waits for the write before answering: Mhasibu before replying to Mama, the gateway before returning a token. A database error is logged and never blocks a token the provider already issued. One instance per service.
 
 ## Security checklist
 
