@@ -13,7 +13,7 @@ import { createMhasibu } from "../src/mhasibu.mjs";
 import { createPurseStore } from "../src/purses.mjs";
 import { ContractRefused, buyArgs, createSoroban } from "../src/purse-contract.mjs";
 
-const port = Number(process.env.MHASIBU_PORT ?? 4022);
+const port = Number(process.env.PORT) || Number(process.env.MHASIBU_PORT ?? 4022); // Render sets PORT
 const allowOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 const demoMode = process.env.DEMO_MODE === "1";
 const clients = new Set();

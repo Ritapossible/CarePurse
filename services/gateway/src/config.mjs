@@ -32,7 +32,8 @@ export const config = {
       : { name: "Coinbase", url: env("FACILITATOR_BACKUP_URL", "https://x402.org/facilitator"), apiKey: "" },
   recipient: env("GATEWAY_RECIPIENT"),
   agentSecret: env("AGENT_SECRET_KEY"),
-  port: number("GATEWAY_PORT", 4021),
+  // Render (and most hosts) set PORT; GATEWAY_PORT is for running locally.
+  port: Number(process.env.PORT) || number("GATEWAY_PORT", 4021),
   gatewayUrl: env("GATEWAY_URL", "http://localhost:4021"),
   ngnPerUsdc: number("NGN_PER_USDC", 1470),
   provider: env("UTILITY_PROVIDER", "mock"),

@@ -1,0 +1,75 @@
+# Render Blueprint for CarePurse (Stellar TESTNET, VTpass SANDBOX).
+# Render dashboard → New → Blueprint → pick this repo. Values marked sync: false are typed into
+# the dashboard (secrets never go in this file). See DEPLOY.md.
+services:
+  # The x402 seller: prices top-ups, answers 402, fulfils through the utility provider.
+  - type: web
+    name: carepurse-gateway
+    runtime: node
+    plan: free
+    rootDir: services/gateway
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - { key: NODE_VERSION, value: "22" }
+      - { key: STELLAR_NETWORK, value: "stellar:testnet" }
+      - { key: STELLAR_RPC_URL, value: https://soroban-testnet.stellar.org }
+      - { key: STELLAR_HORIZON_URL, value: https://horizon-testnet.stellar.org }
+      - { key: STELLAR_EXPLORER_URL, value: https://stellar.expert/explorer/testnet }
+      - { key: USDC_CONTRACT_ID, value: CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA }
+      - { key: USDC_ISSUER, value: GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5 }
+      - { key: USDC_DECIMALS, value: "7" }
+      - { key: FACILITATOR, value: backup }
+      - { key: FACILITATOR_BACKUP_URL, value: https://x402.org/facilitator }
+      - { key: NGN_PER_USDC, value: "1470" }
+      - { key: ORDER_TTL_MINUTES, value: "10" }
+      - { key: UTILITY_PROVIDER, value: vtpass }
+      - { key: VTPASS_BASE_URL, value: https://sandbox.vtpass.com/api }
+      - { key: VTPASS_CONTACT_PHONE, value: "08011111111" }
+      - { key: GATEWAY_RECIPIENT, sync: false }      # public address of the gateway wallet
+      - { key: GATEWAY_URL, sync: false }            # this service's own https URL
+      - { key: VTPASS_API_KEY, sync: false }
+      - { key: VTPASS_SECRET_KEY, sync: false }
+      - { key: VTPASS_PUBLIC_KEY, sync: false }
+
+  # Mhasibu: holds the agent wallet, asks the purse contract, pays the gateway over x402.
+  - type: web
+    name: carepurse-mhasibu
+    runtime: node
+    plan: free
+    rootDir: packages/mhasibu
+    buildCommand: npm ci
+    startCommand: npm run serve
+    healthCheckPath: /v1/status
+    envVars:
+      - { key: NODE_VERSION, value: "22" }
+      - { key: STELLAR_NETWORK, value: "stellar:testnet" }
+      - { key: STELLAR_RPC_URL, value: https://soroban-testnet.stellar.org }
+      - { key: STELLAR_HORIZON_URL, value: https://horizon-testnet.stellar.org }
+      - { key: STELLAR_EXPLORER_URL, value: https://stellar.expert/explorer/testnet }
+      - { key: USDC_CONTRACT_ID, value: CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA }
+      - { key: USDC_ISSUER, value: GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5 }
+      - { key: USDC_DECIMALS, value: "7" }
+      - { key: NGN_PER_USDC, value: "1470" }
+      - { key: DEMO_MODE, value: "1" }
+      - { key: LLM_BASE_URL, value: https://inference-api.openserv.ai }
+      - { key: LLM_MODEL, value: claude-opus-5.5 }
+      - { key: PURSE_CONTRACT_ID, value: CDHX2A22XCJBWPL2524SZDKNCB66EKYFO736KWHOIISB4HAZNKLLMJAE }
+      - { key: GATEWAY_URL, sync: false }            # the gateway's https URL
+      - { key: GATEWAY_RECIPIENT, sync: false }      # the gateway wallet's public address
+      - { key: AGENT_SECRET_KEY, sync: false }       # Mhasibu's testnet wallet secret
+      - { key: LLM_API_KEY, sync: false }            # OpenServ key; empty = keyword parser
+      - { key: WEB_ORIGIN, sync: false }             # the web app's https URL (CORS)
+
+  # Mama's chat and the judges' demo view.
+  - type: web
+    name: carepurse-web
+    runtime: node
+    plan: free
+    rootDir: apps/web
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - { key: NODE_VERSION, value: "22" }
+      - { key: NEXT_PUBLIC_MHASIBU_URL, sync: false } # Mhasibu's https URL (read at build time)

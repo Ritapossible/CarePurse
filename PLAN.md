@@ -86,7 +86,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Record the demo video (live or recorded x402 flow).
 - [ ] Update the pitch deck from the Ideation & MVP slides.
 - [ ] README with setup steps, architecture and the GitHub link.
-- [ ] Deploy for the judges (Render, as in the kit): gateway + web app. Use a small testnet balance, label it testnet, and move orders from the JSON file to a database (Render's disk is wiped on restart).
+- [ ] Deploy for the judges (Render, as in the kit): `render.yaml` Blueprint and `DEPLOY.md` ready (14 Nov); gateway + Mhasibu + web app. Use a small testnet balance, label it testnet, and move orders from the JSON file to a database (Render's disk is wiped on restart).
 
 ### Step 7: Submit (27–28 Nov)
 - [ ] Submission checklist: working prototype, live or recorded x402 flow, architecture docs, GitHub repo.
@@ -106,3 +106,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Airtime and data work through the same flow.
 - [ ] Every payment has a transaction link anyone can open.
 - [ ] No step is simulated except the utility provider (sandbox), and the UI says so.
+
+## Open: VTpass sandbox keys (14 Nov)
+
+The VTpass sandbox provider is built and tested offline (`services/gateway/test/vtpass.test.mjs`). A live sandbox run needs the three VTpass sandbox keys as environment variables (`VTPASS_API_KEY`, `VTPASS_SECRET_KEY`, `VTPASS_PUBLIC_KEY`), here and on Render. VTpass needs two key headers per request, so it can't use the cloud session's one-header network secret.
