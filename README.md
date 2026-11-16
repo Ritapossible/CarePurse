@@ -146,6 +146,7 @@ render.yaml          Render Blueprint for the three services (see DEPLOY.md)
 4. **[PLAN.md](PLAN.md)**: what's done, what's next, and who does it.
 5. **[DEPLOY.md](DEPLOY.md)**: hosting on Render.
 6. **[library.md](library.md)**: workshop materials and the Stellar docs check (temporary).
+7. **[Pitch deck](docs/pitch/CarePurse_IdeationMVP.pdf)** ([.pptx](docs/pitch/CarePurse_IdeationMVP.pptx)): ideation and MVP deck, with the money flow, the service fee and Mama's privacy.
 
 ---
 
@@ -195,7 +196,7 @@ Three Render services from `render.yaml` (see **[DEPLOY.md](DEPLOY.md)**), pinge
 
 ## Security
 
-CarePurse moves real (testnet) money for an elderly user, so it's built so that **no single mistake, crash or attacker can spend more than Adaeze allows, send money anywhere else, or lose Mama's token**. The protections are layered: if one fails, the next still holds.
+CarePurse moves real (testnet) money for an elderly user (for how her personal data is handled, see [Privacy](#privacy)), so it's built so that **no single mistake, crash or attacker can spend more than Adaeze allows, send money anywhere else, or lose Mama's token**. The protections are layered: if one fails, the next still holds.
 
 ### Who can spend, and how much
 
@@ -249,6 +250,42 @@ Five rounds of external review (14 Nov), each finding checked against the code a
 - The guardian wallet is a demo stand-in until Adaeze signs in with Privy.
 - Fixed demo rate (`NGN_PER_USDC`); production uses a live rate at order time.
 - One running instance per service.
+
+## Privacy
+
+Mama is an elderly woman sharing her meter number, her phone number and how her home runs. CarePurse collects only what a top-up needs and keeps each piece where it has to be: **her words go to a private model, her numbers never go on-chain, and Mama never sees the fee, only Adaeze does.**
+
+### Where Mama's data goes
+
+| Data | Where it goes | Who can read it |
+|---|---|---|
+| **Mama's chat messages** | Mhasibu (our server) and the private model on NEAR AI Cloud | Our server only. NEAR runs the model inside a **TEE** (Intel TDX + NVIDIA confidential computing, attested), so not even the host can read them |
+| **Meter and phone numbers** | Our database, the gateway, and VTpass (it needs them to deliver) | **Never on Stellar.** The purse contract stores only a sha256 fingerprint |
+| **Amounts and wallet addresses** | Stellar Testnet | Public, like any blockchain: USDC amounts, wallet addresses and fingerprints. No names, numbers or chat |
+| **Electricity tokens** | The gateway's order, Mama's purchase history, Adaeze's receipts | Mama and Adaeze |
+| **The service fee** | Adaeze's receipts | Adaeze only. Mama sees face value |
+
+### How we keep it that way
+
+| Protection | What it means | Where |
+|---|---|---|
+| **A private model by default** | DeepSeek V4.1 Flash on NEAR AI Cloud, a *verifiable* model that runs in attested confidential hardware. We chose it over Claude on NEAR, which NEAR marks as not verifiable (it is passed through to Anthropic) | `packages/mhasibu/src/understand.mjs`, `LLM_*` in `render.yaml` |
+| **No silent fallback to a non-private model** | If the private model is down or answers outside the schema, the keyword parser runs on our own server. Mama's words never go anywhere else | `createUnderstander` |
+| **The model learns as little as possible** | It gets only her message (cut at 2,000 characters) and returns only `intent`, `utility` and `choice`. No name, no balance, no limits, no keys | `understand.mjs` |
+| **Fingerprints on-chain** | `set_destination` and `buy` take sha256 of the meter or phone; the order reference is sha256 of the order id. The ledger ties each payment to one order without showing who or where | `contracts/purse`, `purse-contract.mjs` |
+| **Nothing personal in the x402 payment** | The paid URL carries only a random order id (`/paid/topup/electricity/500?order=…`), never a meter or phone | `services/gateway/src/server.mjs` |
+| **Logs without personal data** | The Agent & x402 Log shows amounts, rules and Stellar links, never meter or phone numbers | `mhasibu.mjs` log events |
+| **Locked doors** | Mhasibu's API needs a key only the web app's server holds; the web app needs the access code (see [Security](#security)) | relay route, `serve.mjs` |
+| **Each key goes only to its own host** | The NEAR key is only ever sent to NEAR, never to Anthropic or anyone else | `packages/mhasibu/src/config.mjs` |
+
+Checked live (16 Nov): 11 of 11 real Mama messages understood by the private model (Pidgin, typos, "send airtime to my neighbour" read as a rule change for Adaeze), about 1.4 s each.
+
+### Privacy limits (hackathon)
+
+- A plain sha256 of a meter or phone number could be guessed by trying every number. Production: a keyed hash (HMAC with a per-purse secret) before anything goes on-chain.
+- The gateway's free order-status route answers anyone who knows an order id. Ids are random (64 bits), but production puts these routes behind Mhasibu's key too.
+- Purses, chat and tokens are stored as JSON in Postgres. Neon encrypts storage at rest; production also encrypts the meter and phone fields.
+- VTpass, like any biller, sees the meter or phone it delivers to, and Mama's phone for the electricity receipt.
 
 ## Team
 

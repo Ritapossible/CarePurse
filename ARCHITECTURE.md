@@ -258,3 +258,13 @@ One Postgres table, `carepurse_records (kind, id, doc jsonb)`: `order` and `tx` 
 - [ ] Mhasibu is never told its limits, and model-typed numbers are discarded
 - [ ] The agent wallet holds only small amounts (one wallet per purse)
 - [ ] Mhasibu checks every 402 against the quote (host, amount, payTo, asset, network) before signing
+
+## Privacy (16 Nov)
+
+Mama's personal data stays where a top-up needs it, and no further. Full table in the README's Privacy section.
+
+- **Her words:** understood by a verifiable model on NEAR AI Cloud (DeepSeek V4.1 Flash), which runs in a TEE. If it fails, the keyword parser runs on our server; there is no fallback to a non-private model. The model gets only her message and returns only `intent`, `utility`, `choice`.
+- **Her meter and phone:** in our database, the gateway and VTpass only. On Stellar the contract holds sha256 fingerprints (`dest_hash`, and `order_ref` = sha256 of the order id).
+- **The x402 payment:** the paid URL carries a random order id, nothing personal. On-chain you see USDC amounts and wallet addresses only.
+- **The fee:** shown to Adaeze in receipts, never to Mama.
+- **Next for production:** keyed hashes (HMAC per purse) on-chain, the gateway's free status routes behind a key, field encryption for meter and phone numbers.
