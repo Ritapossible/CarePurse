@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PhoneChat from "@/components/PhoneChat";
+import Rails from "@/components/Rails";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 
@@ -38,8 +39,6 @@ const LOG = [
   { label: "Order closed", detail: "committed on-chain", tx: "9282c5…9164" },
 ];
 
-const RAILS = ["Stellar", "x402", "Soroban", "USDC", "NEAR AI", "VTpass"];
-
 function Arrow() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
@@ -59,8 +58,7 @@ export default function Home() {
         {/* Hero: text and the phone, centred against each other */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-24 pt-12 md:grid-cols-[1.1fr_1fr] md:gap-16 md:pt-20">
           <div>
-            <Link href="/demo" className="inline-flex items-center gap-2 text-sm text-secondary transition-colors duration-150 hover:text-foreground">
-              <span className="h-2 w-2 rounded-full bg-live" />
+            <Link href="/demo" className="text-sm text-secondary transition-colors duration-150 hover:text-foreground">
               Live on Stellar Testnet
             </Link>
             <h1 className="mt-6 text-[44px] font-medium leading-[1.04] tracking-[-0.03em] sm:text-6xl lg:text-[72px]">
@@ -85,12 +83,8 @@ export default function Home() {
         </section>
 
         {/* What it runs on */}
-        <section className="border-y border-line">
-          <ul className="mx-auto flex max-w-6xl flex-wrap justify-center gap-x-10 gap-y-2 px-6 py-6 text-[15px] text-muted">
-            {RAILS.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-          </ul>
+        <section className="border-y border-line" aria-label="Built on">
+          <Rails />
         </section>
 
         {/* How it works */}
@@ -114,7 +108,7 @@ export default function Home() {
         </section>
 
         {/* The live log */}
-        <section className="mx-auto max-w-6xl px-6">
+        <section id="log" className="mx-auto max-w-6xl scroll-mt-20 px-6">
           <div className="grid items-center gap-12 rounded-[20px] bg-foreground px-6 py-12 text-background sm:px-12 sm:py-16 lg:grid-cols-2">
             <div>
               <p className="text-sm text-background/60">Agent &amp; x402 log</p>
@@ -144,7 +138,7 @@ export default function Home() {
         </section>
 
         {/* The rules: a list, not four equal cards */}
-        <section className="mx-auto max-w-6xl px-6 py-24 md:py-32">
+        <section id="rules" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24 md:py-32">
           <p className={label}>The rules</p>
           <h2 className={h2}>Limits live in code, not in the prompt</h2>
           <dl className="mt-12 border-t border-line">

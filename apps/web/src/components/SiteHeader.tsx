@@ -1,8 +1,18 @@
 import Link from "next/link";
 import LogoMark from "./LogoMark";
+import MobileMenu from "./MobileMenu";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
+  { href: "/#faq", label: "FAQ" },
+  { href: "/chat", label: "Mama’s chat" },
+];
+
+// The phone menu has room for every section.
+const MENU = [
+  { href: "/#how", label: "How it works" },
+  { href: "/#log", label: "Live log" },
+  { href: "/#rules", label: "The rules" },
   { href: "/#faq", label: "FAQ" },
   { href: "/chat", label: "Mama’s chat" },
 ];
@@ -32,20 +42,7 @@ export default function SiteHeader() {
           <Link href="/demo" className="inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-[15px] font-medium text-background transition-colors duration-150 hover:bg-[#262626]">
             Open demo
           </Link>
-          <details className="relative md:hidden">
-            <summary aria-label="Menu" className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg border border-line">
-              <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true">
-                <path d="M0 1h16M0 6h16M0 11h16" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
-            </summary>
-            <div className="absolute right-0 mt-2 w-48 rounded-xl border border-line bg-background p-1 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
-              {NAV.map((n) => (
-                <Link key={n.href} href={n.href} className="block rounded-lg px-3 py-2 text-[15px] transition-colors duration-150 hover:bg-surface">
-                  {n.label}
-                </Link>
-              ))}
-            </div>
-          </details>
+          <MobileMenu items={MENU} />
         </div>
       </div>
     </header>
