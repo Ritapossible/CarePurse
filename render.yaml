@@ -56,13 +56,14 @@ services:
       - { key: NGN_PER_USDC, value: "1470" }
       - { key: SERVICE_FEE_BPS, value: "300" }        # 3% service fee; same on both services
       - { key: DEMO_MODE, value: "1" }
-      - { key: LLM_BASE_URL, value: https://inference-api.openserv.ai }
-      - { key: LLM_MODEL, value: claude-opus-5.5 }
+      - { key: LLM_API, value: openai }               # NEAR AI Cloud speaks the OpenAI-style chat API
+      - { key: LLM_BASE_URL, value: https://cloud-api.near.ai/v1 }
+      - { key: LLM_MODEL, value: deepseek/deepseek-v4.1-flash } # verifiable: runs in a TEE, Mama's words stay private
       - { key: PURSE_CONTRACT_ID, value: CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC }
       - { key: GATEWAY_URL, sync: false }            # the gateway's https URL
       - { key: GATEWAY_RECIPIENT, sync: false }      # the gateway wallet's public address
       - { key: AGENT_SECRET_KEY, sync: false }       # Mhasibu's testnet wallet secret
-      - { key: LLM_API_KEY, sync: false }            # OpenServ key; empty = keyword parser
+      - { key: LLM_API_KEY, sync: false }            # NEAR AI Cloud key; empty = keyword parser
       - { key: MHASIBU_API_KEY, generateValue: true } # Render makes a random key; the web app reads it below
       - { key: DATABASE_URL, sync: false }           # same Neon database: purses, purchases, tokens, chat
 

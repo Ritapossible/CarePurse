@@ -206,7 +206,7 @@ buy(utility, dest_hash, amount, order_ref)         agent only
 
 ## Mhasibu (the agent)
 
-- **The LLM's job:** classifying Mama's message into `intent` (buy, choose, cancel, check_balance, history, change_rules, help, unknown), `utility` and `choice`, with a fixed schema (Claude Opus 5.5 through OpenServ's Anthropic-compatible endpoint, effort low; `LLM_BASE_URL` empty means Anthropic directly). Without a key, or if Claude fails, a scripted English/Pidgin parser does it.
+- **The LLM's job:** classifying Mama's message into `intent` (buy, choose, cancel, check_balance, history, change_rules, help, unknown), `utility` and `choice`, with a fixed schema. Default: DeepSeek V4.1 Flash on NEAR AI Cloud (`LLM_API=openai`), a verifiable model that runs in a TEE so Mama's messages stay private. Claude Opus 5.5 (Anthropic or OpenServ, `LLM_API=anthropic`) still works as an option. Without a key, or if the model fails or returns anything outside the schema, a scripted English/Pidgin parser does it.
 - **The code's job:** every amount, every rule check, every payment.
 - **Not told its limits:** the prompt only says a purchase may be refused.
 - **Fixed replies:** the model never writes reply text. Every reply is a template in English or Pidgin, filled in by code, so it can't invent an amount. This replaces the earlier "discard replies with model-typed numbers" idea, and is stronger.
@@ -242,7 +242,7 @@ The full list, with comments, is in [`.env.example`](.env.example). `cd services
 | `NGN_PER_USDC` | The demo rate used to price each size |
 | `UTILITY_PROVIDER` | `mock` (built-in sandbox tokens) for now |
 | `DATABASE_URL` | Postgres for orders, purses, purchases, tokens and chat (built 14 Nov). Empty = JSON files in `.data/`. Hosted on Neon (free, doesn't expire) |
-| `LLM_*` | Claude via OpenServ for Mhasibu |
+| `LLM_*` | Mhasibu's model: NEAR AI Cloud private model (default) or Claude |
 | `PRIVY_*` | For the daughter's dashboard, later |
 
 ### Storage (built 14 Nov)

@@ -53,6 +53,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] A scripted fallback with no LLM; one model call per message.
 - [x] **Test:** "Abeg, light don almost finish" → options → "1" → paid on Stellar testnet → token, live via `npm run chat`. 12 offline tests (`npm test`).
 - [x] Claude live through OpenServ (`LLM_BASE_URL`, model `claude-opus-5.5`): about 2 s per message, Pidgin understood, injection attempt classed as unknown. Tested 13 Nov.
+- [x] Switched to a private model for privacy: DeepSeek V4.1 Flash on NEAR AI Cloud (verifiable, runs in a TEE), `LLM_API=openai`. 11 of 11 live Mama messages right (Pidgin, typos, rule changes), about 1.4 s each. Claude stays an option. Tested 16 Nov.
 - [ ] Have a native speaker check the Pidgin replies in `src/replies.mjs`.
 
 ### Step 3: Mama's chat (18-20 Nov), Must have

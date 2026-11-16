@@ -146,6 +146,27 @@ test("Claude classifies when configured, and the scripted parser takes over if i
   assert.equal((await v.understand("light don finish")).utility, "electricity");
 });
 
+test("a private model on NEAR AI classifies over the OpenAI-style API, with the same fallback", async () => {
+  const calls = [];
+  const fakeFetch = async (url, init) => {
+    calls.push({ url, init, body: JSON.parse(init.body) });
+    return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ intent: "my_token", utility: "electricity", choice: null }) } }] }) };
+  };
+  const llm = { api: "openai", apiKey: "k", baseURL: "https://cloud-api.near.ai/v1/", model: "deepseek/deepseek-v4.1-flash" };
+  const u = createUnderstander(llm, fakeFetch);
+  assert.equal(u.name, "NEAR AI private (deepseek/deepseek-v4.1-flash)");
+  assert.deepEqual(await u.understand("send my token again"), { intent: "my_token", utility: "electricity", choice: null });
+  assert.equal(calls[0].url, "https://cloud-api.near.ai/v1/chat/completions");
+  assert.equal(calls[0].init.headers.Authorization, "Bearer k");
+  assert.equal(calls[0].body.response_format.json_schema.strict, true);
+  assert.doesNotMatch(calls[0].body.messages[0].content, /₦|limit is|perTopup|5000/); // never told its limits
+
+  const down = createUnderstander(llm, async () => ({ ok: false, status: 503, json: async () => ({}) }));
+  assert.equal((await down.understand("light don finish")).utility, "electricity");
+  const junk = createUnderstander(llm, async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: '{"intent":"pay_everything"}' } }] }) }));
+  assert.equal((await junk.understand("abeg recharge my line")).utility, "airtime"); // invalid output → scripted
+});
+
 test("headroom shows the tightest rule", () => {
   const purse = newPurse(DEMO_PURSE);
   assert.equal(headroom(purse, "airtime", { balanceNgn: 1e6, now: MONDAY_10AM }).maxNgn, 500);

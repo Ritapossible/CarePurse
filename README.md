@@ -21,6 +21,7 @@ Everything below runs today on Stellar testnet with real sandbox fulfilment.
 | x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 16 tests |
 | Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 36 tests |
 | Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
+| Private understanding: verifiable model on NEAR AI Cloud (TEE) | ✅ Done 16 Nov | 11 of 11 live messages right, about 1.4 s each |
 | Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 17 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC) |
 | On-chain refusal demo: just over Adaeze's cap, refused by the contract | ✅ Done 14 Nov | `npm run overspend` and the demo button → `OverPerTopup` (Error #3), no USDC moved |
 | Security: private agent API, safe recovery, five external reviews fixed | ✅ Done 14 Nov | See [Security](#security) |
@@ -67,7 +68,7 @@ Demo purse: Mama Ngozi (Pidgin), guardian Adaeze, Standard preset, meter `111111
 Mama (chat)  "Abeg, light don almost finish"
    │
    ▼
-Mhasibu      understands (Claude via OpenServ, or the keyword parser) → offers sizes within her limits
+Mhasibu      understands (a private TEE model on NEAR AI Cloud, or the keyword parser) → offers sizes within her limits
    │         Mama: "1"  → checks every rule in code (allowlist, quoted price, saved meter, limits, balance)
    ▼
 Purse contract (Soroban)   buy(): checks Adaeze's caps and saved meter ON-CHAIN, releases exactly ₦500 of USDC

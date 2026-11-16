@@ -9,6 +9,8 @@ dotenv.config({ path: path.join(repoRoot, ".env"), quiet: true });
 
 const env = (name, fallback = "") => (process.env[name] ?? fallback).trim();
 const gatewayUrl = env("GATEWAY_URL", "http://localhost:4021");
+const llmApi = env("LLM_API") || (/near\.ai/.test(env("LLM_BASE_URL")) ? "openai" : "anthropic");
+if (!["openai", "anthropic"].includes(llmApi)) throw new Error("LLM_API must be openai or anthropic.");
 
 export const config = {
   network: env("STELLAR_NETWORK", "stellar:testnet"),
@@ -40,10 +42,13 @@ export const config = {
   // Postgres for purses, purchases, tokens and chat, so they survive restarts. Empty = the JSON file.
   databaseUrl: env("DATABASE_URL"),
   llm: {
-    // Claude understands Mama's message. Without a key, the built-in scripted parser does it.
-    // LLM_BASE_URL points the Anthropic SDK at another Messages-compatible host, e.g. OpenServ
-    // (https://inference-api.openserv.ai, model IDs with dots: claude-opus-5.5). Empty = Anthropic.
-    apiKey: env("LLM_API_KEY") || env("ANTHROPIC_API_KEY"),
+    // A model understands Mama's message. Without a key, the built-in scripted parser does it.
+    // Default (privacy): NEAR AI Cloud, OpenAI-style API, a verifiable model that runs in a TEE:
+    //   LLM_API=openai  LLM_BASE_URL=https://cloud-api.near.ai/v1  LLM_MODEL=deepseek/deepseek-v4.1-flash
+    // Claude instead: LLM_API=anthropic, LLM_BASE_URL empty (Anthropic) or OpenServ, LLM_MODEL=claude-opus-5-5.
+    api: llmApi,
+    // Each key goes only to its own kind of host: a NEAR key is never sent to Anthropic.
+    apiKey: env("LLM_API_KEY") || (llmApi === "openai" ? env("NEARAI_API_KEY") : env("ANTHROPIC_API_KEY")),
     baseURL: env("LLM_BASE_URL") || undefined,
     model: env("LLM_MODEL", "claude-opus-5-5"),
   },

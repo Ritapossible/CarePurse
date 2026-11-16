@@ -1,9 +1,11 @@
 // Turns Mama's message into an intent. The model only classifies; it never writes amounts,
 // never sees the limits, and never decides whether to pay. Code does all of that.
 //
-// Two ways to understand:
+// Three ways to understand:
 //   scripted  keyword rules for English and Nigerian Pidgin. Always available; also the fallback.
-//   claude    Claude with a fixed JSON schema, when LLM_API_KEY (or ANTHROPIC_API_KEY) is set.
+//   private   an open model on NEAR AI Cloud (OpenAI-style chat API, LLM_API=openai) that runs in
+//             attested confidential hardware, so Mama's words stay private. Our default.
+//   claude    Claude through the Anthropic Messages API (LLM_API=anthropic).
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
@@ -126,16 +128,56 @@ export function createClaudeUnderstander({ apiKey, baseURL, model }, client = ne
   };
 }
 
-// Claude when configured, the scripted parser otherwise or whenever Claude fails.
+// The same schema, written out for OpenAI-style strict JSON output.
+const INTENT_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["intent", "utility", "choice"],
+  properties: {
+    intent: { type: "string", enum: INTENTS },
+    utility: { type: ["string", "null"], enum: [...UTILITIES, null] },
+    choice: { type: ["integer", "null"] },
+  },
+};
+
+// Any OpenAI-compatible chat API. We use NEAR AI Cloud (https://cloud-api.near.ai/v1) with a
+// verifiable model (deepseek/deepseek-v4.1-flash): it runs inside a TEE, so the host cannot read
+// Mama's messages. The model still only classifies; it never sees amounts or limits.
+export function createOpenAIUnderstander({ apiKey, baseURL, model, timeoutMs = 15000 }, fetchImpl = fetch) {
+  const url = `${String(baseURL).replace(/\/$/, "")}/chat/completions`;
+  return async function understandWithOpenAI(text) {
+    const res = await fetchImpl(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        max_tokens: 300,
+        temperature: 0,
+        messages: [{ role: "system", content: SYSTEM }, { role: "user", content: String(text).slice(0, 2000) }],
+        response_format: { type: "json_schema", json_schema: { name: "intent", strict: true, schema: INTENT_JSON_SCHEMA } },
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) throw new Error(`model call failed (${res.status})`);
+    const content = (await res.json())?.choices?.[0]?.message?.content;
+    if (!content) throw new Error("no classification");
+    return JSON.parse(content);
+  };
+}
+
+// The model when configured, the scripted parser otherwise or whenever the model fails.
 // One model call per message, well under the kit's cap of 8 steps.
+// `client` is an Anthropic client (LLM_API=anthropic) or a fetch function (LLM_API=openai), for tests.
 export function createUnderstander(llm, client) {
   if (!llm?.apiKey && !client) return { name: "scripted", understand: async (text) => understandScripted(text) };
-  const claude = createClaudeUnderstander(llm, client);
+  const openai = llm.api === "openai";
+  const model = openai ? createOpenAIUnderstander(llm, client) : createClaudeUnderstander(llm, client);
+  const name = openai ? `${/near\.ai/.test(llm.baseURL ?? "") ? "NEAR AI private" : "openai-compatible"} (${llm.model})` : `claude (${llm.model})`;
   return {
-    name: `claude (${llm.model})`,
+    name,
     async understand(text) {
       try {
-        const parsed = Intent.parse(await claude(text));
+        const parsed = Intent.parse(await model(text));
         return parsed;
       } catch {
         return understandScripted(text);

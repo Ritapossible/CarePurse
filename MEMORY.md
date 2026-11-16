@@ -108,6 +108,7 @@ At sign-up she picks one of two presets, shown in naira. The app converts to USD
 ## Agent reasoning provider (13 Nov)
 
 - We use **OpenServ** for Mhasibu's reasoning: Claude Opus 5.5 through its Anthropic-compatible `/v1/messages`, so the code stays on the Anthropic SDK and only `LLM_BASE_URL` changes.
+- **16 Nov: privacy first. Mhasibu now uses a private model on NEAR AI Cloud** (`deepseek/deepseek-v4.1-flash`, `LLM_API=openai`). Why: NEAR runs verifiable models inside TEEs (Intel TDX + NVIDIA confidential computing), so even the host cannot read Mama's messages. Claude on NEAR is marked not verifiable (it is passed through to Anthropic), so it gives no privacy gain. Compared live: DeepSeek V4.1 Flash 7/7 with strict JSON at about 2 s; GLM-5.3-flash and Qwen3.8-27B failed the strict JSON. A NEAR key is only ever sent to the OpenAI-style host, never to Anthropic. The model still only classifies; limits stay in code and on-chain.
 - Opus over Sonnet: in our test Sonnet read "give my neighbour airtime" as a buy. Opus sent it to the guardian. The code also sends such requests to the guardian whatever the model says.
 - NEAR AI Cloud (private inference) is a later option if privacy of Mama's messages becomes a judging point.
 

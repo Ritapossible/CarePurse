@@ -12,7 +12,7 @@ Stellar **testnet** and the VTpass **sandbox** only. Three services from one Blu
 
 1. **VTpass sandbox keys:** sign up at https://sandbox.vtpass.com, then Account → API Keys. Copy the **api-key**, **public-key** and **secret-key** (the last two are shown once).
 2. **Wallet values** from our local `.env` (ask Rita; never paste them in chat or commit them): `GATEWAY_RECIPIENT` (public address) and `AGENT_SECRET_KEY` (Mhasibu's testnet secret).
-3. **OpenServ key** for Claude (optional; without it Mhasibu uses the keyword parser).
+3. **NEAR AI Cloud key** for Mhasibu's private model (optional; without it Mhasibu uses the keyword parser). Paste it as `LLM_API_KEY` on carepurse-mhasibu.
 
 ## The database (do this first)
 
