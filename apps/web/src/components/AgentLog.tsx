@@ -12,7 +12,8 @@ function describe(e: LogEvent): Row | null {
     case "mama":
       return { tone: "plain", label: "Mama", detail: `“${e.text}”` };
     case "understood":
-      return { tone: "plain", label: "Understood", detail: [e.intent, e.utility, e.choice != null ? `option ${e.choice}` : null].filter(Boolean).join(" · ") };
+      // `by`: the private model, or the keyword parser when the model was refused or failed.
+      return { tone: String(e.by ?? "model").startsWith("scripted") ? "no" : "plain", label: String(e.by ?? "model").startsWith("scripted") ? "Understood (keyword parser)" : "Understood (private model)", detail: [e.intent, e.utility, e.choice != null ? `option ${e.choice}` : null].filter(Boolean).join(" · ") };
     case "rules-ok":
       return { tone: "ok", label: "Rules in code", detail: `allowlist, quoted price, saved destination, limits and balance all pass for ₦${e.ngn?.toLocaleString("en-NG")}` };
     case "order":

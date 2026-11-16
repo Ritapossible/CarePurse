@@ -26,6 +26,7 @@ export type LogEvent = {
   intent?: string;
   utility?: string | null;
   choice?: number | null;
+  by?: string; // "model", or "scripted: <why>" when the keyword parser answered
   ngn?: number;
   feeNgn?: number;
   chargedNgn?: number;

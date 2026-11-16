@@ -330,7 +330,7 @@ export function createMhasibu({
   async function respond(purse, text, lang) {
     const understood = await understander.understand(text);
     const { intent, utility, choice } = needsGuardian(purse, text) ? { ...understood, intent: "change_rules" } : understood;
-    log({ type: "understood", intent, utility, choice });
+    log({ type: "understood", intent, utility, choice, by: understander.lastVia ?? "model" });
     const pending = purse.pending;
     const pendingLive = pending && Date.parse(pending.expiresAt) > clock();
 

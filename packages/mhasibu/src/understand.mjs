@@ -185,35 +185,42 @@ export async function nearPrivacy({ baseURL, model }, fetchImpl = fetch) {
 // The model when configured, the scripted parser otherwise or whenever the model fails.
 // One model call per message, well under the kit's cap of 8 steps.
 // `client` is an Anthropic client (LLM_API=anthropic) or a fetch function (LLM_API=openai), for tests.
-// `privacy`: nearPrivacy()'s answer. A NEAR model that NEAR marks not private is never used: Mama's
-// words stay on our server and the scripted parser answers.
+// `privacy`: nearPrivacy()'s answer. Fails closed: on NEAR, Mama's words are sent only when NEAR's
+// list says the model is verifiable (true). Not private (false), or not confirmed (null: list down,
+// id missing or mistyped) → the scripted parser on our server answers instead.
 export function createUnderstander(llm, client, { privacy = null, log = console } = {}) {
-  if (!llm?.apiKey && !client) return { name: "scripted", understand: async (text) => understandScripted(text) };
+  if (!llm?.apiKey && !client) return { name: "scripted", lastVia: "scripted", understand: async (text) => understandScripted(text) };
   const openai = llm.api === "openai";
   const near = openai && /near\.ai/.test(llm.baseURL ?? "");
-  if (near && privacy === false) {
-    log.warn?.(`⚠ ${llm.model} is NOT private on NEAR AI (not verifiable). Not sending Mama's words to it; using the scripted parser. Pick a verifiable model, e.g. deepseek-ai/DeepSeek-V4.1-Flash-1017.`);
-    return { name: `scripted (${llm.model} refused: not private)`, understand: async (text) => understandScripted(text) };
+  if (near && privacy !== true) {
+    const why = privacy === false ? "not private" : "privacy not confirmed";
+    log.warn?.(`⚠ ${llm.model}: ${why} on NEAR AI's model list. Not sending Mama's words to it; using the scripted parser. Use a model NEAR marks verifiable, e.g. deepseek-ai/DeepSeek-V4.1-Flash-1017.`);
+    return { name: `scripted (${llm.model} refused: ${why})`, lastVia: "scripted", understand: async (text) => understandScripted(text) };
   }
   const model = openai ? createOpenAIUnderstander(llm, client) : createClaudeUnderstander(llm, client);
-  const name = near ? `NEAR AI ${privacy ? "private, TEE" : "privacy unchecked"} (${llm.model})` : openai ? `openai-compatible (${llm.model})` : `claude (${llm.model})`;
-  return {
+  const name = near ? `NEAR AI private, TEE (${llm.model})` : openai ? `openai-compatible (${llm.model})` : `claude (${llm.model})`;
+  // `lastVia` says who understood the last message ("model" or "scripted: <why>"), so a model that
+  // fails is visible in the live log instead of hiding behind the status line.
+  const self = {
     name,
+    lastVia: "model",
     async understand(text) {
       try {
         const parsed = Intent.parse(await model(text));
+        self.lastVia = "model";
         return parsed;
-      } catch {
+      } catch (err) {
+        self.lastVia = `scripted: ${String(err?.message ?? err).slice(0, 80)}`;
         return understandScripted(text);
       }
     },
   };
+  return self;
 }
 
 // For the running services: checks NEAR's model list first when the model is on NEAR AI.
 export async function openUnderstander(llm, { log = console, fetchImpl = fetch } = {}) {
   const near = llm?.apiKey && llm.api === "openai" && /near\.ai/.test(llm.baseURL ?? "");
   const privacy = near ? await nearPrivacy(llm, fetchImpl) : null;
-  if (near && privacy === null) log.warn?.(`⚠ Could not confirm on NEAR's model list that ${llm.model} is private.`);
   return createUnderstander(llm, undefined, { privacy, log });
 }

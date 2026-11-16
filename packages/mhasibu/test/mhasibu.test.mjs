@@ -161,9 +161,11 @@ test("a private model on NEAR AI classifies over the OpenAI-style API, with the 
   assert.equal(calls[0].body.response_format.json_schema.strict, true);
   assert.doesNotMatch(calls[0].body.messages[0].content, /₦|limit is|perTopup|5000/); // never told its limits
 
-  const down = createUnderstander(llm, async () => ({ ok: false, status: 503, json: async () => ({}) }));
+  assert.equal(u.lastVia, "model");
+  const down = createUnderstander(llm, async () => ({ ok: false, status: 503, json: async () => ({}) }), { privacy: true });
   assert.equal((await down.understand("light don finish")).utility, "electricity");
-  const junk = createUnderstander(llm, async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: '{"intent":"pay_everything"}' } }] }) }));
+  assert.match(down.lastVia, /^scripted: model call failed \(503\)/); // shown in the live log
+  const junk = createUnderstander(llm, async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: '{"intent":"pay_everything"}' } }] }) }), { privacy: true });
   assert.equal((await junk.understand("abeg recharge my line")).utility, "airtime"); // invalid output → scripted
 });
 
@@ -551,6 +553,11 @@ test("a NEAR model that NEAR marks not private is never sent Mama's words", asyn
   const refused = await openUnderstander({ ...base, model: "deepseek/deepseek-v4.1-flash" }, { fetchImpl, log: quiet });
   assert.match(refused.name, /^scripted .*refused: not private/);
   assert.equal((await refused.understand("light don finish")).utility, "electricity"); // answered on our server
+  // Fails closed: list down, or an id the list doesn't have → never sent.
+  const down = async () => { throw new Error("offline"); };
+  assert.match((await openUnderstander({ ...base, model: "deepseek-ai/DeepSeek-V4.1-Flash-1017" }, { fetchImpl: down, log: quiet })).name, /refused: privacy not confirmed/);
+  assert.match((await openUnderstander({ ...base, model: "deepseek-ai/DeepSeek-V4.1-Flash-1017-typo" }, { fetchImpl, log: quiet })).name, /refused: privacy not confirmed/);
+  assert.match(createUnderstander({ ...base, model: "x" }, async () => { throw new Error("never called"); }).name, /refused/); // no answer given = not sent
   const ok = await openUnderstander({ ...base, model: "deepseek-ai/DeepSeek-V4.1-Flash-1017" }, { fetchImpl, log: quiet });
   assert.equal(ok.name, "NEAR AI private, TEE (deepseek-ai/DeepSeek-V4.1-Flash-1017)");
 });
