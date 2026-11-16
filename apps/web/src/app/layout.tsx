@@ -14,7 +14,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CarePurse",
-  description: "CarePurse keeps Mama's utilities on. Mhasibu AI tops up electricity, airtime and data within the limits her child sets, paying over x402 on Stellar testnet.",
+  description: "Keep Mama's lights on. Mhasibu buys electricity, airtime and data within the limits you set, and pays over x402 on Stellar.",
+  openGraph: {
+    title: "CarePurse",
+    description: "Keep Mama's lights on. Electricity, airtime and data for family in Nigeria, paid over x402 on Stellar.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

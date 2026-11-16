@@ -60,10 +60,10 @@ function describe(e: LogEvent): Row | null {
 
 const TONE: Record<Tone, string> = {
   plain: "border-line",
-  x402: "border-[#c7d2fe] bg-[#f5f7ff]",
-  chain: "border-[#fde68a] bg-[#fffbeb]",
-  ok: "border-[#bbf7d0] bg-[#f0fdf4]",
-  no: "border-[#fecaca] bg-[#fef2f2]",
+  x402: "border-foreground",
+  chain: "border-line bg-surface",
+  ok: "border-line border-l-4 border-l-live",
+  no: "border-danger/30 bg-danger-soft",
 };
 
 export default function AgentLog() {

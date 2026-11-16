@@ -1,7 +1,7 @@
 "use client";
 // Mama's chat. Deliberately plain: big text, numbered options, the token easy to read.
 import { useEffect, useRef, useState } from "react";
-import { type ChatLine, type TokenRecord, loadHistory, loadTokens, sendMessage } from "@/lib/mhasibu";
+import { type ChatLine, type TokenRecord, loadHistory, loadTokens, saveAccessCode, sendMessage } from "@/lib/mhasibu";
 
 // Her latest electricity token, pinned above the chat so it never scrolls away.
 function LastToken({ record }: { record: TokenRecord }) {
@@ -29,6 +29,29 @@ function LastToken({ record }: { record: TokenRecord }) {
 
 const LINK = /(https:\/\/stellar\.expert\/\S+)/;
 const IS_LINK = /^https:\/\/stellar\.expert\//;
+
+// Shown when the link had no access code: type it once, it's remembered on this device.
+function CodeBox() {
+  const [code, setCode] = useState("");
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (code.trim()) saveAccessCode(code);
+      }}
+      className="flex gap-2"
+    >
+      <input
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="Access code"
+        aria-label="Access code"
+        className="flex-1 rounded-full border border-line bg-white px-4 py-3 outline-none focus:border-foreground"
+      />
+      <button className="rounded-full bg-foreground px-5 font-medium text-background">Continue</button>
+    </form>
+  );
+}
 
 function Bubble({ line }: { line: ChatLine }) {
   const mine = line.from === "mama";
@@ -98,7 +121,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-3xl border border-line bg-[#fafafa]">
+    <section className="flex h-full min-h-0 flex-col rounded-3xl border border-line bg-surface">
       <header className="flex items-center gap-3 border-b border-line bg-white px-5 py-4 rounded-t-3xl">
         <div className="grid h-10 w-10 place-items-center rounded-full bg-accent-soft font-semibold text-accent">M</div>
         <div>
@@ -118,6 +141,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
         ))}
         {waiting && <div className="text-muted">Mhasibu is working…</div>}
         {error && <div className="rounded-xl bg-danger-soft px-4 py-3 text-danger">{error}</div>}
+        {error?.includes("access code") && <CodeBox />}
         <div ref={end} />
       </div>
 

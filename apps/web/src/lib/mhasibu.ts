@@ -13,6 +13,17 @@ function accessCode(): string {
     return new URLSearchParams(window.location.search).get("code") ?? "";
   }
 }
+// For someone who opened a page without the full link: save the code they type, then reload.
+export function saveAccessCode(code: string) {
+  try {
+    localStorage.setItem("carepurse-code", code.trim());
+  } catch {
+    /* private mode: fall back to the URL */
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("code", code.trim());
+  window.location.href = url.toString();
+}
 const withCode = (headers: Record<string, string> = {}) => ({ ...headers, "x-access-code": accessCode() });
 // EventSource can't send headers, so the live log carries the code in its URL.
 export const eventsUrl = () => `${MHASIBU_URL}/v1/events?code=${encodeURIComponent(accessCode())}`;

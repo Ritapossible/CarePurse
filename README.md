@@ -178,6 +178,8 @@ Tests (no network, no money): `cargo test` in `contracts/purse`, `npm test` in `
 
 ## Hosting and keeping it awake
 
+The web app (landing page, `/chat`, `/demo`) is ready for **Vercel** (Root Directory `apps/web`); the gateway and Mhasibu run on Render. Steps in [`DEPLOY.md`](DEPLOY.md).
+
 Three Render services from `render.yaml` (see **[DEPLOY.md](DEPLOY.md)**), pinged by **UptimeRobot** so judges never wait for a cold start.
 
 | Service | UptimeRobot monitor (HTTP, every 5 minutes) |

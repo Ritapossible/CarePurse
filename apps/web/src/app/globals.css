@@ -1,13 +1,15 @@
 @import "tailwindcss";
 
-/* CarePurse: white background (the Oren reference), dark ink, one green accent. */
+/* CarePurse: black on white. One small green dot for "live"; red only for errors. */
 :root {
   --background: #ffffff;
-  --foreground: #0f172a;
-  --muted: #64748b;
-  --line: #e5e7eb;
-  --accent: #0f7b5f;
-  --accent-soft: #e8f5f0;
+  --foreground: #0a0a0a;
+  --muted: #6b6b6b;
+  --line: #e7e7e7;
+  --surface: #f7f7f7;
+  --accent: #0a0a0a;
+  --accent-soft: #f2f2f2;
+  --live: #16a34a;
   --danger: #b42318;
   --danger-soft: #fdecea;
 }
@@ -17,16 +19,33 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-line: var(--line);
+  --color-surface: var(--surface);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-live: var(--live);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* FAQ: native <details>, no script. */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details[open] .faq-plus {
+  transform: rotate(45deg);
 }

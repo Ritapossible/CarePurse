@@ -46,6 +46,10 @@ async function relay(request: Request, path: string[]) {
   });
 }
 
+// The live log is a long-lived stream (Server-Sent Events). On Vercel a function stops at its max
+// duration; the browser's EventSource then reconnects by itself.
+export const maxDuration = 300;
+
 type Ctx = { params: Promise<{ path: string[] }> };
 export async function GET(request: Request, { params }: Ctx) {
   return relay(request, (await params).path);
