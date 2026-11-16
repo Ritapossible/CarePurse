@@ -71,13 +71,14 @@ export default function Home() {
               limits you set, and pays over x402 on Stellar.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/demo" className="inline-flex h-12 items-center justify-center gap-2 rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#262626]">
-                Open the demo <Arrow />
+              <Link href="/start" className="inline-flex h-12 items-center justify-center gap-2 rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#262626]">
+                Set up for your mum <Arrow />
               </Link>
-              <Link href="#how" className="inline-flex h-12 items-center justify-center rounded-[10px] border border-line px-5 font-medium transition-colors duration-150 hover:bg-surface">
-                How it works
+              <Link href="/demo" className="inline-flex h-12 items-center justify-center rounded-[10px] border border-line px-5 font-medium transition-colors duration-150 hover:bg-surface">
+                Open the demo
               </Link>
             </div>
+            <p className="mt-5 text-sm text-muted">I’m Mama: ask your child to set up CarePurse and send you the link.</p>
           </div>
           <PhoneChat />
         </section>

@@ -164,7 +164,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Type here, or reply with a number"
-          className="flex-1 rounded-[10px] border border-line px-4 py-3 text-[17px] outline-none focus:border-foreground"
+          className="min-w-0 flex-1 rounded-[10px] border border-line px-4 py-3 text-[17px] outline-none focus:border-foreground"
           aria-label="Message to Mhasibu"
         />
         <button disabled={waiting || !text.trim()} className="rounded-[10px] bg-accent px-5 font-semibold text-white disabled:opacity-40">

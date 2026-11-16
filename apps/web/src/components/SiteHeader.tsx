@@ -5,7 +5,7 @@ import MobileMenu from "./MobileMenu";
 const NAV = [
   { href: "/#how", label: "How it works" },
   { href: "/#faq", label: "FAQ" },
-  { href: "/chat", label: "Mama’s chat" },
+  { href: "/dashboard", label: "Sign in" },
 ];
 
 // The phone menu has room for every section.
@@ -14,7 +14,8 @@ const MENU = [
   { href: "/#log", label: "Live log" },
   { href: "/#rules", label: "The rules" },
   { href: "/#faq", label: "FAQ" },
-  { href: "/chat", label: "Mama’s chat" },
+  { href: "/start", label: "Set up for your mum" },
+  { href: "/dashboard", label: "Sign in" },
 ];
 
 export function Logo({ className = "" }: { className?: string }) {
