@@ -1,3 +1,5 @@
+import MhasibuAvatar from "./MhasibuAvatar";
+
 // A still of Mama's chat for the landing page. The words are from a real test run on Stellar Testnet.
 type Line = { from: "mama" | "mhasibu"; text: string };
 
@@ -16,7 +18,7 @@ export default function PhoneChat() {
           <div className="h-6 w-24 rounded-full bg-foreground" />
         </div>
         <div className="flex items-center gap-3 border-b border-line px-5 pb-4 pt-4">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-foreground text-sm font-semibold text-background">M</div>
+          <MhasibuAvatar className="h-9 w-9 shrink-0" />
           <div className="leading-tight">
             <div className="font-semibold">Mhasibu</div>
             <div className="text-xs text-muted">Light, airtime and data</div>

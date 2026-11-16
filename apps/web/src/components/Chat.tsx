@@ -1,6 +1,7 @@
 "use client";
 // Mama's chat. Deliberately plain: big text, numbered options, the token easy to read.
 import { useEffect, useRef, useState } from "react";
+import MhasibuAvatar from "./MhasibuAvatar";
 import { type ChatLine, type TokenRecord, loadHistory, loadTokens, saveAccessCode, sendMessage } from "@/lib/mhasibu";
 
 // Her latest electricity token, pinned above the chat so it never scrolls away.
@@ -123,7 +124,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
   return (
     <section className="flex h-full min-h-0 flex-col rounded-[20px] border border-line bg-surface">
       <header className="flex items-center gap-3 border-b border-line bg-white px-5 py-4 rounded-t-[20px]">
-        <div className="grid h-10 w-10 place-items-center rounded-full bg-accent-soft font-semibold text-accent">M</div>
+        <MhasibuAvatar className="h-10 w-10 shrink-0" />
         <div>
           <div className="font-semibold">Mhasibu</div>
           <div className="text-sm text-muted">Helping {name} with light, airtime and data</div>
