@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LogoMark from "./LogoMark";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
@@ -9,7 +10,7 @@ const NAV = [
 export function Logo({ className = "" }: { className?: string }) {
   return (
     <Link href="/" className={`flex items-center gap-2.5 font-semibold tracking-tight ${className}`}>
-      <span className="grid h-7 w-7 place-items-center rounded-full bg-foreground text-[13px] font-bold text-background">C</span>
+      <LogoMark className="h-7 w-7" />
       <span className="text-[19px]">CarePurse</span>
     </Link>
   );
