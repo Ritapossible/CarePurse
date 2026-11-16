@@ -21,7 +21,7 @@ function fakeWallet({ balanceNgn = 100_000, tamper = null } = {}) {
     createOrder: async ({ utility, ngn, destination }) => ({ order: { id: `o${ngn}`, utility, ngn, destination, amount: String(ngn * 6803) }, payPath: `/paid/topup/${utility}/${ngn}?order=o${ngn}` }),
     quote: async (payPath) => {
       const ngn = Number(payPath.split("/")[4].split("?")[0]);
-      return { url: `http://localhost:4021${payPath}`, host: "localhost:4021", amount: String(ngn * 6803), payTo: "GATEWAY", asset: "USDC", network: "stellar:testnet", ...tamper };
+      return { url: `http://localhost:4021${payPath}`, host: "localhost:4021", amount: String(ngn * 6803), payTo: "GATEWAY", asset: "USDC", network: "stellar:testnet", maxTimeoutSeconds: 60, ...tamper };
     },
     pay: async (url, quote) => { paid.push({ url, quote }); return { result: { token: "1111 2222 3333 4444 5555", units: "8.9 kWh (demo)" }, tx: "abc123" }; },
   };
@@ -288,6 +288,34 @@ test("payment fails after the release: refunded to the purse", async () => {
   assert.deepEqual(wallet.chain.calls, ["release o500", `refund ${R("o500")}`]);
   assert.equal(purses.get("demo").openOrder, null);
   assert.equal(purses.get("demo").spends.length, 0);
+});
+
+test("after a failed payment, no new money is released until the old signature has expired", async () => {
+  const wallet = phase2Wallet();
+  const pay = wallet.pay;
+  wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
+  const { mhasibu, purses, tick } = setup({ wallet });
+  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "1"); // signed (60 s window), failed, refunded
+  wallet.pay = pay;
+  tick(30_000);
+  await mhasibu.handle("demo", "light don finish");
+  assert.match(await mhasibu.handle("demo", "1"), /wait one minute/);
+  assert.deepEqual(wallet.chain.calls, ["release o500", `refund ${R("o500")}`]); // nothing new released
+  tick(61_000); // past the 60 s window + 30 s margin
+  await mhasibu.handle("demo", "light don finish");
+  assert.match(await mhasibu.handle("demo", "1"), /Done!/);
+  assert.equal(wallet.chain.calls.filter((c) => c.startsWith("release")).length, 2);
+});
+
+test("Mhasibu won't sign a payment that stays valid for long", async () => {
+  for (const maxTimeoutSeconds of [3600, undefined]) {
+    const wallet = fakeWallet({ tamper: { maxTimeoutSeconds } });
+    const { mhasibu } = setup({ wallet });
+    await mhasibu.handle("demo", "light don finish");
+    await mhasibu.handle("demo", "1");
+    assert.equal(wallet.paid.length, 0);
+  }
 });
 
 test("the provider issued a token but settlement failed: Mama keeps the token, the gateway is paid directly, no refund", async () => {

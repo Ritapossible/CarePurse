@@ -66,7 +66,7 @@ export function createWallet(config = defaultConfig) {
       const header = res.headers.get("payment-required");
       const offer = header && decodePaymentRequiredHeader(header).accepts.find((a) => a.network === config.network);
       if (!offer) throw new Error("the gateway offered no payment on our network");
-      return { url: url.href, host: url.host, amount: offer.amount, payTo: offer.payTo, asset: offer.asset, network: offer.network };
+      return { url: url.href, host: url.host, amount: offer.amount, payTo: offer.payTo, asset: offer.asset, network: offer.network, maxTimeoutSeconds: offer.maxTimeoutSeconds };
     },
 
     // Phase 2: ask the purse contract for exactly this top-up. It checks the guardian's caps and

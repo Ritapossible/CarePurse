@@ -57,6 +57,9 @@ export function headroom(purse, utility, { balanceNgn, now = Date.now(), feeBps 
   return { maxNgn: Math.max(0, tightest.left), tightest };
 }
 
+// The longest time a signed x402 payment may stay valid (the gateway asks for 60 s).
+export const MAX_PAY_WINDOW_SECONDS = 120;
+
 // The rules, in order. The first "no" wins. Returns { ok: true } or { ok: false, rule, reason }.
 export function checkPurchase({ purse, utility, ngn, destination, quote, order, expected, balanceNgn, now = Date.now(), feeBps = 0 }) {
   if (quote) {
@@ -65,6 +68,9 @@ export function checkPurchase({ purse, utility, ngn, destination, quote, order, 
     if (quote.payTo !== expected.payTo) return { ok: false, rule: "allowlist", reason: "the payment would go to an unknown wallet" };
     if (quote.asset !== expected.asset) return { ok: false, rule: "allowlist", reason: "not testnet USDC" };
     if (quote.network !== expected.network) return { ok: false, rule: "allowlist", reason: `wrong network ${quote.network}` };
+    // A signed payment can be settled until it expires. Sign only short-lived ones, so a payment we
+    // gave up on can't be claimed later against money released for the next top-up.
+    if (!(quote.maxTimeoutSeconds > 0 && quote.maxTimeoutSeconds <= MAX_PAY_WINDOW_SECONDS)) return { ok: false, rule: "allowlist", reason: `the payment would stay valid too long (${quote.maxTimeoutSeconds} s)` };
     // 2. Quoted price: the 402 must ask for exactly the order's amount.
     if (quote.amount !== order.amount) return { ok: false, rule: "quoted price", reason: "the price changed after the quote" };
   }

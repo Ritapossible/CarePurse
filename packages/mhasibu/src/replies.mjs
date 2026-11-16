@@ -67,6 +67,7 @@ export const say = {
   // The payment may or may not have gone through, and the money couldn't be put back yet.
   checking(lang, { guardian }) { return lang === "pcm" ? `Sorry, something no go well. I no fit confirm am yet. I don tell ${guardian} make she check. No buy again for now.` : `Sorry, something went wrong and I can't confirm it yet. I've asked ${guardian} to check. Please don't buy this again for now.`; },
   // The provider asked us to wait (e.g. the same number was topped up a moment ago). Not charged.
+  waitAMinute(lang) { return lang === "pcm" ? "Make we wait one minute before I try again. Nobody charge you." : "Let's wait one minute before I try again. You weren't charged."; },
   tryLater(lang) { return lang === "pcm" ? "The network say make we wait small. Nobody charge you. Try again after 5 minutes." : "The network asked us to wait a little. You weren't charged. Please try again in 5 minutes."; },
   refused(lang) { return lang === "pcm" ? "I no fit do that one. Nothing don pay." : "I can't do that one. Nothing was paid."; },
 

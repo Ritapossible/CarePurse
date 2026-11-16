@@ -26,7 +26,8 @@ export type LogEvent = {
   intent?: string;
   utility?: string | null;
   choice?: number | null;
-  by?: string; // "model", or "scripted: <why>" when the keyword parser answered
+  by?: string;
+  seconds?: number; // pay-hold: how long until an earlier signed payment expires // "model", or "scripted: <why>" when the keyword parser answered
   ngn?: number;
   feeNgn?: number;
   chargedNgn?: number;

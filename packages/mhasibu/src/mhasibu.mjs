@@ -85,6 +85,13 @@ export function createMhasibu({
     // One open order at a time (the contract enforces it too). Write the open order down BEFORE the
     // release, so even a crash or a timeout right after it leaves a trace to settle.
     let release = null;
+    // A payment we signed and then gave up on stays valid until its window ends. Release no new money
+    // to the agent wallet before then, so that old signature can never take it.
+    const holdUntil = Date.parse(purses.get(purse.id).payHoldUntil ?? "") || 0;
+    if (wallet.release && clock() < holdUntil) {
+      log({ type: "pay-hold", seconds: Math.ceil((holdUntil - clock()) / 1000) });
+      return say.waitAMinute(lang);
+    }
     if (wallet.release) {
       const ref = orderRef(order.id);
       purses.update(purse.id, (p) => { p.openOrder = { orderId: order.id, ref, utility, ngn, amount: quote.amount, at: new Date(clock()).toISOString(), released: false, paid: false, attempts: 0 }; });
@@ -115,6 +122,8 @@ export function createMhasibu({
       }
     }
 
+    // From here a signed payment may exist until its window ends (+30 s for ledger timing).
+    const signedUntil = new Date(clock() + ((quote.maxTimeoutSeconds ?? 300) + 30) * 1000).toISOString();
     try {
       log({ type: "signing", amount: quote.amount, payTo: quote.payTo });
       const { result, tx } = await wallet.pay(quote.url, quote);
@@ -133,6 +142,7 @@ export function createMhasibu({
       return say.delivered(lang, { utility, ngn, token: result.token, units: result.units });
     } catch (err) {
       log({ type: "payment-failed", message: err.message });
+      purses.update(purse.id, (p) => { p.payHoldUntil = signedUntil; });
       if (!release) return err.retryLater ? say.tryLater(lang) : say.failed(lang);
       // The contract released the money to Mhasibu's wallet. Settle it from the facts: if the
       // provider issued a token anyway, Mama keeps it and the gateway is paid; otherwise refund.
