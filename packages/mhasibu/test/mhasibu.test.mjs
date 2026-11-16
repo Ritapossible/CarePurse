@@ -589,3 +589,16 @@ test("a NEAR model that NEAR marks not private is never sent Mama's words", asyn
   const ok = await openUnderstander({ ...base, model: "deepseek-ai/DeepSeek-V4.1-Flash-1017" }, { fetchImpl, log: quiet });
   assert.equal(ok.name, "NEAR AI private, TEE (deepseek-ai/DeepSeek-V4.1-Flash-1017)");
 });
+
+test("each family's purse pays from its own contract", async () => {
+  const byContract = {};
+  const walletFor = (contractId) => (byContract[contractId] ??= phase2Wallet());
+  const purses = createPurseStore(null, { seed: false });
+  purses.put(newPurse({ ...DEMO_PURSE, id: "okafor", contractId: "CONTRACT_OKAFOR" }));
+  purses.put(newPurse({ ...DEMO_PURSE, id: "bello", contractId: "CONTRACT_BELLO" }));
+  const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => MONDAY_10AM, wait: async () => {} });
+  await mhasibu.handle("okafor", "light don finish");
+  await mhasibu.handle("okafor", "1");
+  assert.deepEqual(byContract.CONTRACT_OKAFOR.chain.calls, ["release o500", `commit ${R("o500")}`]);
+  assert.equal(byContract.CONTRACT_BELLO, undefined); // the other family's purse was never touched
+});

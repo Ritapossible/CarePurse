@@ -13,7 +13,8 @@
     "serve": "node bin/serve.mjs",
     "sync-purse": "node scripts/sync-purse.mjs",
     "fund-purse": "node scripts/fund-purse.mjs",
-    "upgrade-purse": "node scripts/upgrade-purse.mjs"
+    "upgrade-purse": "node scripts/upgrade-purse.mjs",
+    "install-wasm": "node scripts/install-wasm.mjs"
   },
   "engines": {
     "node": ">=22"

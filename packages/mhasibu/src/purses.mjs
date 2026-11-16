@@ -17,9 +17,11 @@ export const DEMO_PURSE = {
   preset: "standard",
 };
 
-export function newPurse({ id, mama, guardian, destinations, providers = { disco: "ikeja-electric", network: "mtn" }, preset = "standard" }) {
+// contractId: the family's own purse contract (set at sign-up). Without one, the purse uses the
+// default contract (PURSE_CONTRACT_ID), which is how the demo purse works.
+export function newPurse({ id, mama, guardian, destinations, providers = { disco: "ikeja-electric", network: "mtn" }, preset = "standard", contractId = null }) {
   const limits = structuredClone(PRESETS[preset]);
-  return { id, mama, guardian, destinations, providers, preset, limits, monthlyCap: monthlyCap(limits), paused: false, spends: [], notifications: [], pending: null, history: [] };
+  return { id, mama, guardian, destinations, providers, preset, limits, monthlyCap: monthlyCap(limits), contractId, paused: false, spends: [], notifications: [], pending: null, history: [] };
 }
 
 // Use this to start Mhasibu: Postgres if DATABASE_URL is set (purses, purchases, tokens and chat
@@ -49,6 +51,8 @@ export function createPurseStore(file, { seed = true, records = null } = {}) {
 
   return {
     get: (id) => state.purses[id] ?? null,
+    // Every purse (sign-up lookups: by guardian, invite or Mama's session).
+    all: () => Object.values(state.purses),
     put(purse) { state.purses[purse.id] = purse; records?.save("purse", purse.id, purse); save(); return purse; },
     update(id, fn) { const purse = state.purses[id]; fn(purse); records?.save("purse", id, purse); save(); return purse; },
     // Wait until every change so far is stored.

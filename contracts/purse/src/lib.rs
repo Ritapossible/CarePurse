@@ -14,7 +14,7 @@
 
 use soroban_sdk::{
     contract, contracterror, contractevent, contractimpl, contracttype, panic_with_error, token, Address,
-    BytesN, Env, Symbol,
+    BytesN, Env, Map, Symbol,
 };
 
 const LAGOS_OFFSET: u64 = 3_600;
@@ -146,6 +146,12 @@ fn periods(now: u64) -> (u64, u64, u64) {
     (day, week, (year * 12 + month - 1) as u64)
 }
 
+fn check_caps(env: &Env, caps: &Caps) {
+    if caps.per_topup <= 0 || caps.per_day < 0 || caps.per_week < 0 || caps.per_month < 0 {
+        panic_with_error!(env, Error::BadAmount);
+    }
+}
+
 fn guardian(env: &Env) -> Address {
     env.storage().instance().get(&Key::Guardian).unwrap()
 }
@@ -196,10 +202,28 @@ impl Purse {
 
     pub fn set_caps(env: Env, utility: Symbol, caps: Caps) {
         guardian(&env).require_auth();
-        if caps.per_topup <= 0 || caps.per_day < 0 || caps.per_week < 0 || caps.per_month < 0 {
+        check_caps(&env, &caps);
+        env.storage().instance().set(&Key::Caps(utility), &caps);
+        bump(&env);
+    }
+
+    /// Everything a new purse needs, with one guardian signature: the caps for each utility,
+    /// the saved destinations (keyed fingerprints of the meter and phone numbers) and the
+    /// whole-purse monthly cap. Same checks as the single setters.
+    pub fn configure(env: Env, caps: Map<Symbol, Caps>, dests: Map<Symbol, BytesN<32>>, purse_cap: i128) {
+        guardian(&env).require_auth();
+        if purse_cap < 0 {
             panic_with_error!(&env, Error::BadAmount);
         }
-        env.storage().instance().set(&Key::Caps(utility), &caps);
+        let s = env.storage().instance();
+        for (utility, c) in caps.iter() {
+            check_caps(&env, &c);
+            s.set(&Key::Caps(utility), &c);
+        }
+        for (utility, dest_hash) in dests.iter() {
+            s.set(&Key::Dest(utility), &dest_hash);
+        }
+        s.set(&Key::PurseCap, &purse_cap);
         bump(&env);
     }
 
@@ -213,8 +237,8 @@ impl Purse {
         bump(&env);
     }
 
-    /// The saved meter or phone for a utility, as sha256 of the number, so the ledger
-    /// doesn't show where Mama lives.
+    /// The saved meter or phone for a utility, as a keyed fingerprint of the number, so the
+    /// ledger doesn't show where Mama lives.
     pub fn set_destination(env: Env, utility: Symbol, dest_hash: BytesN<32>) {
         guardian(&env).require_auth();
         env.storage().instance().set(&Key::Dest(utility), &dest_hash);

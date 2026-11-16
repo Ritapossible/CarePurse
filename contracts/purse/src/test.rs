@@ -289,3 +289,61 @@ fn only_the_guardian_can_upgrade() {
         .try_upgrade(&hash);
     assert!(r.is_err());
 }
+
+#[test]
+fn configure_sets_everything_with_one_guardian_signature() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().set_timestamp(SAT);
+    let guardian = Address::generate(&env);
+    let agent = Address::generate(&env);
+    let sac = env.register_stellar_asset_contract_v2(Address::generate(&env));
+    let id = env.register(Purse, (guardian.clone(), agent.clone(), sac.address()));
+    let purse = PurseClient::new(&env, &id);
+    StellarAssetClient::new(&env, &sac.address()).mint(&id, &(50 * USDC));
+    let (e, a) = (Symbol::new(&env, "electricity"), Symbol::new(&env, "airtime"));
+    let (meter, phone) = (sha(&env, "45012345678"), sha(&env, "08031234567"));
+    let mut caps = Map::new(&env);
+    caps.set(e.clone(), Caps { per_topup: 34_013_606, per_day: 0, per_week: 102_040_818, per_month: 0 });
+    caps.set(a.clone(), Caps { per_topup: 3_401_361, per_day: 6_802_722, per_week: 0, per_month: 0 });
+    let mut dests = Map::new(&env);
+    dests.set(e.clone(), meter.clone());
+    dests.set(a.clone(), phone.clone());
+    purse.configure(&caps, &dests, &(816 * USDC));
+    // Only the guardian signed, and only once.
+    assert_eq!(env.auths().len(), 1);
+    assert_eq!(env.auths()[0].0, guardian);
+    assert_eq!(purse.caps(&e).unwrap().per_week, 102_040_818);
+    assert_eq!(purse.purse_cap(), 816 * USDC);
+    purse.buy(&a, &phone, &3_401_361, &order(&env, 1));
+    purse.commit(&order(&env, 1));
+    // Airtime only goes to the saved phone, never to the meter.
+    assert_eq!(purse.try_buy(&a, &meter, &1_000_000, &order(&env, 2)), Err(Ok(Error::WrongDestination)));
+}
+
+#[test]
+fn configure_refuses_bad_caps_and_anyone_but_the_guardian() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    let mut bad = Map::new(&t.env);
+    bad.set(e.clone(), Caps { per_topup: 0, per_day: 0, per_week: 0, per_month: 0 });
+    assert!(t.purse.try_configure(&bad, &Map::new(&t.env), &0).is_err());
+    assert!(t.purse.try_configure(&Map::new(&t.env), &Map::new(&t.env), &-1).is_err());
+    let mut caps = Map::new(&t.env);
+    caps.set(e.clone(), Caps { per_topup: 100 * USDC, per_day: 0, per_week: 0, per_month: 0 });
+    let dests: Map<Symbol, BytesN<32>> = Map::new(&t.env);
+    t.env.set_auths(&[]);
+    let r = t
+        .purse
+        .mock_auths(&[MockAuth {
+            address: &t.agent,
+            invoke: &MockAuthInvoke {
+                contract: &t.purse.address,
+                fn_name: "configure",
+                args: (caps.clone(), dests.clone(), 0i128).into_val(&t.env),
+                sub_invokes: &[],
+            },
+        }])
+        .try_configure(&caps, &dests, &0);
+    assert!(r.is_err());
+}

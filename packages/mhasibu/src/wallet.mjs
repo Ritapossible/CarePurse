@@ -24,17 +24,18 @@ export function createWallet(config = defaultConfig) {
   return {
     expected: { host: config.allowedHost, payTo: config.gatewayRecipient, asset: config.usdc.contractId, network: config.network },
 
-    // The purse balance in naira at the demo rate. Phase 2: the purse contract's USDC plus any USDC
-    // still on the agent wallet (an unsettled top-up), so the family's money never "disappears".
-    // New purchases are blocked while a top-up is unsettled, so this never offers money twice.
+    // The purse balance in naira at the demo rate. Phase 2: the purse contract's USDC, plus the USDC
+    // on the agent wallet while THIS purse has an unsettled top-up (includeAgent), so the family's
+    // money never "disappears". The agent wallet is shared by every family, so it isn't counted
+    // otherwise. New purchases are blocked while a top-up is unsettled, so this never offers money twice.
     // Phase 1: the agent wallet's USDC, because that wallet IS the purse.
-    async balanceNgn() {
+    async balanceNgn({ includeAgent = true } = {}) {
       const address = Keypair.fromSecret(config.agentSecret).publicKey();
       if (config.purseContractId) {
         const soroban = createSoroban({ rpcUrl: config.rpcUrl });
         const [inPurse, onAgent] = await Promise.all([
           soroban.read(config.usdc.contractId, "balance", [addressVal(config.purseContractId)], address),
-          soroban.read(config.usdc.contractId, "balance", [addressVal(address)], address).catch(() => 0n),
+          includeAgent ? soroban.read(config.usdc.contractId, "balance", [addressVal(address)], address).catch(() => 0n) : 0n,
         ]);
         return (Number(BigInt(inPurse) + BigInt(onAgent)) / 10 ** config.usdc.decimals) * config.ngnPerUsdc;
       }

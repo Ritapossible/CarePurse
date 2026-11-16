@@ -12,10 +12,13 @@
 // npm run serve   (port MHASIBU_PORT, default 4022)
 import http from "node:http";
 import crypto from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { Keypair } from "@stellar/stellar-sdk";
 import { config, explorer } from "../src/config.mjs";
 import { createMhasibu } from "../src/mhasibu.mjs";
 import { openUnderstander } from "../src/understand.mjs";
+import { createSignup } from "../src/signup.mjs";
+import { createFamilies, FamilyError } from "../src/families.mjs";
 import { openPurseStore } from "../src/purses.mjs";
 import { ContractRefused, buyArgs, createSoroban, refundArgs, symbol } from "../src/purse-contract.mjs";
 import { maskNumbers } from "../src/replies.mjs";
@@ -32,7 +35,9 @@ function authorised(req) {
   const want = Buffer.from(apiKey);
   return given.length === want.length && crypto.timingSafeEqual(given, want);
 }
-const clients = new Set();
+// Each live-log listener follows one purse; events carry the purse they belong to.
+const clients = new Map(); // res -> purse id
+const currentPurse = new AsyncLocalStorage();
 const recent = [];
 
 function emit(event) {
@@ -41,16 +46,33 @@ function emit(event) {
   const e = { at: new Date().toISOString(), ...event };
   for (const k of ["text", "message"]) if (typeof e[k] === "string") e[k] = maskNumbers(e[k]);
   if (e.tx) e.link = explorer.tx(e.tx);
+  e.purse = e.purse ?? currentPurse.getStore() ?? "demo";
   recent.push(e);
   if (recent.length > 200) recent.shift();
   const line = `data: ${JSON.stringify(e)}\n\n`;
-  for (const res of clients) res.write(line);
+  for (const [res, purse] of clients) if (purse === e.purse) res.write(line);
 }
 
 const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 console.log(config.databaseUrl ? "Purses: Postgres (DATABASE_URL)" : `Purses: ${config.pursesFile} (set DATABASE_URL to keep them across restarts)`);
 const mhasibu = createMhasibu({ purses, log: emit, understander: await openUnderstander(config.llm) });
 const agentAddress = Keypair.fromSecret(config.agentSecret).publicKey();
+
+// Sign-up, invites and Mama's sign-in. The web app's server checks who is calling (the daughter's
+// Privy login, Mama's session) before it reaches these routes; they all need Mhasibu's key.
+const gatewayAuth = config.gatewayApiKey ? { authorization: `Bearer ${config.gatewayApiKey}` } : {};
+const families = createFamilies({
+  purses,
+  signup: createSignup({ config }),
+  config,
+  verifyMeter: async (meter, disco) => {
+    const u = new URL(`/v1/meters/${meter}`, config.gatewayUrl);
+    if (disco) u.searchParams.set("disco", disco);
+    const res = await fetch(u, { headers: gatewayAuth });
+    const body = await res.json().catch(() => ({}));
+    return { ok: Boolean(body.ok), ownerName: body.ownerName ?? null, address: body.address ?? null, disco: body.disco ?? disco ?? null, reason: body.reason ?? null };
+  },
+});
 
 const send = (res, status, body) => {
   res.writeHead(status, { "content-type": "application/json" });
@@ -97,7 +119,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/v1/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       res.write(": connected\n\n");
-      clients.add(res);
+      clients.set(res, url.searchParams.get("purse") ?? "demo");
       const ping = setInterval(() => res.write(": ping\n\n"), 15_000);
       req.on("close", () => { clearInterval(ping); clients.delete(res); });
       return;
@@ -105,9 +127,30 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/v1/chat") {
       const { purse = "demo", text } = await readJson(req);
       if (typeof text !== "string" || !text.trim()) return send(res, 400, { error: "text is required" });
-      const run = busy.then(() => mhasibu.handle(purse, text.trim().slice(0, 500)));
+      const run = busy.then(() => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500))));
       busy = run.catch(() => {});
       return send(res, 200, { reply: await run });
+    }
+    // ── Sign-up (the daughter) ──────────────────────────────────
+    if (req.method === "POST" && url.pathname === "/v1/meters/verify") {
+      const { meter, disco } = await readJson(req);
+      return send(res, 200, await families.checkMeter(meter, disco));
+    }
+    if (req.method === "GET" && url.pathname === "/v1/family") {
+      return send(res, 200, await families.dashboard({ privyId: url.searchParams.get("privyId") }));
+    }
+    if (req.method === "POST" && url.pathname === "/v1/family/prepare") return send(res, 200, await families.prepare(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/complete") return send(res, 200, await families.complete(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/test-usdc") return send(res, 200, await families.testUsdc(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/invite") return send(res, 200, await families.sendNewInvite(await readJson(req)));
+    // ── Mama's invite and sign-in ───────────────────────────────
+    const inv = url.pathname.match(/^\/v1\/invites\/([A-Za-z0-9_-]{16,64})(\/code|\/verify)?$/);
+    if (inv && req.method === "GET" && !inv[2]) return send(res, 200, families.invite(inv[1]));
+    if (inv && req.method === "POST" && inv[2] === "/code") { const { phone } = await readJson(req); return send(res, 200, await families.sendCode(inv[1], phone)); }
+    if (inv && req.method === "POST" && inv[2] === "/verify") { const { phone, code } = await readJson(req); return send(res, 200, await families.verifyCode(inv[1], phone, code)); }
+    if (req.method === "POST" && url.pathname === "/v1/sessions/resolve") {
+      const { session, privyId } = await readJson(req);
+      return send(res, 200, { purseId: session ? families.sessionPurse(session) : families.guardianPurse(privyId) });
     }
     if (req.method === "POST" && url.pathname === "/v1/demo/overspend") {
       if (!demoMode) return send(res, 404, { error: "demo mode is off" });
@@ -137,6 +180,8 @@ const server = http.createServer(async (req, res) => {
     }
     send(res, 404, { error: "not found" });
   } catch (err) {
+    // Sign-up and sign-in rules answer with their own message and status (wrong code, expired link).
+    if (err instanceof FamilyError) return send(res, err.status, { error: err.message });
     emit({ type: "error", message: err.message });
     send(res, 500, { error: "Mhasibu could not finish that. Try again." });
   }

@@ -26,11 +26,21 @@ export function createMhasibu({
   config = defaultConfig,
   purses = createPurseStore(config.pursesFile),
   wallet = createWallet(config),
+  // One purse contract per family: the same wallet code, pointed at that purse's contract.
+  walletFor = (contractId) => createWallet({ ...config, purseContractId: contractId }),
   understander = createUnderstander(config.llm),
   clock = () => Date.now(),
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log = () => {},
 } = {}) {
+  // The wallet for a purse: its own contract if it has one (families who signed up), otherwise
+  // the default one (the demo purse, PURSE_CONTRACT_ID).
+  const wallets = new Map();
+  const walletOf = (purse) => {
+    if (!purse?.contractId || purse.contractId === config.purseContractId) return wallet;
+    if (!wallets.has(purse.contractId)) wallets.set(purse.contractId, walletFor(purse.contractId));
+    return wallets.get(purse.contractId);
+  };
   // CarePurse's service fee (basis points). Mama never sees it; Adaeze's receipts do.
   const feeBps = config.serviceFeeBps ?? 0;
   const notifyGuardian = (purse, kind, text) => {
@@ -44,9 +54,9 @@ export function createMhasibu({
     if (purse.openOrder) return say.stillSettling(lang, { guardian: purse.guardian.name });
     const now = clock();
     if (purse.paused) return say.paused(lang, { guardian: purse.guardian.name });
-    const balanceNgn = await wallet.balanceNgn();
+    const balanceNgn = await walletOf(purse).balanceNgn({ includeAgent: Boolean(purse.openOrder) });
     const room = headroom(purse, utility, { balanceNgn, now, feeBps });
-    const options = room.maxNgn > 0 ? await wallet.options(utility, room.maxNgn, purse.providers?.network) : [];
+    const options = room.maxNgn > 0 ? await walletOf(purse).options(utility, room.maxNgn, purse.providers?.network) : [];
     if (!options.length) {
       if (room.tightest.rule === "purse balance") {
         notifyGuardian(purse, "low-balance", `Mama asked for ${utility}, but the purse balance is too low.`);
@@ -65,19 +75,19 @@ export function createMhasibu({
     // Never start a purchase while the last one is unsettled (one open order at a time).
     if (purse.openOrder) return say.stillSettling(lang, { guardian: purse.guardian.name });
     const destination = purse.destinations[utility];
-    const balanceNgn = await wallet.balanceNgn();
+    const balanceNgn = await walletOf(purse).balanceNgn({ includeAgent: Boolean(purse.openOrder) });
     // Rules before ordering (destination, paused, limits, balance).
     let verdict = checkPurchase({ purse, utility, ngn, destination, balanceNgn, now: clock(), feeBps });
     if (!verdict.ok) return refuse(purse, utility, verdict, lang);
 
     const providers = purse.providers ?? {};
     const via = utility === "electricity" ? { disco: providers.disco, contactPhone: purse.mama.phone } : { network: providers.network };
-    const { order, payPath } = await wallet.createOrder({ utility, ngn, destination, ...via });
+    const { order, payPath } = await walletOf(purse).createOrder({ utility, ngn, destination, ...via });
     log({ type: "order", id: order.id, utility, ngn, payPath });
-    const quote = await wallet.quote(payPath);
+    const quote = await walletOf(purse).quote(payPath);
     log({ type: "quote", utility, ngn, feeNgn: order.feeNgn, chargedNgn: order.chargedNgn, amount: quote.amount, payTo: quote.payTo, asset: quote.asset, network: quote.network, url: quote.url });
     // Every rule again, now with the real 402: allowlist and quoted price first.
-    verdict = checkPurchase({ purse, utility, ngn, destination, quote, order, expected: wallet.expected, balanceNgn, now: clock(), feeBps });
+    verdict = checkPurchase({ purse, utility, ngn, destination, quote, order, expected: walletOf(purse).expected, balanceNgn, now: clock(), feeBps });
     if (!verdict.ok) return refuse(purse, utility, verdict, lang);
     log({ type: "rules-ok", utility, ngn });
 
@@ -88,17 +98,17 @@ export function createMhasibu({
     // A payment we signed and then gave up on stays valid until its window ends. Release no new money
     // to the agent wallet before then, so that old signature can never take it.
     const holdUntil = Date.parse(purses.get(purse.id).payHoldUntil ?? "") || 0;
-    if (wallet.release && clock() < holdUntil) {
+    if (walletOf(purse).release && clock() < holdUntil) {
       log({ type: "pay-hold", seconds: Math.ceil((holdUntil - clock()) / 1000) });
       return say.waitAMinute(lang);
     }
-    if (wallet.release) {
+    if (walletOf(purse).release) {
       const ref = orderRef(order.id);
       purses.update(purse.id, (p) => { p.openOrder = { orderId: order.id, ref, utility, ngn, amount: quote.amount, at: new Date(clock()).toISOString(), released: false, paid: false, attempts: 0 }; });
       await purses.flush?.();
       log({ type: "contract-check", utility, amount: quote.amount });
       try {
-        release = await wallet.release({ utility, destination, amount: quote.amount, orderId: order.id });
+        release = await walletOf(purse).release({ utility, destination, amount: quote.amount, orderId: order.id });
         purses.update(purse.id, (p) => { p.openOrder.released = true; p.openOrder.releaseTx = release.tx; });
         log({ type: "contract-ok", tx: release.tx, link: explorer.tx(release.tx) });
       } catch (err) {
@@ -126,7 +136,7 @@ export function createMhasibu({
     const signedUntil = new Date(clock() + ((quote.maxTimeoutSeconds ?? 300) + 30) * 1000).toISOString();
     try {
       log({ type: "signing", amount: quote.amount, payTo: quote.payTo });
-      const { result, tx } = await wallet.pay(quote.url, quote);
+      const { result, tx } = await walletOf(purse).pay(quote.url, quote);
       // Keep what was delivered with the purchase, so Mama can always see her token again.
       const kept = deliveredFields(result);
       purses.update(purse.id, (p) => {
@@ -167,9 +177,9 @@ export function createMhasibu({
 
   async function commitOpen(purse) {
     const open = purse.openOrder;
-    if (!open || !wallet.commitRef) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
+    if (!open || !walletOf(purse).commitRef) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
     try {
-      const done = await wallet.commitRef(open.ref ?? orderRef(open.orderId));
+      const done = await walletOf(purse).commitRef(open.ref ?? orderRef(open.orderId));
       purses.update(purse.id, (p) => { p.openOrder = null; });
       log({ type: "committed", tx: done.tx, link: explorer.tx(done.tx) });
       return true;
@@ -190,7 +200,7 @@ export function createMhasibu({
   // Returns { kind: "delivered" | "refunded" | "pending", token?, units? }.
   async function resolveReleased(purse, open, { refundAttempts = 1 } = {}) {
     const ref = open.ref ?? orderRef(open.orderId);
-    const status = await (open.orderId ? wallet.orderStatus(open.orderId) : wallet.orderByRef(ref)).catch(() => undefined);
+    const status = await (open.orderId ? walletOf(purse).orderStatus(open.orderId) : walletOf(purse).orderByRef(ref)).catch(() => undefined);
     if (status === undefined) return { kind: "pending" }; // gateway unreachable: don't guess
     const orderId = open.orderId ?? status?.id ?? ref.slice(0, 16);
     const issued = status?.issued ?? (status?.token ? deliveredFields(status) : null);
@@ -219,7 +229,7 @@ export function createMhasibu({
     // the only recovery payment. A normal top-up is always paid over x402.
     if (issued && (issued.token || issued.reference) && ["failed", "fulfilling"].includes(status?.status)) {
       try {
-        const paid = await wallet.payGatewayDirect(open.amount);
+        const paid = await walletOf(purse).payGatewayDirect(open.amount);
         log({ type: "paid-direct", tx: paid.tx, link: explorer.tx(paid.tx), amount: open.amount });
         keep({ tx: paid.tx, paidDirect: true });
         notifyGuardian(purse, "receipt", `Mama's ₦${(open.ngn ?? status.ngn).toLocaleString("en-NG")} ${open.utility} was delivered but the x402 settlement failed, so Mhasibu paid the gateway directly.${issued.token ? ` Token: ${issued.token}.` : ""} ${explorer.tx(paid.tx)}`);
@@ -233,7 +243,7 @@ export function createMhasibu({
     // Otherwise (failed with nothing issued, created but expired, or unknown to the gateway): refund.
     for (let i = 0; i < refundAttempts; i++) {
       try {
-        const back = await wallet.refundRef(ref);
+        const back = await walletOf(purse).refundRef(ref);
         log({ type: "refunded", tx: back.tx, link: explorer.tx(back.tx), amount: open.amount });
         purses.update(purse.id, (p) => { p.spends = p.spends.filter((s) => s.order !== orderId); p.openOrder = null; });
         return { kind: "refunded" };
@@ -248,7 +258,7 @@ export function createMhasibu({
 
   async function commitRef(purse, ref) {
     try {
-      const done = await wallet.commitRef(ref);
+      const done = await walletOf(purse).commitRef(ref);
       log({ type: "committed", tx: done.tx, link: explorer.tx(done.tx) });
     } catch (err) {
       if (!(err instanceof ContractRefused && err.rule === "already committed")) { log({ type: "commit-failed", message: err.message }); return false; }
@@ -260,9 +270,9 @@ export function createMhasibu({
   // An open order on the chain that this purse has no record of (its id was lost): read the amount
   // from the contract, the outcome from the gateway (by reference), and settle it.
   async function settleChainOrder(purse) {
-    const ref = await wallet.openOrderRef().catch(() => undefined);
+    const ref = await walletOf(purse).openOrderRef().catch(() => undefined);
     if (!ref) return ref === null;
-    const rec = await wallet.contractOrder(ref).catch(() => null);
+    const rec = await walletOf(purse).contractOrder(ref).catch(() => null);
     if (!rec) return false;
     const outcome = await resolveReleased(purse, { ref, utility: rec.utility, amount: rec.amount });
     if (outcome.kind === "pending") notifyGuardian(purse, "check-payment", `Mhasibu found an unsettled order on the purse contract (${ref.slice(0, 12)}…) and couldn't settle it yet. It will keep trying.`);
@@ -273,12 +283,12 @@ export function createMhasibu({
   async function settleOpenOrder(purse) {
     const open = purse.openOrder;
     if (!open) return true;
-    if (!wallet.release) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
+    if (!walletOf(purse).release) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
     if (open.paid) return commitOpen(purse);
     const ref = open.ref ?? orderRef(open.orderId);
     if (!open.released) {
       // Timed out or crashed before hearing back: ask the chain whether the release happened.
-      const onChain = await wallet.openOrderRef().catch(() => undefined);
+      const onChain = await walletOf(purse).openOrderRef().catch(() => undefined);
       if (onChain === undefined) return false;
       if (onChain !== ref) {
         purses.update(purse.id, (p) => { p.openOrder = null; }); // our release never happened
@@ -388,7 +398,7 @@ export function createMhasibu({
   }
 
   async function balance(purse, lang) {
-    const balanceNgn = await wallet.balanceNgn();
+    const balanceNgn = await walletOf(purse).balanceNgn({ includeAgent: Boolean(purse.openOrder) });
     const lines = ["electricity", "airtime", "data"].map((u) => ({ utility: u, maxNgn: headroom(purse, u, { balanceNgn, now: clock(), feeBps }).maxNgn }));
     return say.balance(lang, { lines });
   }

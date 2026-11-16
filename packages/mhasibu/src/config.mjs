@@ -34,6 +34,13 @@ export const config = {
   // Phase 2: the purse contract holds the money and enforces the caps on-chain (npm run deploy-purse).
   // Empty = Phase 1, where the agent wallet is the purse.
   purseContractId: env("PURSE_CONTRACT_ID"),
+  // Sign-up: the purse contract's code on testnet (npm run install-wasm). Each family gets its own
+  // purse deployed from it, with the daughter's Privy wallet as guardian.
+  purseWasmHash: env("PURSE_WASM_HASH"),
+  // Testnet only: the wallet that sends "Get test USDC" to a new purse. Defaults to the demo guardian.
+  treasurySecret: env("TREASURY_SECRET") || env("GUARDIAN_SECRET"),
+  // Mama's sign-in code is shown on screen (no SMS provider in the hackathon build).
+  showMamaCode: env("SHOW_MAMA_CODE", "1") !== "0",
   ngnPerUsdc: Number(env("NGN_PER_USDC", "1470")),
   // CarePurse's service fee on top of face value (basis points, 300 = 3%), same as the gateway's.
   // Limits stay in face value; the on-chain caps add the fee (capBaseUnits).

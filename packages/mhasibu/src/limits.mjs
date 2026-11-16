@@ -83,3 +83,6 @@ export function checkPurchase({ purse, utility, ngn, destination, quote, order, 
   if (ngn > room.maxNgn) return { ok: false, rule: room.tightest.rule, reason: `over the ${room.tightest.rule} limit`, period: room.tightest.period };
   return { ok: true };
 }
+
+// The smallest top-up each utility sells (naira). Used to turn naira limits into on-chain caps.
+export const MIN_TOPUP = { electricity: 500, airtime: 100, data: 100 };
