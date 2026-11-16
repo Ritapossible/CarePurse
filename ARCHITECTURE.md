@@ -43,7 +43,11 @@ The gateway follows Koxy's workshop kit (`src/server.mjs`), and the agent's payi
 
 **Why one agent wallet per purse:** the workshop's third safety layer is "the wallet can never spend more than it holds". If every family shared one agent wallet, one family's money could pay for another family's top-up. For the hackathon demo there is one family, so one wallet.
 
-**Privy check (do first):** Privy lists Stellar among its supported chains. Confirm whether it gives us a ready Stellar signing method or only raw signing (where we build the transaction with `@stellar/stellar-sdk` and ask Privy to sign the hash). If Privy blocks us, use Stellar Wallets Kit (Freighter) for the daughter instead.
+**Privy check (done 16 Nov):** `@privy-io/react-auth` 3.51 supports `stellar` wallets: `useCreateWallet({ chainType: "stellar" })` and `useSignRawHash` (Ed25519 over a 32-byte hash). So her Privy wallet is the real guardian on-chain:
+
+- **One purse contract per family.** The code is uploaded once (`npm run install-wasm`, `PURSE_WASM_HASH`). At sign-up Mhasibu deploys her family's purse from it (guardian = her Privy address, agent = Mhasibu, USDC), paying the fee from the agent's XLM.
+- **One signature for all the rules.** `configure(caps, destinations, purse_cap)` sets every limit and the meter and phone fingerprints. Mhasibu builds the transaction, asks the network which signature it needs (her guardian authorisation) and sends her browser only that hash. Privy signs it; the SDK checks the signature against her address; Mhasibu attaches it, pays the fee and submits. She needs no XLM or USDC to sign up (`packages/mhasibu/src/signup.mjs`).
+- **Logins are checked on our server** with Privy's public keys (ES256 access tokens, issuer `privy.io`, audience = App ID): no Privy secret. Mama signs in with her invite and a code; her session is an httpOnly cookie, and the web relay pins every request to her purse.
 
 ## Flow 1: Setting up a purse
 

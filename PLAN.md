@@ -33,7 +33,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] Add `.gitignore` (with `.env`) and `.env.example`.
 - [x] Create the testnet wallets and fund the agent: `npm run setup` then `npm run get-usdc` in `services/gateway`.
 - [ ] Sign up for the VTpass sandbox and note the test meter and phone numbers.
-- [ ] **Check Privy's Stellar support** (see `ARCHITECTURE.md`, Accounts and wallets). Decide Privy or Stellar Wallets Kit.
+- [x] **Check Privy's Stellar support** (16 Nov): `@privy-io/react-auth` 3.51 supports `stellar` wallets (`useCreateWallet`, `useSignRawHash`, Ed25519). We use Privy.
 
 ### Step 1: The paid gateway (14-16 Nov), Must have · **done 13 Nov**
 - [x] Gateway in `services/gateway`, following the kit's `server.mjs` pattern.
@@ -57,8 +57,8 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Have a native speaker check the Pidgin replies in `src/replies.mjs`.
 
 ### Step 3: Mama's chat (18-20 Nov), Must have
-- [ ] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)
-- [ ] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome.
+- [x] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)
+- [x] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome. 16 Nov (`/i/[token]`; httpOnly session cookie, her chat only reaches her purse).
 - [ ] "Add to home screen" prompt, shown once.
 - [x] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction (`apps/web`, `/chat`). 14 Nov.
 - [x] The token never disappears: pinned "Last light token" card, "send my token again" in any words, menu 5, kept on the order and purchase record, in Adaeze's receipt. 14 Nov.
@@ -68,14 +68,17 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] **Agent & x402 Log** panel beside the chat (`/demo`), 14 Nov: each step live, from Mama's message, the contract check and the 402 challenge to the signed payment and the Stellar Testnet settlement link. Mama's own chat stays simple.
 
 ### Step 4: Daughter's dashboard (19-22 Nov), Should have
-- [ ] The four sign-up screens from `SIGNUP.md` (D1 to D4).
-- [ ] D1 Privy login; the daughter becomes guardian.
-- [ ] D2 Mama: name, phone, language.
-- [ ] D3 Mama's meter with the owner-name check. Airtime and data use Mama's phone.
-- [ ] D4 Light / Standard presets (calculate the monthly cap), then fund: address, QR, Get test USDC.
-- [ ] D5 Invite Mama: Copy link and Share on WhatsApp (`wa.me`). One use, 7-day expiry.
-- [ ] Invite status on the dashboard, and **[Send a new invite]** that cancels the old link.
-- [ ] Receipts: every top-up with its Stellar transaction link.
+- [x] The four sign-up screens from `SIGNUP.md` (D1 to D4), `/start`. 16 Nov.
+- [x] D1 Privy login; the daughter becomes guardian: her Privy Stellar wallet is the guardian of her family's own purse contract, and she approves the rules with one signature.
+- [x] D2 Mama: name, phone, language (and network).
+- [x] D3 Mama's meter with the owner-name check. Airtime and data use Mama's phone.
+- [x] D4 Light / Standard presets (calculate the monthly cap), then fund: address, QR, Get test USDC.
+- [x] D5 Invite Mama: Copy link and Share on WhatsApp (`wa.me`). One use, 7-day expiry.
+- [x] Invite status on the dashboard (`/dashboard`), and **[Send a new invite]** that cancels the old link.
+- [x] Receipts: every top-up with its Stellar transaction link and the fee.
+
+- [ ] Pause and custom limits from the dashboard (each needs her Privy signature; the backend's prepare/complete already supports any guardian call).
+- [ ] Still to do for sign-up: set the Privy App ID (`NEXT_PUBLIC_PRIVY_APP_ID`) and try `/start` live.
 
 ### Step 5: Limits on-chain (20-24 Nov), Must have (one cap check) · Should have (the rest)
 - [x] Decide: our own purse contract (per-utility caps and saved destinations, which an allowance can't do).

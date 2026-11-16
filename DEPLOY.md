@@ -49,6 +49,16 @@ The landing page, Mama's chat and the demo can run on Vercel instead of Render (
 
 The live log is a stream (Server-Sent Events). On Vercel a function runs for at most `maxDuration` (300 s, set in the relay route); the browser reconnects by itself, so the log keeps going.
 
+## Sign-up with Privy
+
+1. **dashboard.privy.io** → Create app (CarePurse).
+2. **Login methods:** Email and Google on.
+3. **Allowed domains:** your Vercel address (e.g. `https://care-purse.vercel.app`) and `http://localhost:3000`.
+4. Copy the **App ID** (public) into Vercel as `NEXT_PUBLIC_PRIVY_APP_ID`, then redeploy. No Privy secret is needed: our server checks logins with Privy's public keys.
+5. On Render (carepurse-mhasibu): `PURSE_WASM_HASH` is already in `render.yaml`. Set `TREASURY_SECRET` to the testnet wallet that hands out test USDC (the demo guardian's secret works). The agent wallet needs test XLM: it pays the fee to create each family's purse.
+
+Try it: open `/start`, sign in, fill in Mama, check the meter (VTpass sandbox: `1111111111111`), choose Standard, approve once in Privy, get test USDC, copy Mama's link and open it on a phone.
+
 ## Keep it awake (UptimeRobot)
 
 Add three HTTP(s) monitors, every 5 minutes: the gateway's `/health`, Mhasibu's `/v1/status` and the web app's `/`. Pause them while we build and switch them on for judging and Demo Day: Render's free plan has **750 hours a month for the whole account**, and three services awake 24/7 use them up in about 10 days (then Render suspends all free services until next month). See the README, "Hosting and keeping it awake".

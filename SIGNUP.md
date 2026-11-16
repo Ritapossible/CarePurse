@@ -1,5 +1,7 @@
 # CarePurse sign-up plan
 
+> **Built 16 Nov:** `/start` (D1 to D5), `/dashboard` (D6) and `/i/<link>` (M1, M2). Adaeze's Privy wallet is the guardian of her family's own purse contract, and she approves the rules once. Still to come on the dashboard: Pause and custom limits (each needs her signature).
+
 **One path for the hackathon: the daughter sets it up, and Mama only opens a link.**
 
 The person who pays has to be the one who starts, because a purse with no guardian, no meter and no limits can't be used. If Mama hears about CarePurse first, she tells her daughter, and the daughter signs up and sends her the link. Mama can't create a purse herself. For the demo, Adaeze always starts.
