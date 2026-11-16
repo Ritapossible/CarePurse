@@ -14,10 +14,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CarePurse",
-  description: "Keep Mama's lights on. Mhasibu buys electricity, airtime and data within the limits you set, and pays over x402 on Stellar.",
+  description: "Keep Mama's utilities on. Mhasibu buys electricity, airtime and data within the limits you set, and pays over x402 on Stellar.",
   openGraph: {
     title: "CarePurse",
-    description: "Keep Mama's lights on. Electricity, airtime and data for family in Nigeria, paid over x402 on Stellar.",
+    description: "Keep Mama's utilities on. Electricity, airtime and data for family in Nigeria, paid over x402 on Stellar.",
     type: "website",
   },
 };

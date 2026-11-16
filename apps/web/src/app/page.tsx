@@ -64,7 +64,7 @@ export default function Home() {
             <h1 className="mt-8 text-[52px] font-semibold leading-[0.98] tracking-[-0.04em] sm:text-7xl">
               Keep Mama’s
               <br />
-              lights on.
+              utilities on.
             </h1>
             <p className="mt-7 max-w-lg text-lg leading-relaxed text-muted sm:text-xl">
               Fund a purse for your parent in Nigeria. She asks in chat. Mhasibu buys electricity, airtime and data within the
@@ -94,7 +94,7 @@ export default function Home() {
         {/* How it works */}
         <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24">
           <p className="text-[13px] font-medium uppercase tracking-[0.25em] text-muted">How it works</p>
-          <h2 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight tracking-[-0.03em] sm:text-5xl">From your purse to her meter.</h2>
+          <h2 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight tracking-[-0.03em] sm:text-5xl">From your purse to her meter and phone.</h2>
           <ol className="mt-12 divide-y divide-line rounded-3xl border border-line">
             {STEPS.map((s, i) => (
               <li key={s.title} className="flex gap-5 px-6 py-7 sm:px-8">
