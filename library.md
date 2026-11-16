@@ -17,6 +17,7 @@ Everything here is **Stellar testnet only**.
 9. [Things to check before we rely on them](#9-things-to-check-before-we-rely-on-them)
 10. [Checked against these resources (13 November 2026)](#10-checked-against-these-resources-13-november-2026)
 11. [Stellar Lab and the Stellar docs check (14 November 2026)](#11-stellar-lab-and-the-stellar-docs-check-14-november-2026)
+12. [Technical Architecture Document template (shared 14 November 2026)](#12-technical-architecture-document-template-shared-14-november-2026)
 
 ---
 
@@ -42,6 +43,7 @@ Everything here is **Stellar testnet only**.
 | Stellar Lab (build, sign, inspect transactions; Friendbot; trustlines) | https://lab.stellar.org |
 | Stellar Lab docs | https://developers.stellar.org/docs/tools/lab |
 | Stellar networks (testnet resets) | https://developers.stellar.org/docs/networks |
+| Technical Architecture Document template (Koxy, shared 14 Nov) | https://docs.google.com/document/d/1r5AxTuHyqmYSvUC0R6B86XXq11l0gsiXJa9B4dWLVRw/edit?usp=sharing |
 
 ---
 
@@ -411,4 +413,31 @@ Checked against Stellar Lab's docs, the networks page, the x402 page, the lumens
 2. **Friendbot is rate limited.** Fund wallets once and reuse them; don't call it on every test run.
 3. **Phase 2 (purse contract):** use Lab to deploy it and test `buy` before wiring it into Mhasibu.
 4. **Production, later:** wallets for many purses would need sponsored reserves, so the daughter doesn't hold XLM. See the Sponsored Reserves guide in the Stellar docs.
+
+---
+
+## 12. Technical Architecture Document template (shared 14 November 2026)
+
+**Link:** https://docs.google.com/document/d/1r5AxTuHyqmYSvUC0R6B86XXq11l0gsiXJa9B4dWLVRw/edit?usp=sharing
+
+**What it is:** a sample "Technical Architecture Document" prepared by Progress Ochuko Eyaadah (Koxy), the workshop's instructor, shared with the EmpowerHer teams. It's a **template**: most sections hold placeholder text, and the example content comes from a food-delivery project (FastBuka: customers, vendors, riders, wallets, bank transfers). Expect to be asked to write one for CarePurse.
+
+**Its sections, and where CarePurse already has the material:**
+
+| Template section | What it asks for | CarePurse source |
+|---|---|---|
+| Introduction: High-Level Overview, Key Features, Problems Solved | What the product is and which problems it solves | `README.md` (problem, status), Gloria's problem statement in `MEMORY.md` |
+| Definitions, acronyms and abbreviations | A term table (the sample lists AML, BVN, CI/CD, FCM, ORM, RabbitMQ, WebSocket) | Ours: x402, 402, facilitator, SEP-41, Soroban, USDC base units, purse, guardian, open order, commit/refund, VTpass, off-ramp |
+| Architecture constraints: regulatory, technical, regional | Limits the design must respect | Testnet and sandbox only, no KYC (Won't have), Render free plan, testnet reset 16 Dec, Nigerian phone and meter formats, English and Pidgin |
+| C4 L1: high-level architecture (system context) | CarePurse and the people and systems around it | `docs/money-flow.png` (Adaeze, Mama, Stellar, facilitator, VTpass, off-ramp) |
+| C4 L2: containers | The parts inside CarePurse | `ARCHITECTURE.md` "The parts": web app, Mhasibu API, gateway, purse contract, Postgres |
+| UML sequence diagram ("Stellar integration flow") | One flow, step by step | The golden path: chat → `buy` → 402 → sign → retry → settle → token → `commit` (pitch deck slide 6) |
+| Deliverables 1 to 3: user stories with acceptance criteria and Figma screenshots | Each feature as "As a … I want … so that …" plus testable criteria | Mama's top-up; Adaeze's limits and receipts; the token never lost. Acceptance criteria = our tests and live checks |
+| Contract overview (if you have smart contracts) | Functions, rules, roles, errors | `contracts/purse/README.md` |
+| Technology stack: backend, frontend, infrastructure, testing, integrations | Frameworks and services | Node + Express + `@x402/*`, Next.js, Rust + soroban-sdk 29, Postgres (Neon), Render, Node test runner + `cargo test` + GitHub Actions, OpenServ (Claude), VTpass sandbox |
+| Security and authentication | Auth layers, encryption | README "Security" (API key, server-side relay, access code, on-chain caps) |
+
+**Don't copy the sample's stack.** NestJS, Prisma, Redis, RabbitMQ, Kubernetes or Dokploy, Prometheus and Grafana, ELK, Twilio, Resend, Dojah and Flutterwave belong to the FastBuka example. Describe what CarePurse actually runs.
+
+**Useful ideas in it for later:** Stellar's Quickstart Docker image for a local network in tests; an SMS provider for sending Mama's token (our open item); a test-coverage target.
 
