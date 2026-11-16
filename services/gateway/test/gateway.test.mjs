@@ -148,3 +148,23 @@ test("SERVICE_FEE_BPS=0 switches the fee off and the gateway still starts; out-o
   assert.match(read("1001"), /^ERR SERVICE_FEE_BPS must be a whole number from 0 to 1000/);
   assert.match(read("-1"), /^ERR/);
 });
+
+test("orders and meter lookups need the gateway key; the x402 route and options stay open", async () => {
+  const key = "k".repeat(32);
+  const gw = await startGateway({ config: { ...config, apiKey: key } });
+  try {
+    const auth = { authorization: `Bearer ${key}` };
+    const body = JSON.stringify({ utility: "airtime", ngn: 100, destination: "08031234567" });
+    assert.equal((await fetch(`${gw.base}/v1/orders`, { method: "POST", headers: { "content-type": "application/json" }, body })).status, 401);
+    assert.equal((await fetch(`${gw.base}/v1/orders`, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer wrong" }, body })).status, 401);
+    const created = await fetch(`${gw.base}/v1/orders`, { method: "POST", headers: { "content-type": "application/json", ...auth }, body });
+    assert.equal(created.status, 201);
+    const { order, payPath } = await created.json();
+    assert.equal((await fetch(`${gw.base}/v1/orders/${order.id}`)).status, 401);
+    assert.equal((await fetch(`${gw.base}/v1/orders/${order.id}`, { headers: auth })).status, 200);
+    assert.equal((await fetch(`${gw.base}/v1/orders/by-ref/${"0".repeat(64)}`)).status, 401);
+    assert.equal((await fetch(`${gw.base}/v1/meters/45012345678`)).status, 401);
+    assert.equal((await fetch(`${gw.base}/v1/options?utility=airtime`)).status, 200);
+    assert.equal((await fetch(`${gw.base}${payPath}`)).status, 402); // x402: payment is the door
+  } finally { await gw.close(); }
+});

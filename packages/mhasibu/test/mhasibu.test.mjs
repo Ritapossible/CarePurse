@@ -497,3 +497,30 @@ test("an order known only from the chain, still fulfilling: wait (its start come
   await mhasibu.handle("demo", "1");
   assert.deepEqual(wallet.chain.calls, []); // neither paid nor refunded while it may still settle
 });
+
+// ── Privacy ────────────────────────────────────────────────────
+test("on-chain meter/phone fingerprints are keyed and salted per purse, never a plain sha256", async () => {
+  const { destHash, sha256, buyArgs } = await import("../src/purse-contract.mjs");
+  const a = destHash("45012345678", { key: "k1", contractId: "CPURSE1" });
+  assert.equal(a.length, 32);
+  assert.deepEqual(a, destHash("45012345678", { key: "k1", contractId: "CPURSE1" })); // stable, so the contract can compare
+  assert.notDeepEqual(a, sha256("45012345678")); // can't be found by hashing every number
+  assert.notDeepEqual(a, destHash("45012345678", { key: "k1", contractId: "CPURSE2" })); // differs per purse
+  assert.notDeepEqual(a, destHash("45012345678", { key: "k2", contractId: "CPURSE1" })); // needs the key
+  assert.throws(() => destHash("45012345678", { contractId: "CPURSE1" }), /No destination hash key/);
+  assert.throws(() => buyArgs({ utility: "electricity", destination: "45012345678", amount: 1n, orderId: "o" }), /No destination hash key/);
+});
+
+test("records are sealed with AES-256-GCM before they reach the database", async () => {
+  const { sealer } = await import("../src/records.mjs");
+  assert.equal(sealer(""), null);
+  const box = sealer("a-render-generated-value");
+  const doc = { destinations: { electricity: "45012345678" }, history: ["light don finish"], token: "6563 5138 0000" };
+  const sealed = box.seal("purse", "demo", doc);
+  assert.deepEqual(Object.keys(sealed), ["enc"]);
+  assert.doesNotMatch(JSON.stringify(sealed), /4501|light|6563/);
+  assert.notEqual(sealed.enc, box.seal("purse", "demo", doc).enc); // fresh IV every time
+  assert.deepEqual(box.open("purse", "demo", sealed), doc);
+  assert.throws(() => box.open("purse", "someone-else", sealed)); // can't be moved to another row
+  assert.throws(() => sealer("wrong-key").open("purse", "demo", sealed));
+});

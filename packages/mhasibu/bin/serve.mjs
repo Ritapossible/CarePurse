@@ -119,7 +119,7 @@ const server = http.createServer(async (req, res) => {
       emit({ type: "attack", usdc: Number(amount) / 1e7, text: `Bypassing Mhasibu's own rule checks: asking the purse contract for ${(Number(amount) / 1e7).toFixed(7)} USDC of electricity, just over Adaeze's cap` });
       try {
         const r = await soroban.invoke(agent, config.purseContractId, "buy",
-          buyArgs({ utility: "electricity", destination: purse.destinations.electricity, amount, orderId }));
+          buyArgs({ utility: "electricity", destination: purse.destinations.electricity, amount, orderId, key: config.destHashKey, contractId: config.purseContractId }));
         emit({ type: "contract-ok", tx: r.hash, text: "The contract allowed it (it shouldn't): refunding now" });
         const back = await soroban.invoke(agent, config.purseContractId, "refund", refundArgs(orderId));
         emit({ type: "refunded", tx: back.hash, amount: String(amount) });

@@ -17,7 +17,7 @@ catch { console.error("AGENT_SECRET_KEY missing or invalid. Run: npm run setup")
 // 1. Order (free)
 const created = await fetch(`${config.gatewayUrl}/v1/orders`, {
   method: "POST",
-  headers: { "content-type": "application/json" },
+  headers: { "content-type": "application/json", ...(config.apiKey && { authorization: `Bearer ${config.apiKey}` }) },
   body: JSON.stringify({ utility, ngn: Number(ngn), destination }),
 });
 const { order, payPath, error } = await created.json();

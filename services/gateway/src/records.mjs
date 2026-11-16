@@ -6,13 +6,44 @@
 // callers `await flush()` before answering, so nothing is shown to Mama before it's stored.
 // One table, one JSON document per record. Assumes one running instance per service.
 //
+// Encrypted at rest: with DATA_ENCRYPTION_KEY set, each document is sealed with AES-256-GCM before
+// it leaves the process (the row's kind and id are bound in as associated data, so a sealed row
+// can't be swapped into another row). Postgres and its backups only ever hold
+// {"enc":"v1.<base64>"}: no meter or phone numbers, tokens or chat. Plain rows written before the
+// key was set are still read, and sealed on their next save.
+//
 // NOTE: kept identical in services/gateway/src/records.mjs and packages/mhasibu/src/records.mjs
 // (each service deploys on its own).
+import crypto from "node:crypto";
 import pg from "pg";
 
 const TABLE = "carepurse_records";
 
-export async function openRecords(databaseUrl, kinds, { log = console } = {}) {
+// Any string works as the key (Render's generated values included): it is stretched to 32 bytes.
+export function sealer(secret) {
+  if (!secret) return null;
+  const key = crypto.createHash("sha256").update(`carepurse/records/v1:${secret}`).digest();
+  return {
+    seal(kind, id, doc) {
+      const iv = crypto.randomBytes(12);
+      const c = crypto.createCipheriv("aes-256-gcm", key, iv);
+      c.setAAD(Buffer.from(`${kind}:${id}`));
+      const body = Buffer.concat([c.update(JSON.stringify(doc), "utf8"), c.final()]);
+      return { enc: `v1.${Buffer.concat([iv, c.getAuthTag(), body]).toString("base64")}` };
+    },
+    open(kind, id, sealed) {
+      const raw = Buffer.from(String(sealed.enc).replace(/^v1\./, ""), "base64");
+      const d = crypto.createDecipheriv("aes-256-gcm", key, raw.subarray(0, 12));
+      d.setAAD(Buffer.from(`${kind}:${id}`));
+      d.setAuthTag(raw.subarray(12, 28));
+      return JSON.parse(Buffer.concat([d.update(raw.subarray(28)), d.final()]).toString("utf8"));
+    },
+  };
+}
+
+export async function openRecords(databaseUrl, kinds, { log = console, encryptionKey = process.env.DATA_ENCRYPTION_KEY } = {}) {
+  const box = sealer((encryptionKey ?? "").trim());
+  if (!box) log.warn?.("DATA_ENCRYPTION_KEY is not set: records are stored unencrypted. Set it in production.");
   const pool = new pg.Pool({ connectionString: databaseUrl, max: 3 });
   await pool.query(`create table if not exists ${TABLE} (
     kind text not null,
@@ -20,7 +51,12 @@ export async function openRecords(databaseUrl, kinds, { log = console } = {}) {
     doc jsonb not null,
     updated_at timestamptz not null default now(),
     primary key (kind, id))`);
-  const { rows } = await pool.query(`select kind, id, doc from ${TABLE} where kind = any($1)`, [kinds]);
+  const { rows: stored } = await pool.query(`select kind, id, doc from ${TABLE} where kind = any($1)`, [kinds]);
+  const rows = stored.map((r) => {
+    if (r.doc?.enc === undefined) return r; // a plain row from before the key: sealed on its next save
+    if (!box) throw new Error("These records are encrypted: set DATA_ENCRYPTION_KEY to the key they were written with.");
+    return { ...r, doc: box.open(r.kind, r.id, r.doc) };
+  });
 
   let chain = Promise.resolve();
   let failure = null;
@@ -28,7 +64,7 @@ export async function openRecords(databaseUrl, kinds, { log = console } = {}) {
     rows,
     // Snapshot now, write in order. A failed write is logged and reported by the next flush().
     save(kind, id, doc) {
-      const json = JSON.stringify(doc);
+      const json = JSON.stringify(box ? box.seal(kind, id, doc) : doc);
       chain = chain
         .then(() => pool.query(
           `insert into ${TABLE} (kind, id, doc) values ($1, $2, $3::jsonb)

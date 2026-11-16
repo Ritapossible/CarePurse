@@ -17,6 +17,8 @@ export function maxPaymentUsd(config) {
 }
 
 export function createWallet(config = defaultConfig) {
+  // The gateway's private routes (orders) need its key: GATEWAY_API_KEY, the same on both services.
+  const gatewayAuth = () => (config.gatewayApiKey ? { authorization: `Bearer ${config.gatewayApiKey}` } : {});
   const json = async (res) => { const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`); return body; };
 
   return {
@@ -51,7 +53,7 @@ export function createWallet(config = defaultConfig) {
 
     async createOrder({ utility, ngn, destination, network, disco, contactPhone }) {
       const res = await fetch(new URL("/v1/orders", config.gatewayUrl), {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ utility, ngn, destination, network, disco, contactPhone }),
+        method: "POST", headers: { "content-type": "application/json", ...gatewayAuth() }, body: JSON.stringify({ utility, ngn, destination, network, disco, contactPhone }),
       });
       return json(res);
     },
@@ -72,7 +74,7 @@ export function createWallet(config = defaultConfig) {
     // ContractRefused when the contract says no. Phase 1 (no contract): not defined.
     release: !config.purseContractId ? undefined : async ({ utility, destination, amount, orderId }) => {
       const soroban = createSoroban({ rpcUrl: config.rpcUrl });
-      const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "buy", buyArgs({ utility, destination, amount, orderId }));
+      const { hash } = await soroban.invoke(Keypair.fromSecret(config.agentSecret), config.purseContractId, "buy", buyArgs({ utility, destination, amount, orderId, key: config.destHashKey, contractId: config.purseContractId }));
       return { tx: hash, contractId: config.purseContractId };
     },
 
@@ -101,13 +103,13 @@ export function createWallet(config = defaultConfig) {
 
     // The gateway's record of an order: status, and the token if one was delivered or issued.
     async orderStatus(orderId) {
-      const res = await fetch(new URL(`/v1/orders/${orderId}`, config.gatewayUrl));
+      const res = await fetch(new URL(`/v1/orders/${orderId}`, config.gatewayUrl), { headers: gatewayAuth() });
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`order lookup HTTP ${res.status}`);
       return (await res.json()).order;
     },
     async orderByRef(ref) {
-      const res = await fetch(new URL(`/v1/orders/by-ref/${ref}`, config.gatewayUrl));
+      const res = await fetch(new URL(`/v1/orders/by-ref/${ref}`, config.gatewayUrl), { headers: gatewayAuth() });
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`order lookup HTTP ${res.status}`);
       return (await res.json()).order;

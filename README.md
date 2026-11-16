@@ -260,7 +260,7 @@ Mama is an elderly woman sharing her meter number, her phone number and how her 
 | Data | Where it goes | Who can read it |
 |---|---|---|
 | **Mama's chat messages** | Mhasibu (our server) and the private model on NEAR AI Cloud | Our server only. NEAR runs the model inside a **TEE** (Intel TDX + NVIDIA confidential computing, attested), so not even the host can read them |
-| **Meter and phone numbers** | Our database, the gateway, and VTpass (it needs them to deliver) | **Never on Stellar.** The purse contract stores only a sha256 fingerprint |
+| **Meter and phone numbers** | Our database (encrypted), the gateway, and VTpass (it needs them to deliver) | **Never on Stellar.** The purse contract stores only a keyed fingerprint (HMAC-SHA256, salted per purse) |
 | **Amounts and wallet addresses** | Stellar Testnet | Public, like any blockchain: USDC amounts, wallet addresses and fingerprints. No names, numbers or chat |
 | **Electricity tokens** | The gateway's order, Mama's purchase history, Adaeze's receipts | Mama and Adaeze |
 | **The service fee** | Adaeze's receipts | Adaeze only. Mama sees face value |
@@ -272,7 +272,9 @@ Mama is an elderly woman sharing her meter number, her phone number and how her 
 | **A private model by default** | DeepSeek V4.1 Flash on NEAR AI Cloud, a *verifiable* model that runs in attested confidential hardware. We chose it over Claude on NEAR, which NEAR marks as not verifiable (it is passed through to Anthropic) | `packages/mhasibu/src/understand.mjs`, `LLM_*` in `render.yaml` |
 | **No silent fallback to a non-private model** | If the private model is down or answers outside the schema, the keyword parser runs on our own server. Mama's words never go anywhere else | `createUnderstander` |
 | **The model learns as little as possible** | It gets only her message (cut at 2,000 characters) and returns only `intent`, `utility` and `choice`. No name, no balance, no limits, no keys | `understand.mjs` |
-| **Fingerprints on-chain** | `set_destination` and `buy` take sha256 of the meter or phone; the order reference is sha256 of the order id. The ledger ties each payment to one order without showing who or where | `contracts/purse`, `purse-contract.mjs` |
+| **Keyed fingerprints on-chain** | `set_destination` and `buy` take an HMAC-SHA256 of the meter or phone, keyed with a secret and salted with the purse's contract id. Nobody can find the number by hashing every possible one, and the same meter looks different in two purses. The order reference is sha256 of a random order id | `destHash` in `purse-contract.mjs`, `contracts/purse` |
+| **Orders behind a key** | The gateway's order and meter routes (meter and phone numbers, tokens) answer only Mhasibu, with `GATEWAY_API_KEY` (constant-time check); without a key, only its own machine. The x402 route stays open: payment is its door | `services/gateway/src/server.mjs` |
+| **Encrypted at rest** | With `DATA_ENCRYPTION_KEY`, every row is sealed with AES-256-GCM before it leaves the process, bound to its own row. Postgres and its backups hold only `{"enc": "v1..."}`: no meters, phones, tokens or chat | `records.mjs` (both services) |
 | **Nothing personal in the x402 payment** | The paid URL carries only a random order id (`/paid/topup/electricity/500?order=…`), never a meter or phone | `services/gateway/src/server.mjs` |
 | **Logs without personal data** | The Agent & x402 Log shows amounts, rules and Stellar links, never meter or phone numbers | `mhasibu.mjs` log events |
 | **Locked doors** | Mhasibu's API needs a key only the web app's server holds; the web app needs the access code (see [Security](#security)) | relay route, `serve.mjs` |
@@ -282,10 +284,11 @@ Checked live (16 Nov): 11 of 11 real Mama messages understood by the private mod
 
 ### Privacy limits (hackathon)
 
-- A plain sha256 of a meter or phone number could be guessed by trying every number. Production: a keyed hash (HMAC with a per-purse secret) before anything goes on-chain.
-- The gateway's free order-status route answers anyone who knows an order id. Ids are random (64 bits), but production puts these routes behind Mhasibu's key too.
-- Purses, chat and tokens are stored as JSON in Postgres. Neon encrypts storage at rest; production also encrypts the meter and phone fields.
+Fixed on 16 Nov, checked live on testnet: plain sha256 fingerprints became keyed ones (the purse was re-synced and a ₦500 top-up went through), the gateway's order routes need a key (401 without it), and database rows are encrypted (the Postgres tests run with encryption on and the raw rows hold no meter, phone or token). What remains:
+
 - VTpass, like any biller, sees the meter or phone it delivers to, and Mama's phone for the electricity receipt.
+- Our running servers decrypt data in memory to serve Mama; whoever runs the servers holds the keys.
+- Payments are public on Stellar (amounts and wallet addresses), as on any blockchain.
 
 ## Team
 

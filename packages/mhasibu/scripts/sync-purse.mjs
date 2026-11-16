@@ -6,7 +6,7 @@ import { xdr } from "@stellar/stellar-sdk";
 import { config } from "../src/config.mjs";
 import { DEMO_PURSE, openPurseStore } from "../src/purses.mjs";
 import { monthlyCap } from "../src/limits.mjs";
-import { bytes32, capBaseUnits, createSoroban, i128, keypair, sha256, symbol } from "../src/purse-contract.mjs";
+import { bytes32, capBaseUnits, createSoroban, destHash, i128, keypair, symbol } from "../src/purse-contract.mjs";
 
 const MIN_TOPUP = { electricity: 500, airtime: 100, data: 100 };
 const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
@@ -28,7 +28,7 @@ const capsVal = (l, u) => xdr.ScVal.scvMap([
   ["per_day", l.perDay], ["per_month", l.perMonth], ["per_topup", l.perTopup], ["per_week", l.perWeek],
 ].map(([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, config.ngnPerUsdc, MIN_TOPUP[u], config.usdc.decimals, config.serviceFeeBps)) })));
 for (const [utility, limits] of Object.entries(purse.limits)) {
-  const d = await soroban.invoke(guardian, config.purseContractId, "set_destination", [symbol(utility), bytes32(sha256(purse.destinations[utility]))]);
+  const d = await soroban.invoke(guardian, config.purseContractId, "set_destination", [symbol(utility), bytes32(destHash(purse.destinations[utility], { key: config.destHashKey, contractId: config.purseContractId }))]);
   const c = await soroban.invoke(guardian, config.purseContractId, "set_caps", [symbol(utility), capsVal(limits, utility)]);
   console.log(`✓ ${utility}: destination and caps saved on-chain · ${link(d.hash)} · ${link(c.hash)}`);
 }

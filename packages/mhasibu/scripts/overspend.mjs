@@ -16,7 +16,7 @@ const amount = BigInt(Math.round(usdc * 10 ** config.usdc.decimals));
 console.log(`Agent asks the purse contract for ${usdc} USDC of electricity (skipping Mhasibu's own checks)…`);
 try {
   const r = await soroban.invoke(keypair(config.agentSecret), config.purseContractId, "buy",
-    buyArgs({ utility: "electricity", destination: purse.destinations.electricity, amount, orderId: `overspend-${Date.now()}` }));
+    buyArgs({ utility: "electricity", destination: purse.destinations.electricity, amount, orderId: `overspend-${Date.now()}`, key: config.destHashKey, contractId: config.purseContractId }));
   console.log(`✗ The contract allowed it: ${config.explorerUrl}/tx/${r.hash}`);
   process.exit(1);
 } catch (e) {

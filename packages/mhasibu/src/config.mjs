@@ -2,6 +2,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
+import { createHash } from "node:crypto";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(here, "../../..");
@@ -27,6 +28,9 @@ export const config = {
   allowedHost: new URL(gatewayUrl).host,
   gatewayRecipient: env("GATEWAY_RECIPIENT"),
   agentSecret: env("AGENT_SECRET_KEY"),
+  // Key for the meter/phone fingerprints on-chain (see destHash). DEST_HASH_KEY if set, otherwise
+  // derived from the agent secret (rotating that key means re-running npm run sync-purse).
+  destHashKey: env("DEST_HASH_KEY") || (env("AGENT_SECRET_KEY") ? createHash("sha256").update(`carepurse/dest-hash-key/v1:${env("AGENT_SECRET_KEY")}`).digest("hex") : ""),
   // Phase 2: the purse contract holds the money and enforces the caps on-chain (npm run deploy-purse).
   // Empty = Phase 1, where the agent wallet is the purse.
   purseContractId: env("PURSE_CONTRACT_ID"),
@@ -41,6 +45,8 @@ export const config = {
   pursesFile: path.resolve(repoRoot, env("PURSES_FILE", ".data/purses.json")),
   // Postgres for purses, purchases, tokens and chat, so they survive restarts. Empty = the JSON file.
   databaseUrl: env("DATABASE_URL"),
+  // The gateway's key for its private order routes (same value as the gateway's GATEWAY_API_KEY).
+  gatewayApiKey: env("GATEWAY_API_KEY"),
   llm: {
     // A model understands Mama's message. Without a key, the built-in scripted parser does it.
     // Default (privacy): NEAR AI Cloud, OpenAI-style API, a verifiable model that runs in a TEE:

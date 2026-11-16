@@ -19,6 +19,7 @@ Stellar **testnet** and the VTpass **sandbox** only. Three services from one Blu
 1. Sign up at **https://neon.tech** (free; GitHub login works) and create a project, for example `carepurse`, region close to Render's (Frankfurt or US East).
 2. Copy the **connection string** (it looks like `postgresql://user:password@ep-xxxx.neon.tech/neondb?sslmode=require`).
 3. Paste it as `DATABASE_URL` for **carepurse-gateway** and **carepurse-mhasibu** in Render. Nothing else to set up: the table is created on first start.
+4. Render generates `DATA_ENCRYPTION_KEY` on both services: every row is sealed (AES-256-GCM) before it reaches Neon. **Copy both values somewhere safe** (a password manager): without them the stored rows can't be read.
 
 Why Neon: Render's free Postgres is deleted after 30 days (mid-December, around Demo Day); Supabase's free tier pauses after a week without use.
 
@@ -40,6 +41,7 @@ Add three HTTP(s) monitors, every 5 minutes: the gateway's `/health`, Mhasibu's 
 ## Things to know
 
 - **Free plan sleeps** after 15 minutes idle; the first request takes about a minute. Open all three URLs a few minutes before a demo.
+- **Privacy keys are automatic:** `GATEWAY_API_KEY` is generated on the gateway and shared with Mhasibu (only Mhasibu can read orders), and `DATA_ENCRYPTION_KEY` on each service. The meter/phone fingerprints on-chain are keyed from `AGENT_SECRET_KEY`, so use the same agent key as in `.env`, or run `npm run sync-purse` after changing it.
 - **Set `DATABASE_URL`** on the gateway and on Mhasibu (the same database is fine). Render's free plan wipes files on every restart; with the database, orders, purchases, Mama's tokens and her chat survive. Without it they'd reset after each restart.
 - **Mhasibu is not public.** Every route except `/v1/status` needs `MHASIBU_API_KEY`; only the web app's server holds it. Mama's chat and tokens are reachable only through the web app (and its access code, if set).
 - **No secrets in `render.yaml`.** The gateway only needs its public address; only Mhasibu holds a secret key.

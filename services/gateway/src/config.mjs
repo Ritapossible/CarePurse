@@ -58,11 +58,16 @@ export const config = {
   // Postgres for orders (and their tokens), so they survive restarts. Empty = the JSON file.
   databaseUrl: env("DATABASE_URL"),
   orderTtlMinutes: number("ORDER_TTL_MINUTES", 10),
+  // Private routes (orders, meter lookups: they carry meter and phone numbers and tokens) need
+  // "Authorization: Bearer <GATEWAY_API_KEY>"; only Mhasibu has it. Without a key: this machine only.
+  apiKey: env("GATEWAY_API_KEY"),
 };
 
 if (config.provider === "vtpass" && !/^https:\/\/sandbox\.vtpass\.com\//.test(config.vtpass.baseUrl)) {
   throw new Error("CarePurse uses the VTpass SANDBOX only. Set VTPASS_BASE_URL=https://sandbox.vtpass.com/api");
 }
+
+if (config.apiKey && config.apiKey.length < 24) throw new Error("GATEWAY_API_KEY must be at least 24 characters.");
 
 if (config.network !== "stellar:testnet") {
   throw new Error("CarePurse runs on Stellar testnet only. Set STELLAR_NETWORK=stellar:testnet");

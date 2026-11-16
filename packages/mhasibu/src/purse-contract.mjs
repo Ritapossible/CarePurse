@@ -101,9 +101,19 @@ export const orderRef = (orderId) => sha256(orderId).toString("hex");
 // The same, from the raw on-chain reference (hex), for an order whose id was lost.
 export const refArgs = (refHex) => [bytes32(Buffer.from(refHex, "hex"))];
 
+// The fingerprint of a saved meter or phone, as the contract stores it. A keyed hash (HMAC-SHA256)
+// salted with the purse's contract id: the ledger shows neither the number nor a plain sha256 that
+// could be found by trying every number, and the same meter gives different fingerprints in
+// different purses. `key` is config.destHashKey (DEST_HASH_KEY, or derived from the agent secret).
+export function destHash(destination, { key, contractId }) {
+  if (!key) throw new Error("No destination hash key: set DEST_HASH_KEY or AGENT_SECRET_KEY.");
+  if (!contractId) throw new Error("destHash needs the purse contract id.");
+  return crypto.createHmac("sha256", key).update(`carepurse/dest/v1:${contractId}:${destination}`).digest();
+}
+
 // The arguments of `buy`, built the same way everywhere.
-export function buyArgs({ utility, destination, amount, orderId }) {
-  return [symbol(utility), bytes32(sha256(destination)), i128(amount), bytes32(sha256(orderId))];
+export function buyArgs({ utility, destination, amount, orderId, key, contractId }) {
+  return [symbol(utility), bytes32(destHash(destination, { key, contractId })), i128(amount), bytes32(sha256(orderId))];
 }
 
 export const addressVal = (a) => new Address(a).toScVal();

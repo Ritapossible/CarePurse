@@ -1,15 +1,17 @@
 // The CarePurse gateway: the x402 seller.
 //
 //   GET  /v1/options?utility=electricity[&max_ngn=5000]   free: sizes and prices
-//   GET  /v1/meters/:meter                                free: who owns this meter
-//   POST /v1/orders {utility, ngn, destination}           free: create an order
-//   GET  /v1/orders/:id                                   free: order status (and its token)
-//   GET  /v1/orders/by-ref/:sha256(id)                    free: the same, by the purse contract's reference
+//   GET  /v1/meters/:meter                                key: who owns this meter
+//   POST /v1/orders {utility, ngn, destination}           key: create an order
+//   GET  /v1/orders/:id                                   key: order status (and its token)
+//   GET  /v1/orders/by-ref/:sha256(id)                    key: the same, by the purse contract's reference
+//   (key = Authorization: Bearer GATEWAY_API_KEY, only Mhasibu has it; without one, this machine only)
 //   GET  /paid/topup/:utility/:ngn?order=<id>             x402: 402 until paid, then the token
 //
 // The flow on the paid route: 402 → the payer signs a USDC transfer → retry → the facilitator
 // verifies → our handler fulfils → the facilitator settles on Stellar → 200 with PAYMENT-RESPONSE.
 // If the handler answers with an error, the middleware cancels settlement and nobody pays.
+import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
 import express from "express";
 import { StrKey } from "@stellar/stellar-sdk";
@@ -71,6 +73,20 @@ export function createApp({
     }
     res.json({ utility, options: list });
   });
+
+  // Orders and meter lookups carry Mama's meter and phone numbers and her tokens: only Mhasibu may
+  // read them. Constant-time bearer check; without GATEWAY_API_KEY, only this machine. The paid
+  // route stays open: x402 payment is its door, and it needs a fresh order id Mhasibu just created.
+  const loopback = (req) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress);
+  const authorised = (req) => {
+    if (!config.apiKey) return loopback(req);
+    const given = Buffer.from(String(req.headers.authorization ?? "").replace(/^Bearer\s+/i, ""));
+    const want = Buffer.from(config.apiKey);
+    return given.length === want.length && crypto.timingSafeEqual(given, want);
+  };
+  const privateRoute = (req, res, next) => (authorised(req) ? next() : res.status(401).json({ error: "Not authorised." }));
+  app.use("/v1/orders", privateRoute);
+  app.use("/v1/meters", privateRoute);
 
   app.get("/v1/meters/:meter", async (req, res) => {
     const result = await provider.lookupMeter(req.params.meter, { disco: req.query.disco });

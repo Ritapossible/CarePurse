@@ -7,7 +7,7 @@ const [utility = "electricity", ngn = "5000", destination = utility === "electri
 
 const created = await fetch(`${config.gatewayUrl}/v1/orders`, {
   method: "POST",
-  headers: { "content-type": "application/json" },
+  headers: { "content-type": "application/json", ...(config.apiKey && { authorization: `Bearer ${config.apiKey}` }) },
   body: JSON.stringify({ utility, ngn: Number(ngn), destination }),
 });
 const body = await created.json();

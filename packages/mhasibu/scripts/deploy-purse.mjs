@@ -13,7 +13,7 @@ import { Address, Horizon, Keypair, Operation } from "@stellar/stellar-sdk";
 import { config, repoRoot } from "../src/config.mjs";
 import { openPurseStore } from "../src/purses.mjs";
 import { monthlyCap } from "../src/limits.mjs";
-import { addressVal, bytes32, capBaseUnits, createSoroban, i128, sha256, symbol } from "../src/purse-contract.mjs";
+import { addressVal, bytes32, capBaseUnits, createSoroban, destHash, i128, symbol } from "../src/purse-contract.mjs";
 import { xdr } from "@stellar/stellar-sdk";
 
 const MIN_TOPUP = { electricity: 500, airtime: 100, data: 100 };
@@ -67,7 +67,7 @@ const capsVal = (l, u) => xdr.ScVal.scvMap([
 ].map(([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, config.ngnPerUsdc, MIN_TOPUP[u], config.usdc.decimals, config.serviceFeeBps)) })));
 for (const [utility, limits] of Object.entries(purse.limits)) {
   const c = await soroban.invoke(guardian, contractId, "set_caps", [symbol(utility), capsVal(limits, utility)]);
-  const d = await soroban.invoke(guardian, contractId, "set_destination", [symbol(utility), bytes32(sha256(purse.destinations[utility]))]);
+  const d = await soroban.invoke(guardian, contractId, "set_destination", [symbol(utility), bytes32(destHash(purse.destinations[utility], { key: config.destHashKey, contractId }))]);
   console.log(`✓ ${utility}: caps ₦${limits.perTopup.toLocaleString("en-NG")} per top-up, destination saved as a hash · ${link(c.hash)} · ${link(d.hash)}`);
 }
 // Always recomputed from the limits; 0 would mean no total limit on-chain, so never write it.

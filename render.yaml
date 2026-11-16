@@ -34,6 +34,8 @@ services:
       - { key: VTPASS_SECRET_KEY, sync: false }
       - { key: VTPASS_PUBLIC_KEY, sync: false }
       - { key: DATABASE_URL, sync: false }           # Neon Postgres: orders and tokens survive restarts
+      - { key: GATEWAY_API_KEY, generateValue: true } # only Mhasibu may read orders (meter, phone, tokens)
+      - { key: DATA_ENCRYPTION_KEY, generateValue: true } # orders sealed with AES-256-GCM before Postgres
 
   # Mhasibu: holds the agent wallet, asks the purse contract, pays the gateway over x402.
   - type: web
@@ -66,6 +68,9 @@ services:
       - { key: LLM_API_KEY, sync: false }            # NEAR AI Cloud key; empty = keyword parser
       - { key: MHASIBU_API_KEY, generateValue: true } # Render makes a random key; the web app reads it below
       - { key: DATABASE_URL, sync: false }           # same Neon database: purses, purchases, tokens, chat
+      - { key: DATA_ENCRYPTION_KEY, generateValue: true } # purses and chat sealed with AES-256-GCM before Postgres
+      - key: GATEWAY_API_KEY                          # the gateway's key, to create and look up orders
+        fromService: { type: web, name: carepurse-gateway, envVarKey: GATEWAY_API_KEY }
 
   # Mama's chat and the judges' demo view.
   - type: web
