@@ -53,7 +53,7 @@ details[open] .faq-plus {
   transform: rotate(45deg);
 }
 
-/* One easing curve for every transition (unslop tokens). */
+/* One easing curve for every transition. */
 * {
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
