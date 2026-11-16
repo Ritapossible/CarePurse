@@ -21,7 +21,7 @@ Everything below runs today on Stellar testnet with real sandbox fulfilment.
 | x402 paid gateway (402 → sign → retry → settle) | ✅ Done 13 Nov | `services/gateway`, 16 tests |
 | Mhasibu agent: understands Mama, checks every rule, pays over x402 | ✅ Done 13 Nov | `packages/mhasibu`, 36 tests |
 | Claude for understanding (via OpenServ), English, Pidgin and typos | ✅ Done 13-14 Nov | "ligt don almst finsh" → electricity |
-| Private understanding: verifiable model on NEAR AI Cloud (TEE) | ✅ Done 16 Nov | 11 of 11 live messages right, about 1.4 s each |
+| Private understanding: verifiable model on NEAR AI Cloud (TEE) | ✅ Done 16 Nov | 13 of 13 live messages answered by the private model itself, about 2 s each |
 | Soroban purse contract: caps and saved meter/phone enforced on-chain | ✅ Done 14 Nov | `contracts/purse`, 17 tests, [live contract](https://stellar.expert/explorer/testnet/contract/CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC) |
 | On-chain refusal demo: just over Adaeze's cap, refused by the contract | ✅ Done 14 Nov | `npm run overspend` and the demo button → `OverPerTopup` (Error #3), no USDC moved |
 | Security: private agent API, safe recovery, five external reviews fixed | ✅ Done 14 Nov | See [Security](#security) |
@@ -269,7 +269,8 @@ Mama is an elderly woman sharing her meter number, her phone number and how her 
 
 | Protection | What it means | Where |
 |---|---|---|
-| **A private model by default** | DeepSeek V4.1 Flash on NEAR AI Cloud, a *verifiable* model that runs in attested confidential hardware. We chose it over Claude on NEAR, which NEAR marks as not verifiable (it is passed through to Anthropic) | `packages/mhasibu/src/understand.mjs`, `LLM_*` in `render.yaml` |
+| **A private model by default** | `deepseek-ai/DeepSeek-V4.1-Flash-1017` on NEAR AI Cloud, which NEAR marks *verifiable*: NEAR serves it itself in attested confidential hardware. Not every NEAR model is private: some (Claude, and `deepseek/deepseek-v4.1-flash`) are forwarded to other providers | `packages/mhasibu/src/understand.mjs`, `LLM_*` in `render.yaml` |
+| **Checked at start, refused if not private** | Mhasibu reads NEAR's model list when it starts. If the configured model is marked not verifiable, Mama's words are never sent to it: the keyword parser on our server answers, and the log warns. The live log shows which brain is in use | `nearPrivacy`, `openUnderstander` |
 | **No silent fallback to a non-private model** | If the private model is down or answers outside the schema, the keyword parser runs on our own server. Mama's words never go anywhere else | `createUnderstander` |
 | **The model learns as little as possible** | It gets only her message (cut at 2,000 characters) and returns only `intent`, `utility` and `choice`. No name, no balance, no limits, no keys | `understand.mjs` |
 | **Keyed fingerprints on-chain** | `set_destination` and `buy` take an HMAC-SHA256 of the meter or phone, keyed with a secret and salted with the purse's contract id. Nobody can find the number by hashing every possible one, and the same meter looks different in two purses. The order reference is sha256 of a random order id | `destHash` in `purse-contract.mjs`, `contracts/purse` |
@@ -280,7 +281,7 @@ Mama is an elderly woman sharing her meter number, her phone number and how her 
 | **Locked doors** | Mhasibu's API needs a key only the web app's server holds; the web app needs the access code (see [Security](#security)) | relay route, `serve.mjs` |
 | **Each key goes only to its own host** | The NEAR key is only ever sent to NEAR, never to Anthropic or anyone else | `packages/mhasibu/src/config.mjs` |
 
-Checked live (16 Nov): 11 of 11 real Mama messages understood by the private model (Pidgin, typos, "send airtime to my neighbour" read as a rule change for Adaeze), about 1.4 s each.
+Checked live (16 Nov): 13 of 13 real Mama messages answered by the private model itself, with the keyword fallback switched off for the test (Pidgin, typos, a long message, "send airtime to my neighbour" read as a rule change for Adaeze, a prompt injection read as unknown), about 2 s each.
 
 ### Privacy limits (hackathon)
 

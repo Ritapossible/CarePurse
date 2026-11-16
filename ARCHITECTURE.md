@@ -206,7 +206,7 @@ buy(utility, dest_hash, amount, order_ref)         agent only
 
 ## Mhasibu (the agent)
 
-- **The LLM's job:** classifying Mama's message into `intent` (buy, choose, cancel, check_balance, history, change_rules, help, unknown), `utility` and `choice`, with a fixed schema. Default: DeepSeek V4.1 Flash on NEAR AI Cloud (`LLM_API=openai`), a verifiable model that runs in a TEE so Mama's messages stay private. Claude Opus 5.5 (Anthropic or OpenServ, `LLM_API=anthropic`) still works as an option. Without a key, or if the model fails or returns anything outside the schema, a scripted English/Pidgin parser does it.
+- **The LLM's job:** classifying Mama's message into `intent` (buy, choose, cancel, check_balance, history, change_rules, help, unknown), `utility` and `choice`, with a fixed schema. Default: `deepseek-ai/DeepSeek-V4.1-Flash-1017` on NEAR AI Cloud (`LLM_API=openai`), which NEAR marks verifiable (served in an attested TEE) so Mama's messages stay private. Mhasibu checks NEAR's model list at start and refuses a model marked not private. Claude Opus 5.5 (Anthropic or OpenServ, `LLM_API=anthropic`) still works as an option. Without a key, or if the model fails or returns anything outside the schema, a scripted English/Pidgin parser does it.
 - **The code's job:** every amount, every rule check, every payment.
 - **Not told its limits:** the prompt only says a purchase may be refused.
 - **Fixed replies:** the model never writes reply text. Every reply is a template in English or Pidgin, filled in by code, so it can't invent an amount. This replaces the earlier "discard replies with model-typed numbers" idea, and is stronger.
@@ -263,7 +263,7 @@ One Postgres table, `carepurse_records (kind, id, doc jsonb)`: `order` and `tx` 
 
 Mama's personal data stays where a top-up needs it, and no further. Full table in the README's Privacy section.
 
-- **Her words:** understood by a verifiable model on NEAR AI Cloud (DeepSeek V4.1 Flash), which runs in a TEE. If it fails, the keyword parser runs on our server; there is no fallback to a non-private model. The model gets only her message and returns only `intent`, `utility`, `choice`.
+- **Her words:** understood by a verifiable model on NEAR AI Cloud (`deepseek-ai/DeepSeek-V4.1-Flash-1017`), which runs in a TEE; checked against NEAR's model list at start. If it fails, the keyword parser runs on our server; there is no fallback to a non-private model. The model gets only her message and returns only `intent`, `utility`, `choice`.
 - **Her meter and phone:** in our database (sealed with AES-256-GCM, `DATA_ENCRYPTION_KEY`), the gateway (order routes need `GATEWAY_API_KEY`) and VTpass. On Stellar the contract holds keyed fingerprints: `dest_hash` = HMAC-SHA256(key, contract id + number), and `order_ref` = sha256 of a random order id.
 - **The x402 payment:** the paid URL carries a random order id, nothing personal. On-chain you see USDC amounts and wallet addresses only.
 - **The fee:** shown to Adaeze in receipts, never to Mama.

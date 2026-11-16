@@ -30,7 +30,7 @@ The demo purse is Mama Ngozi (Pidgin), guardian Adaeze, meter `1111111111111` an
 
 | Mode | When | How |
 |---|---|---|
-| **Private model (default)** | `LLM_API=openai` and `LLM_API_KEY` (or `NEARAI_API_KEY`) | DeepSeek V4.1 Flash on NEAR AI Cloud (`LLM_BASE_URL=https://cloud-api.near.ai/v1`, `LLM_MODEL=deepseek/deepseek-v4.1-flash`). A verifiable model: it runs in a TEE, so the host cannot read Mama's messages. Strict JSON schema: `intent`, `utility`, `choice`. About 1.4 s per message |
+| **Private model (default)** | `LLM_API=openai` and `LLM_API_KEY` (or `NEARAI_API_KEY`) | DeepSeek V4.1 Flash 1017 on NEAR AI Cloud (`LLM_BASE_URL=https://cloud-api.near.ai/v1`, `LLM_MODEL=deepseek-ai/DeepSeek-V4.1-Flash-1017`). NEAR marks it *verifiable*: served by NEAR in an attested TEE, so the host cannot read Mama's messages. Mhasibu checks NEAR's model list at start and refuses a model NEAR marks not private (careful: `deepseek/deepseek-v4.1-flash` without `-ai` is forwarded to OpenRouter and is **not** private). Strict JSON schema: `intent`, `utility`, `choice`. About 2 s per message |
 | **Claude** | `LLM_API=anthropic` and `LLM_API_KEY` (or `ANTHROPIC_API_KEY`) | Claude Opus 5.5 through OpenServ (`LLM_BASE_URL=https://inference-api.openserv.ai`, `LLM_MODEL=claude-opus-5.5`), or Anthropic directly with `LLM_BASE_URL` empty and `claude-opus-5-5`. Effort `low`, structured output with a fixed schema: `intent`, `utility`, `choice` |
 | **Scripted** | No key, or Claude fails or refuses | Keyword rules for English and Pidgin ("light don finish", "my data don finish", "recharge my line"), with typo correction: a word one letter off (two for long words) is read as the nearest keyword ("ligt" → light, "airtym" → airtime) |
 

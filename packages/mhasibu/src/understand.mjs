@@ -141,8 +141,9 @@ const INTENT_JSON_SCHEMA = {
 };
 
 // Any OpenAI-compatible chat API. We use NEAR AI Cloud (https://cloud-api.near.ai/v1) with a
-// verifiable model (deepseek/deepseek-v4.1-flash): it runs inside a TEE, so the host cannot read
-// Mama's messages. The model still only classifies; it never sees amounts or limits.
+// verifiable model (deepseek-ai/DeepSeek-V4.1-Flash-1017): NEAR runs it in an attested TEE, so the
+// host cannot read Mama's messages. Not every NEAR model is private (some are forwarded to other
+// providers): nearPrivacy() checks, and createUnderstander refuses one NEAR marks not verifiable. The model still only classifies; it never sees amounts or limits.
 export function createOpenAIUnderstander({ apiKey, baseURL, model, timeoutMs = 15000 }, fetchImpl = fetch) {
   const url = `${String(baseURL).replace(/\/$/, "")}/chat/completions`;
   return async function understandWithOpenAI(text) {
@@ -151,7 +152,7 @@ export function createOpenAIUnderstander({ apiKey, baseURL, model, timeoutMs = 1
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
-        max_tokens: 300,
+        max_tokens: 1024, // the private model reasons before it answers; leave it room
         temperature: 0,
         messages: [{ role: "system", content: SYSTEM }, { role: "user", content: String(text).slice(0, 2000) }],
         response_format: { type: "json_schema", json_schema: { name: "intent", strict: true, schema: INTENT_JSON_SCHEMA } },
@@ -165,14 +166,37 @@ export function createOpenAIUnderstander({ apiKey, baseURL, model, timeoutMs = 1
   };
 }
 
+// Does NEAR AI Cloud run this model privately? NEAR's public model list marks each model
+// `verifiable` (served in an attested TEE) or not (forwarded to another provider). true, false, or
+// null when the list can't be read or the model isn't in it.
+export async function nearPrivacy({ baseURL, model }, fetchImpl = fetch) {
+  try {
+    const res = await fetchImpl(`${String(baseURL).replace(/\/$/, "")}/model/list`, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    const body = await res.json();
+    const list = body.models ?? body.data ?? [];
+    const m = list.find((x) => x.modelId === model || (x.metadata?.aliases ?? []).includes(model));
+    return m ? m.metadata?.verifiable === true : null;
+  } catch {
+    return null;
+  }
+}
+
 // The model when configured, the scripted parser otherwise or whenever the model fails.
 // One model call per message, well under the kit's cap of 8 steps.
 // `client` is an Anthropic client (LLM_API=anthropic) or a fetch function (LLM_API=openai), for tests.
-export function createUnderstander(llm, client) {
+// `privacy`: nearPrivacy()'s answer. A NEAR model that NEAR marks not private is never used: Mama's
+// words stay on our server and the scripted parser answers.
+export function createUnderstander(llm, client, { privacy = null, log = console } = {}) {
   if (!llm?.apiKey && !client) return { name: "scripted", understand: async (text) => understandScripted(text) };
   const openai = llm.api === "openai";
+  const near = openai && /near\.ai/.test(llm.baseURL ?? "");
+  if (near && privacy === false) {
+    log.warn?.(`⚠ ${llm.model} is NOT private on NEAR AI (not verifiable). Not sending Mama's words to it; using the scripted parser. Pick a verifiable model, e.g. deepseek-ai/DeepSeek-V4.1-Flash-1017.`);
+    return { name: `scripted (${llm.model} refused: not private)`, understand: async (text) => understandScripted(text) };
+  }
   const model = openai ? createOpenAIUnderstander(llm, client) : createClaudeUnderstander(llm, client);
-  const name = openai ? `${/near\.ai/.test(llm.baseURL ?? "") ? "NEAR AI private" : "openai-compatible"} (${llm.model})` : `claude (${llm.model})`;
+  const name = near ? `NEAR AI ${privacy ? "private, TEE" : "privacy unchecked"} (${llm.model})` : openai ? `openai-compatible (${llm.model})` : `claude (${llm.model})`;
   return {
     name,
     async understand(text) {
@@ -184,4 +208,12 @@ export function createUnderstander(llm, client) {
       }
     },
   };
+}
+
+// For the running services: checks NEAR's model list first when the model is on NEAR AI.
+export async function openUnderstander(llm, { log = console, fetchImpl = fetch } = {}) {
+  const near = llm?.apiKey && llm.api === "openai" && /near\.ai/.test(llm.baseURL ?? "");
+  const privacy = near ? await nearPrivacy(llm, fetchImpl) : null;
+  if (near && privacy === null) log.warn?.(`⚠ Could not confirm on NEAR's model list that ${llm.model} is private.`);
+  return createUnderstander(llm, undefined, { privacy, log });
 }

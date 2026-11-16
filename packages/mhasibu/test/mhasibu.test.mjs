@@ -152,9 +152,9 @@ test("a private model on NEAR AI classifies over the OpenAI-style API, with the 
     calls.push({ url, init, body: JSON.parse(init.body) });
     return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ intent: "my_token", utility: "electricity", choice: null }) } }] }) };
   };
-  const llm = { api: "openai", apiKey: "k", baseURL: "https://cloud-api.near.ai/v1/", model: "deepseek/deepseek-v4.1-flash" };
-  const u = createUnderstander(llm, fakeFetch);
-  assert.equal(u.name, "NEAR AI private (deepseek/deepseek-v4.1-flash)");
+  const llm = { api: "openai", apiKey: "k", baseURL: "https://cloud-api.near.ai/v1/", model: "deepseek-ai/DeepSeek-V4.1-Flash-1017" };
+  const u = createUnderstander(llm, fakeFetch, { privacy: true });
+  assert.equal(u.name, "NEAR AI private, TEE (deepseek-ai/DeepSeek-V4.1-Flash-1017)");
   assert.deepEqual(await u.understand("send my token again"), { intent: "my_token", utility: "electricity", choice: null });
   assert.equal(calls[0].url, "https://cloud-api.near.ai/v1/chat/completions");
   assert.equal(calls[0].init.headers.Authorization, "Bearer k");
@@ -531,4 +531,26 @@ test("the live log masks meter and phone numbers but keeps amounts and tokens re
   assert.equal(maskNumbers("send to 08099999999 abeg"), "send to •••••••9999 abeg");
   assert.equal(maskNumbers("0.3503401 USDC for ₦515"), "0.3503401 USDC for ₦515");
   assert.equal(maskNumbers("token 0138 6374 0030 7799 5080"), "token 0138 6374 0030 7799 5080");
+});
+
+test("a NEAR model that NEAR marks not private is never sent Mama's words", async () => {
+  const { nearPrivacy, openUnderstander } = await import("../src/understand.mjs");
+  const list = { models: [
+    { modelId: "deepseek-ai/DeepSeek-V4.1-Flash-1017", metadata: { verifiable: true } },
+    { modelId: "deepseek/deepseek-v4.1-flash", metadata: { verifiable: false, aliases: ["deepseek-v4.1-flash"] } },
+  ] };
+  const calls = [];
+  const fetchImpl = async (url) => { calls.push(String(url)); return { ok: true, json: async () => list }; };
+  const base = { api: "openai", apiKey: "k", baseURL: "https://cloud-api.near.ai/v1" };
+  assert.equal(await nearPrivacy({ ...base, model: "deepseek-ai/DeepSeek-V4.1-Flash-1017" }, fetchImpl), true);
+  assert.equal(await nearPrivacy({ ...base, model: "deepseek-v4.1-flash" }, fetchImpl), false); // by alias
+  assert.equal(await nearPrivacy({ ...base, model: "no-such-model" }, fetchImpl), null);
+  assert.equal(calls[0], "https://cloud-api.near.ai/v1/model/list");
+
+  const quiet = { warn() {} };
+  const refused = await openUnderstander({ ...base, model: "deepseek/deepseek-v4.1-flash" }, { fetchImpl, log: quiet });
+  assert.match(refused.name, /^scripted .*refused: not private/);
+  assert.equal((await refused.understand("light don finish")).utility, "electricity"); // answered on our server
+  const ok = await openUnderstander({ ...base, model: "deepseek-ai/DeepSeek-V4.1-Flash-1017" }, { fetchImpl, log: quiet });
+  assert.equal(ok.name, "NEAR AI private, TEE (deepseek-ai/DeepSeek-V4.1-Flash-1017)");
 });

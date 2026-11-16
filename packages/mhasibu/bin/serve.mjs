@@ -15,6 +15,7 @@ import crypto from "node:crypto";
 import { Keypair } from "@stellar/stellar-sdk";
 import { config, explorer } from "../src/config.mjs";
 import { createMhasibu } from "../src/mhasibu.mjs";
+import { openUnderstander } from "../src/understand.mjs";
 import { openPurseStore } from "../src/purses.mjs";
 import { ContractRefused, buyArgs, createSoroban, refundArgs, symbol } from "../src/purse-contract.mjs";
 import { maskNumbers } from "../src/replies.mjs";
@@ -48,7 +49,7 @@ function emit(event) {
 
 const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 console.log(config.databaseUrl ? "Purses: Postgres (DATABASE_URL)" : `Purses: ${config.pursesFile} (set DATABASE_URL to keep them across restarts)`);
-const mhasibu = createMhasibu({ purses, log: emit });
+const mhasibu = createMhasibu({ purses, log: emit, understander: await openUnderstander(config.llm) });
 const agentAddress = Keypair.fromSecret(config.agentSecret).publicKey();
 
 const send = (res, status, body) => {

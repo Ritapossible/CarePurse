@@ -3,6 +3,7 @@
 //   npm run chat -- "Abeg, light don almost finish" "1"   → send these messages and exit
 import readline from "node:readline/promises";
 import { createMhasibu } from "../src/mhasibu.mjs";
+import { openUnderstander } from "../src/understand.mjs";
 import { openPurseStore } from "../src/purses.mjs";
 import { config } from "../src/config.mjs";
 
@@ -10,6 +11,7 @@ const verbose = !process.argv.includes("--quiet");
 const scripted = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 const mhasibu = createMhasibu({
+  understander: await openUnderstander(config.llm),
   purses,
   log: (e) => {
     if (!verbose) return;

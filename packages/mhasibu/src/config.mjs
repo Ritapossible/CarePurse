@@ -50,7 +50,7 @@ export const config = {
   llm: {
     // A model understands Mama's message. Without a key, the built-in scripted parser does it.
     // Default (privacy): NEAR AI Cloud, OpenAI-style API, a verifiable model that runs in a TEE:
-    //   LLM_API=openai  LLM_BASE_URL=https://cloud-api.near.ai/v1  LLM_MODEL=deepseek/deepseek-v4.1-flash
+    //   LLM_API=openai  LLM_BASE_URL=https://cloud-api.near.ai/v1  LLM_MODEL=deepseek-ai/DeepSeek-V4.1-Flash-1017
     // Claude instead: LLM_API=anthropic, LLM_BASE_URL empty (Anthropic) or OpenServ, LLM_MODEL=claude-opus-5-5.
     api: llmApi,
     // Each key goes only to its own kind of host: a NEAR key is never sent to Anthropic.
