@@ -1,7 +1,10 @@
 # Runs CarePurse against the VTpass SANDBOX, on demand (Actions tab → "VTpass sandbox" → Run workflow).
 #   provider: our VTpass provider alone (verify meter, buy electricity, airtime, data). No Stellar.
-#   full:     the whole flow: Mhasibu → purse contract → x402 on Stellar testnet → gateway → VTpass sandbox.
-#             Spends about 0.5 testnet USDC from the purse. Needs the AGENT_SECRET_KEY secret too.
+#   full:     also the whole flow: Mhasibu → purse contract → x402 on Stellar testnet → gateway → VTpass
+#             sandbox. Two jobs run side by side: "vtpass" (airtime and data straight from the provider)
+#             and "x402" (a ₦500 electricity top-up through the purse). They use different sandbox
+#             destinations (phone vs meter), so neither waits for VTpass's duplicate guard because of
+#             the other. Spends about 0.35 testnet USDC from the purse. Needs AGENT_SECRET_KEY too.
 # Repository secrets (Settings → Secrets and variables → Actions):
 #   VTPASS_API_KEY, VTPASS_SECRET_KEY, VTPASS_PUBLIC_KEY   (sandbox keys)
 #   AGENT_SECRET_KEY                                        (only for "full"; Mhasibu's testnet wallet)
@@ -33,7 +36,7 @@ env:
   VTPASS_PUBLIC_KEY: ${{ secrets.VTPASS_PUBLIC_KEY }}
 
 jobs:
-  sandbox:
+  vtpass:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -52,14 +55,25 @@ jobs:
         working-directory: services/gateway
         run: npm ci && npm test
 
+      # In full mode the x402 job buys the electricity, so this job buys airtime and data only.
+      # Those two share the sandbox's one test phone, so data may wait out the 5-minute guard.
       - name: VTpass sandbox, provider only
         working-directory: services/gateway
         env:
-          CHECKS: ${{ inputs.checks }}
+          CHECKS: ${{ inputs.mode == 'full' && 'airtime,data' || inputs.checks }}
         run: npm run vtpass-check
 
-      - name: Full flow over x402
-        if: inputs.mode == 'full'
+  x402:
+    if: inputs.mode == 'full'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Full flow over x402 (electricity)
         env:
           AGENT_SECRET_KEY: ${{ secrets.AGENT_SECRET_KEY }}
           GATEWAY_RECIPIENT: GDFFLJ7SQVYJDH7RB7JYIBRLHRHOP7IV4XILUMHS5WPOJ5DAJCTO7CAA
@@ -67,19 +81,15 @@ jobs:
           GATEWAY_URL: http://localhost:4021
         run: |
           if [ -z "$AGENT_SECRET_KEY" ]; then echo "::error::Repository secret AGENT_SECRET_KEY is missing"; exit 1; fi
-          (cd services/gateway && npm start > ../../gateway.log 2>&1 &)
+          (cd services/gateway && npm ci --silent && (npm start > ../../gateway.log 2>&1 &))
           for i in $(seq 1 30); do curl -sf localhost:4021/health >/dev/null && break; sleep 1; done
           cd packages/mhasibu && npm ci
-          # Options: electricity 1) ₦500; airtime 1) ₦100; MTN data 2) ₦200 (exact bundle prices only).
-          # VTpass refuses a second purchase to the same phone within minutes (019), so data waits.
-          npm run chat -- "Abeg, light don almost finish" "1" "Abeg recharge my line" "1" | tee ../../chat.log
-          sleep 240
-          npm run chat -- "My data don finish" "2" | tee -a ../../chat.log
-          # Every top-up must end cleanly: paid, or refunded to the purse (VTpass's duplicate guard can
-          # refuse a quick repeat). Fail if any refund failed or nothing settled at all.
+          # Mama asks for light and picks 1) ₦500: purse contract → x402 on Stellar testnet → VTpass.
+          start=$(date +%s)
+          npm run chat -- "Abeg, light don almost finish" "1" | tee ../../chat.log
+          echo "Top-up took $(( $(date +%s) - start )) s (including the chat starting up)"
           paid=$(grep -c "paid on Stellar testnet" ../../chat.log || true)
-          refunded=$(grep -c "refunded to the purse" ../../chat.log || true)
           stuck=$(grep -c "refund failed" ../../chat.log || true)
-          echo "Settled: $paid · refunded after a provider refusal: $refunded · stuck: $stuck (of 3)"
           grep -i "provider refused" ../../gateway.log || true
-          [ "$stuck" -eq 0 ] && [ "$paid" -ge 1 ] && [ $((paid + refunded)) -eq 3 ]
+          echo "Settled: $paid · stuck: $stuck"
+          [ "$stuck" -eq 0 ] && [ "$paid" -eq 1 ]
