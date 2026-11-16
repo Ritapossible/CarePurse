@@ -18,7 +18,7 @@ function LastToken({ record }: { record: TokenRecord }) {
         <span>{record.units ? `${record.units} · ` : ""}meter {record.meter}</span>
         <button
           onClick={() => navigator.clipboard?.writeText(record.token.replace(/\s/g, "")).then(() => setCopied(true)).catch(() => {})}
-          className="rounded-full border border-accent px-3 py-1 text-accent"
+          className="rounded-lg border border-foreground px-3 py-1 text-foreground transition-colors duration-150 hover:bg-surface"
         >
           {copied ? "Copied" : "Copy"}
         </button>
@@ -46,9 +46,9 @@ function CodeBox() {
         onChange={(e) => setCode(e.target.value)}
         placeholder="Access code"
         aria-label="Access code"
-        className="flex-1 rounded-full border border-line bg-white px-4 py-3 outline-none focus:border-foreground"
+        className="flex-1 rounded-[10px] border border-line bg-white px-4 py-3 outline-none focus:border-foreground"
       />
-      <button className="rounded-full bg-foreground px-5 font-medium text-background">Continue</button>
+      <button className="rounded-[10px] bg-foreground px-5 font-medium text-background">Continue</button>
     </form>
   );
 }
@@ -121,8 +121,8 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-3xl border border-line bg-surface">
-      <header className="flex items-center gap-3 border-b border-line bg-white px-5 py-4 rounded-t-3xl">
+    <section className="flex h-full min-h-0 flex-col rounded-[20px] border border-line bg-surface">
+      <header className="flex items-center gap-3 border-b border-line bg-white px-5 py-4 rounded-t-[20px]">
         <div className="grid h-10 w-10 place-items-center rounded-full bg-accent-soft font-semibold text-accent">M</div>
         <div>
           <div className="font-semibold">Mhasibu</div>
@@ -147,13 +147,13 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
 
       <div className="flex flex-wrap gap-2 px-4 pb-2">
         {["Light don almost finish", "My data don finish", "Recharge my line", "Send my token again"].map((q) => (
-          <button key={q} onClick={() => submit(q)} disabled={waiting} className="rounded-full border border-line bg-white px-3 py-1.5 text-sm hover:border-accent disabled:opacity-50">
+          <button key={q} onClick={() => submit(q)} disabled={waiting} className="rounded-lg border border-line bg-white px-3 py-1.5 text-sm transition-colors duration-150 hover:border-foreground disabled:opacity-50">
             {q}
           </button>
         ))}
       </div>
       <form
-        className="flex gap-2 border-t border-line bg-white px-4 py-3 rounded-b-3xl"
+        className="flex gap-2 border-t border-line bg-white px-4 py-3 rounded-b-[20px]"
         onSubmit={(e) => {
           e.preventDefault();
           submit(text);
@@ -163,10 +163,10 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Type here, or reply with a number"
-          className="flex-1 rounded-full border border-line px-4 py-3 text-[17px] outline-none focus:border-accent"
+          className="flex-1 rounded-[10px] border border-line px-4 py-3 text-[17px] outline-none focus:border-foreground"
           aria-label="Message to Mhasibu"
         />
-        <button disabled={waiting || !text.trim()} className="rounded-full bg-accent px-5 font-semibold text-white disabled:opacity-40">
+        <button disabled={waiting || !text.trim()} className="rounded-[10px] bg-accent px-5 font-semibold text-white disabled:opacity-40">
           Send
         </button>
       </form>

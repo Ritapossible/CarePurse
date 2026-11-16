@@ -12,10 +12,10 @@ const STEPS = [
 ];
 
 const RULES = [
-  { n: "01", title: "Limits on-chain", text: "The purse contract refuses any top-up over your caps, even if the agent asks." },
-  { n: "02", title: "Private AI", text: "Mama’s words go only to a model running in sealed hardware." },
-  { n: "03", title: "Your fee, not hers", text: "3% on top, shown on your receipts. Mama sees face value." },
-  { n: "04", title: "No lost tokens", text: "Every token is saved. She can ask for it again any time." },
+  { title: "Limits on-chain", text: "The purse contract refuses any top-up over your caps, even if the agent asks." },
+  { title: "Private AI", text: "Mama’s words go only to a model running in sealed hardware." },
+  { title: "Your fee, not hers", text: "3% on top, shown on your receipts. Mama sees face value." },
+  { title: "No lost tokens", text: "Every token is saved. She can ask for it again any time." },
 ];
 
 const FAQ = [
@@ -43,38 +43,40 @@ const RAILS = ["Stellar", "x402", "Soroban", "USDC", "NEAR AI", "VTpass"];
 function Arrow() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M2 8h11M9 3.5 13.5 8 9 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M2 8h11M9 3.5 13.5 8 9 12.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }
+
+const label = "text-sm text-muted";
+const h2 = "mt-3 max-w-2xl text-4xl font-medium leading-[1.1] tracking-[-0.02em] sm:text-5xl";
 
 export default function Home() {
   return (
     <>
       <SiteHeader />
       <main>
-        {/* Hero */}
-        <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pb-20 pt-14 md:grid-cols-[1.15fr_1fr] md:pt-24">
+        {/* Hero: text and the phone, centred against each other */}
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-24 pt-12 md:grid-cols-[1.1fr_1fr] md:gap-16 md:pt-20">
           <div>
-            <Link href="/demo" className="inline-flex items-center gap-2.5 rounded-full border border-line px-4 py-2 text-[15px] hover:border-foreground">
+            <Link href="/demo" className="inline-flex items-center gap-2 text-sm text-secondary transition-colors duration-150 hover:text-foreground">
               <span className="h-2 w-2 rounded-full bg-live" />
               Live on Stellar Testnet
-              <Arrow />
             </Link>
-            <h1 className="mt-8 text-[52px] font-semibold leading-[0.98] tracking-[-0.04em] sm:text-7xl">
+            <h1 className="mt-6 text-[44px] font-medium leading-[1.04] tracking-[-0.03em] sm:text-6xl lg:text-[72px]">
               Keep Mama’s
               <br />
-              utilities on.
+              utilities on
             </h1>
-            <p className="mt-7 max-w-lg text-lg leading-relaxed text-muted sm:text-xl">
+            <p className="mt-6 max-w-[36rem] text-lg leading-[1.6] text-secondary sm:text-xl">
               Fund a purse for your parent in Nigeria. She asks in chat. Mhasibu buys electricity, airtime and data within the
               limits you set, and pays over x402 on Stellar.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/demo" className="inline-flex items-center justify-center gap-2.5 rounded-full bg-foreground px-7 py-4 font-medium text-background hover:opacity-85">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/demo" className="inline-flex h-12 items-center justify-center gap-2 rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#262626]">
                 Open the demo <Arrow />
               </Link>
-              <Link href="#how" className="inline-flex items-center justify-center rounded-full border border-line px-7 py-4 font-medium hover:border-foreground">
+              <Link href="#how" className="inline-flex h-12 items-center justify-center rounded-[10px] border border-line px-5 font-medium transition-colors duration-150 hover:bg-surface">
                 How it works
               </Link>
             </div>
@@ -82,9 +84,9 @@ export default function Home() {
           <PhoneChat />
         </section>
 
-        {/* Rails */}
+        {/* What it runs on */}
         <section className="border-y border-line">
-          <ul className="mx-auto flex max-w-6xl flex-wrap justify-center gap-x-10 gap-y-3 px-5 py-6 text-[13px] font-medium uppercase tracking-[0.25em] text-muted">
+          <ul className="mx-auto flex max-w-6xl flex-wrap justify-center gap-x-10 gap-y-2 px-6 py-6 text-[15px] text-muted">
             {RAILS.map((r) => (
               <li key={r}>{r}</li>
             ))}
@@ -92,46 +94,41 @@ export default function Home() {
         </section>
 
         {/* How it works */}
-        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24">
-          <p className="text-[13px] font-medium uppercase tracking-[0.25em] text-muted">How it works</p>
-          <h2 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight tracking-[-0.03em] sm:text-5xl">From your purse to her meter and phone.</h2>
-          <ol className="mt-12 divide-y divide-line rounded-3xl border border-line">
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24 md:py-32">
+          <p className={label}>How it works</p>
+          <h2 className={h2}>From your purse to her meter and phone</h2>
+          <ol className="mt-12 divide-y divide-line rounded-2xl border border-line">
             {STEPS.map((s, i) => (
-              <li key={s.title} className="flex gap-5 px-6 py-7 sm:px-8">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface text-sm tabular-nums text-muted">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
+              <li key={s.title} className="grid grid-cols-[32px_1fr] gap-4 p-6 sm:grid-cols-[40px_1fr]">
+                <span className="pt-0.5 font-mono text-sm tabular-nums text-muted">{i + 1}</span>
                 <div>
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h3 className="text-xl font-semibold tracking-tight">{s.title}</h3>
-                    <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted">{s.tag}</span>
+                    <h3 className="text-xl font-medium">{s.title}</h3>
+                    <span className="text-sm text-muted">{s.tag}</span>
                   </div>
-                  <p className="mt-1.5 text-muted">{s.text}</p>
+                  <p className="mt-1 text-secondary">{s.text}</p>
                 </div>
               </li>
             ))}
           </ol>
         </section>
 
-        {/* Live log banner */}
-        <section className="mx-auto max-w-6xl px-5">
-          <div className="grid items-center gap-12 rounded-[32px] bg-foreground px-7 py-14 text-background sm:px-14 sm:py-20 lg:grid-cols-2">
+        {/* The live log */}
+        <section className="mx-auto max-w-6xl px-6">
+          <div className="grid items-center gap-12 rounded-[20px] bg-foreground px-6 py-12 text-background sm:px-12 sm:py-16 lg:grid-cols-2">
             <div>
-            <p className="text-[13px] font-medium uppercase tracking-[0.25em] text-background/60">Agent &amp; x402 log</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-semibold leading-tight tracking-[-0.03em] sm:text-5xl">Watch every payment happen.</h2>
-            <p className="mt-5 max-w-lg text-lg text-background/70">
-              The contract check, the 402, the signed payment and the Stellar transaction appear as Mama chats.
-            </p>
-            <Link href="/demo" className="mt-9 inline-flex items-center gap-3 rounded-full bg-background py-2 pl-6 pr-2 font-medium text-foreground hover:opacity-90">
-              Open the demo
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-background">
-                <Arrow />
-              </span>
-            </Link>
+              <p className="text-sm text-background/60">Agent &amp; x402 log</p>
+              <h2 className="mt-3 max-w-xl text-4xl font-medium leading-[1.1] tracking-[-0.02em] sm:text-5xl">Watch every payment happen</h2>
+              <p className="mt-5 max-w-lg text-lg leading-[1.6] text-background/70">
+                The contract check, the 402, the signed payment and the Stellar transaction appear as Mama chats.
+              </p>
+              <Link href="/demo" className="mt-8 inline-flex h-12 items-center gap-2 rounded-[10px] bg-background px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#e5e5e5]">
+                Open the demo <Arrow />
+              </Link>
             </div>
             <ol className="space-y-2 font-mono text-[13px]">
               {LOG.map((l) => (
-                <li key={l.label} className="flex items-center justify-between gap-4 rounded-xl border border-background/15 px-4 py-3">
+                <li key={l.label} className="flex items-center justify-between gap-4 rounded-[10px] border border-background/15 px-4 py-3">
                   <span>
                     <span className="text-background">{l.label}</span>
                     <span className="text-background/55"> · {l.detail}</span>
@@ -146,36 +143,33 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Rules */}
-        <section className="mx-auto max-w-6xl px-5 py-24">
-          <p className="text-[13px] font-medium uppercase tracking-[0.25em] text-muted">The rules</p>
-          <h2 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight tracking-[-0.03em] sm:text-5xl">Limits live in code, not in the prompt.</h2>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2">
+        {/* The rules: a list, not four equal cards */}
+        <section className="mx-auto max-w-6xl px-6 py-24 md:py-32">
+          <p className={label}>The rules</p>
+          <h2 className={h2}>Limits live in code, not in the prompt</h2>
+          <dl className="mt-12 border-t border-line">
             {RULES.map((r) => (
-              <div key={r.n} className="rounded-3xl border border-line p-7">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted">{r.title}</span>
-                  <span className="grid h-9 w-9 place-items-center rounded-full border border-line text-xs tabular-nums text-muted">{r.n}</span>
-                </div>
-                <p className="mt-6 text-lg leading-snug">{r.text}</p>
+              <div key={r.title} className="grid gap-2 border-b border-line py-6 md:grid-cols-[280px_1fr] md:gap-8">
+                <dt className="text-lg font-medium">{r.title}</dt>
+                <dd className="text-lg text-secondary">{r.text}</dd>
               </div>
             ))}
-          </div>
+          </dl>
         </section>
 
         {/* FAQ */}
         <section id="faq" className="border-t border-line">
-          <div className="mx-auto max-w-3xl scroll-mt-20 px-5 py-24">
-            <p className="text-[13px] font-medium uppercase tracking-[0.25em] text-muted">FAQ</p>
-            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">Questions, answered.</h2>
+          <div className="mx-auto max-w-3xl scroll-mt-20 px-6 py-24 md:py-32">
+            <p className={label}>FAQ</p>
+            <h2 className="mt-3 text-4xl font-medium tracking-[-0.02em] sm:text-5xl">Questions, answered</h2>
             <div className="mt-10 border-t border-line">
               {FAQ.map((f) => (
-                <details key={f.q} className="group border-b border-line">
-                  <summary className="flex cursor-pointer items-center justify-between gap-6 py-6 text-lg">
+                <details key={f.q} className="border-b border-line">
+                  <summary className="flex cursor-pointer items-center justify-between gap-6 py-6 text-lg transition-colors duration-150 hover:text-secondary">
                     {f.q}
-                    <span className="faq-plus grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line text-xl leading-none text-muted transition-transform">+</span>
+                    <span aria-hidden="true" className="faq-plus shrink-0 text-2xl font-light leading-none text-muted transition-transform duration-200">+</span>
                   </summary>
-                  <p className="-mt-2 pb-6 pr-14 text-muted">{f.a}</p>
+                  <p className="-mt-2 pb-6 pr-12 text-secondary">{f.a}</p>
                 </details>
               ))}
             </div>

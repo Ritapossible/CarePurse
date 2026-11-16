@@ -1,11 +1,13 @@
 @import "tailwindcss";
 
-/* CarePurse: black on white. One small green dot for "live"; red only for errors. */
+/* CarePurse: black on white. Three text roles (primary, secondary, muted), hairline borders.
+   Green only for the "live" dot, red only for errors. */
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
-  --muted: #6b6b6b;
-  --line: #e7e7e7;
+  --secondary: #525252;
+  --muted: #737373;
+  --line: rgba(10, 10, 10, 0.09);
   --surface: #f7f7f7;
   --accent: #0a0a0a;
   --accent-soft: #f2f2f2;
@@ -17,6 +19,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-secondary: var(--secondary);
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-surface: var(--surface);
@@ -48,4 +51,9 @@ details > summary::-webkit-details-marker {
 }
 details[open] .faq-plus {
   transform: rotate(45deg);
+}
+
+/* One easing curve for every transition (unslop tokens). */
+* {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }

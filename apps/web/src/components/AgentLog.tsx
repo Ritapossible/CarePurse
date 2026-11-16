@@ -89,7 +89,7 @@ export default function AgentLog() {
   const rows = events.map((e) => ({ e, row: describe(e) })).filter((r) => r.row);
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-3xl border border-line bg-white">
+    <section className="flex h-full min-h-0 flex-col rounded-[20px] border border-line bg-white">
       <header className="flex items-center justify-between border-b border-line px-5 py-4">
         <div>
           <div className="font-semibold">Agent &amp; x402 Log</div>
@@ -143,7 +143,7 @@ export default function AgentLog() {
               setTrying(true);
               await tryOverspend().finally(() => setTrying(false));
             }}
-            className="shrink-0 rounded-full border border-danger px-4 py-2 text-sm font-semibold text-danger disabled:opacity-50"
+            className="shrink-0 rounded-[10px] border border-danger px-4 py-2 text-sm font-medium text-danger transition-colors duration-150 hover:bg-danger-soft disabled:opacity-50"
           >
             {trying ? "Asking the contract…" : "Try to take more than the cap"}
           </button>

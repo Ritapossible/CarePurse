@@ -10,7 +10,7 @@ const LINES: Line[] = [
 
 export default function PhoneChat() {
   return (
-    <div className="mx-auto w-full max-w-[340px] rounded-[44px] border border-line bg-foreground p-2.5 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.35)]">
+    <div className="mx-auto w-full max-w-[340px] rounded-[44px] border border-line bg-foreground p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
       <div className="overflow-hidden rounded-[36px] bg-background">
         <div className="flex justify-center pt-3">
           <div className="h-6 w-24 rounded-full bg-foreground" />
@@ -34,7 +34,7 @@ export default function PhoneChat() {
               </div>
             </div>
           ))}
-          <div className="rounded-2xl border border-foreground bg-background px-4 py-3">
+          <div className="rounded-xl border border-foreground bg-background px-4 py-3">
             <div className="flex justify-between text-xs text-muted">
               <span>Light token</span>
               <span>79.9 kWh</span>
@@ -43,8 +43,8 @@ export default function PhoneChat() {
           </div>
         </div>
         <div className="flex items-center gap-2 border-t border-line px-4 py-3">
-          <div className="flex-1 rounded-full border border-line px-4 py-2 text-sm text-muted">Type a message</div>
-          <div className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background">Send</div>
+          <div className="flex-1 rounded-[10px] border border-line px-4 py-2 text-sm text-muted">Type a message</div>
+          <div className="rounded-[10px] bg-foreground px-4 py-2 text-sm font-medium text-background">Send</div>
         </div>
       </div>
     </div>
