@@ -103,3 +103,7 @@ export const say = {
       : `Sorry Mama, I didn't understand that. Reply with a number:\n${MENU.en}`;
   },
 };
+
+// Meter and phone numbers in text for the live log: keep the last 4 digits of any run of 7 or
+// more. Amounts are left alone (a run touching a decimal point, like 0.3503401 USDC, is not a number to hide).
+export const maskNumbers = (text) => String(text).replace(/(?<![\d.])\d{7,}(?![\d.])/g, (n) => "•".repeat(n.length - 4) + n.slice(-4));

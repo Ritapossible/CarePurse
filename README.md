@@ -276,7 +276,7 @@ Mama is an elderly woman sharing her meter number, her phone number and how her 
 | **Orders behind a key** | The gateway's order and meter routes (meter and phone numbers, tokens) answer only Mhasibu, with `GATEWAY_API_KEY` (constant-time check); without a key, only its own machine. The x402 route stays open: payment is its door | `services/gateway/src/server.mjs` |
 | **Encrypted at rest** | With `DATA_ENCRYPTION_KEY`, every row is sealed with AES-256-GCM before it leaves the process, bound to its own row. Postgres and its backups hold only `{"enc": "v1..."}`: no meters, phones, tokens or chat | `records.mjs` (both services) |
 | **Nothing personal in the x402 payment** | The paid URL carries only a random order id (`/paid/topup/electricity/500?order=…`), never a meter or phone | `services/gateway/src/server.mjs` |
-| **Logs without personal data** | The Agent & x402 Log shows amounts, rules and Stellar links, never meter or phone numbers | `mhasibu.mjs` log events |
+| **Logs without personal data** | The Agent & x402 Log shows amounts, rules and Stellar links. Chat lines in it are masked: any meter or phone number keeps only its last 4 digits (`•••••••••1111`). Mama's own chat and Adaeze's notifications show the full number, as they must | `maskNumbers` in `replies.mjs`, `emit` in `serve.mjs` |
 | **Locked doors** | Mhasibu's API needs a key only the web app's server holds; the web app needs the access code (see [Security](#security)) | relay route, `serve.mjs` |
 | **Each key goes only to its own host** | The NEAR key is only ever sent to NEAR, never to Anthropic or anyone else | `packages/mhasibu/src/config.mjs` |
 

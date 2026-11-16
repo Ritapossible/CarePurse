@@ -524,3 +524,11 @@ test("records are sealed with AES-256-GCM before they reach the database", async
   assert.throws(() => box.open("purse", "someone-else", sealed)); // can't be moved to another row
   assert.throws(() => sealer("wrong-key").open("purse", "demo", sealed));
 });
+
+test("the live log masks meter and phone numbers but keeps amounts and tokens readable", async () => {
+  const { maskNumbers } = await import("../src/replies.mjs");
+  assert.equal(maskNumbers("I fit buy light for meter 1111111111111:"), "I fit buy light for meter •••••••••1111:");
+  assert.equal(maskNumbers("send to 08099999999 abeg"), "send to •••••••9999 abeg");
+  assert.equal(maskNumbers("0.3503401 USDC for ₦515"), "0.3503401 USDC for ₦515");
+  assert.equal(maskNumbers("token 0138 6374 0030 7799 5080"), "token 0138 6374 0030 7799 5080");
+});

@@ -17,6 +17,7 @@ import { config, explorer } from "../src/config.mjs";
 import { createMhasibu } from "../src/mhasibu.mjs";
 import { openPurseStore } from "../src/purses.mjs";
 import { ContractRefused, buyArgs, createSoroban, refundArgs, symbol } from "../src/purse-contract.mjs";
+import { maskNumbers } from "../src/replies.mjs";
 
 const port = Number(process.env.PORT) || Number(process.env.MHASIBU_PORT ?? 4022); // Render sets PORT
 const demoMode = process.env.DEMO_MODE === "1";
@@ -34,7 +35,10 @@ const clients = new Set();
 const recent = [];
 
 function emit(event) {
+  // The live log is for watching the agent, not for reading Mama's numbers: chat lines can hold her
+  // meter or a phone number, so long digit runs keep only their last 4 ("•••••••••1111").
   const e = { at: new Date().toISOString(), ...event };
+  for (const k of ["text", "message"]) if (typeof e[k] === "string") e[k] = maskNumbers(e[k]);
   if (e.tx) e.link = explorer.tx(e.tx);
   recent.push(e);
   if (recent.length > 200) recent.shift();
