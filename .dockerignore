@@ -1,0 +1,14 @@
+# Never ship secrets, local data or build leftovers in the image.
+.env
+.env.*
+**/.env
+**/.env.*
+.data
+**/.data
+**/node_modules
+.git
+apps
+contracts
+docs
+**/test
+**/*.md
