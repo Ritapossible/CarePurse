@@ -71,6 +71,22 @@ function HeroCopy({ dark = false }: { dark?: boolean }) {
   );
 }
 
+// The delivered-token card: the product's result, shown on top of the hero scene.
+function DeliveredCard({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex items-center gap-3 rounded-2xl bg-white/95 p-4 text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur ${className}`}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium">Electricity · ₦5,000</div>
+        <div className="whitespace-nowrap font-mono text-xs text-secondary">1111 2222 3333 4444 5555</div>
+      </div>
+      <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" aria-label="Delivered" /><span className="hidden sm:inline">Delivered</span></span>
+    </div>
+  );
+}
+
 const label = "text-sm text-muted";
 const h2 = "mt-3 max-w-2xl text-4xl font-medium leading-[1.1] sm:tracking-[-0.02em] sm:text-5xl";
 
@@ -79,42 +95,31 @@ export default function Home() {
     <>
       <SiteHeader />
       <main>
-        {/* Hero, large screens: the scene fills the hero, the headline sits on the calm wall,
-            and Mama's chat rises from the bottom edge. Scene: generated for CarePurse (Higgsfield, Z Image). */}
+        {/* Hero, large screens: the scene fills the hero (shifted right so the headline sits on the calm
+            wall), and the delivered token rises from the bottom edge. Scene generated for CarePurse (Higgsfield, Z Image). */}
         <section className="relative hidden lg:block">
-          <div className="absolute inset-0 overflow-hidden bg-[#7b6248]">
-            <Image src="/photos/scene.jpg" alt="A Nigerian living room at dusk: a prepaid meter glowing on the wall beside a lamp, an ankara cloth on the side table" fill priority sizes="100vw" className="object-cover object-[65%_center]" />
-            <div className="absolute inset-0 bg-linear-to-r from-black/45 via-black/15 to-transparent" />
-          </div>
-          <div className="relative mx-auto grid min-h-[720px] max-w-6xl grid-cols-[1fr_340px] items-center gap-16 px-6">
-            <HeroCopy dark />
-            <div className="relative z-10 translate-y-24 self-end">
-              <PhoneChat />
+          <div className="absolute inset-0 overflow-hidden bg-[#9b754e]">
+            <div className="absolute inset-y-0 left-[16%] right-0">
+              <Image src="/photos/scene-mama.jpg" alt="An older Nigerian woman in ankara and gele smiling at her phone at home, a prepaid meter glowing on the wall behind her" fill priority sizes="85vw" className="object-cover object-[50%_30%]" />
+              <div className="absolute inset-y-0 left-0 w-48 bg-linear-to-r from-[#9b754e] to-transparent" />
             </div>
+            <div className="absolute inset-0 bg-linear-to-r from-black/50 via-black/20 to-transparent" />
+          </div>
+          <div className="relative mx-auto flex min-h-[720px] max-w-6xl items-center px-6">
+            <div className="max-w-[520px]"><HeroCopy dark /></div>
+            <DeliveredCard className="absolute bottom-0 right-6 z-10 w-[360px] translate-y-1/2" />
           </div>
         </section>
-        <div className="hidden h-24 lg:block" aria-hidden="true" />
+        <div className="hidden h-12 lg:block" aria-hidden="true" />
 
         {/* Hero, phones and tablets: text first, then the scene with the product on top */}
         <section className="mx-auto max-w-6xl px-6 pb-8 pt-12 md:pt-20 lg:hidden">
           <HeroCopy />
           <div className="relative mt-12">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-[#7b6248] sm:aspect-[16/10]">
-              <Image src="/photos/scene.jpg" alt="A Nigerian living room at dusk: a prepaid meter glowing on the wall beside a lamp" fill priority sizes="100vw" className="object-cover object-[64%_center]" />
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-[#9b754e] sm:aspect-[16/10]">
+              <Image src="/photos/scene-mama.jpg" alt="An older Nigerian woman in ankara and gele smiling at her phone at home, a prepaid meter glowing on the wall behind her" fill priority sizes="100vw" className="object-cover object-[52%_center]" />
             </div>
-            <div className="absolute left-4 top-4 max-w-[70%] rounded-2xl rounded-bl-md bg-white/95 px-4 py-3 text-[15px] shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:left-6 sm:top-6">
-              Abeg, light don almost finish
-            </div>
-            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white/95 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:inset-x-6 sm:bottom-6">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">Electricity · ₦5,000</div>
-                <div className="whitespace-nowrap font-mono text-xs text-secondary">1111 2222 3333 4444 5555</div>
-              </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" aria-label="Delivered" /><span className="hidden sm:inline">Delivered</span></span>
-            </div>
+            <DeliveredCard className="absolute inset-x-4 bottom-4 sm:inset-x-6 sm:bottom-6" />
           </div>
         </section>
 
@@ -137,22 +142,20 @@ export default function Home() {
               </li>
             ))}
           </ol>
-          <div className="relative hidden aspect-[4/5] overflow-hidden rounded-[28px] bg-surface lg:sticky lg:top-24 lg:block">
-            <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill sizes="380px" className="object-cover object-[60%_center]" />
-          </div>
-          <div className="lg:hidden"><PhoneChat /></div>
+          <div className="lg:sticky lg:top-24"><PhoneChat /></div>
           </div>
         </section>
 
-        {/* For Mama: a full photo banner */}
+        {/* For the family: text on a dark panel, the photo beside it */}
         <section className="mx-auto max-w-6xl px-6 pb-6">
-          <div className="relative overflow-hidden rounded-[28px]">
-            <Image src="/photos/phone.jpg" alt="An older woman in a red gele talking on her phone" fill sizes="(min-width: 1152px) 1104px, 100vw" className="object-cover object-[50%_8%] lg:object-[50%_25%]" />
-            <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/10 lg:bg-linear-to-r lg:from-black/80 lg:via-black/45 lg:to-transparent" />
-            <div className="relative flex min-h-[680px] flex-col justify-end p-7 text-white sm:p-12 lg:min-h-[520px] lg:max-w-xl lg:justify-center">
-              <p className="text-sm text-white/70">For Mama</p>
-              <h2 className="mt-3 text-4xl font-medium leading-[1.1] sm:tracking-[-0.02em] sm:text-5xl">She asks. It’s done.</h2>
-              <p className="mt-4 text-lg leading-[1.6] text-white/80">No app to learn and no card to carry. She types in English or Pidgin, and her light, airtime or data arrives in seconds.</p>
+          <div className="grid overflow-hidden rounded-[28px] bg-foreground text-white lg:grid-cols-2">
+            <div className="relative aspect-[4/3] lg:order-2 lg:aspect-auto lg:min-h-[480px]">
+              <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill sizes="(min-width: 1024px) 552px, 100vw" className="object-cover object-[55%_30%]" />
+            </div>
+            <div className="flex flex-col justify-center p-8 sm:p-12">
+              <p className="text-sm text-white/60">For you</p>
+              <h2 className="mt-3 text-4xl font-medium leading-[1.1] sm:text-5xl sm:tracking-[-0.02em]">Look after Mama from anywhere</h2>
+              <p className="mt-4 text-lg leading-[1.6] text-white/75">Fund her purse once and set her limits. She buys what she needs by chatting, and you see every receipt.</p>
               <Link href="/start" className="mt-8 inline-flex h-12 w-fit items-center gap-2 rounded-[10px] bg-white px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#ebe8e3]">
                 Set it up for her <Arrow />
               </Link>
