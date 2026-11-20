@@ -56,7 +56,7 @@ The gateway follows Koxy's workshop kit (`src/server.mjs`), and the agent's payi
 One path only. Mama can't start a purse; without a link she sees "Ask your child to set up CarePurse and send you the link."
 
 1. **The daughter signs in with Privy** and becomes the purse's **guardian**.
-2. **She enters Mama's details:** name, phone number and language.
+2. **She enters Mama's details:** name and phone number. Mama's language is not asked: Mhasibu reads it from each message (`language.mjs`) and answers in English or Pidgin to match.
 3. **She enters Mama's meter number.** The gateway looks up the owner's name ("NGOZI OKAFOR, IKEDC prepaid") and she confirms. Airtime and data go to Mama's own phone number; there's no second number.
 4. **She picks a preset, Light or Standard.** The purse monthly cap is calculated from it. Then she funds the purse with testnet USDC on the same screen.
 5. **She invites Mama** with Copy link or Share on WhatsApp (a `wa.me` link, not a WhatsApp integration). Each link works once and expires after 7 days. She can send a new link if Mama didn't use it, which cancels the old one.

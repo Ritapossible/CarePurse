@@ -25,7 +25,7 @@ The "I'm Mama" option is only a message. There's no account and no waiting scree
 One button: **Continue with email or Google** (Privy). Her Stellar wallet is created behind that, with no seed phrase.
 
 ### 2. Mama
-Mama's **name**, **phone number**, and **language** (English or Pidgin).
+Mama's **name** and **phone number**. No language choice: Mhasibu answers in the language Mama writes in (English or Pidgin), read from each message.
 
 ### 3. Where the money goes
 - She enters Mama's **meter number**.
@@ -92,7 +92,7 @@ Two buttons:
 |---|---|---|
 | 0 | First screen: set-up button, plus the "I'm Mama" message | Everyone |
 | D1 | Sign in (Privy) | Daughter |
-| D2 | Mama: name, phone, language | Daughter |
+| D2 | Mama: name, phone | Daughter |
 | D3 | Where the money goes: meter + owner-name check | Daughter |
 | D4 | Limits (Light / Standard), then fund: address, QR, Get test USDC | Daughter |
 | D5 | Invite Mama: Copy link, Share on WhatsApp | Daughter |

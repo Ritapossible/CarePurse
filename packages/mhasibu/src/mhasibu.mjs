@@ -14,6 +14,7 @@ import { createPurseStore } from "./purses.mjs";
 import { createWallet } from "./wallet.mjs";
 import { createUnderstander, understandScripted } from "./understand.mjs";
 import { say } from "./replies.mjs";
+import { detectLanguage } from "./language.mjs";
 import { ContractRefused, orderRef } from "./purse-contract.mjs";
 
 const MINUTE = 60_000;
@@ -324,7 +325,10 @@ export function createMhasibu({
     async handle(purseId, text) {
       const purse = purses.get(purseId);
       if (!purse) throw new Error(`no purse ${purseId}`);
-      const lang = purse.mama.language;
+      // Answer in the language she just wrote in; a message with no sign ("1") keeps her last one.
+      const seen = detectLanguage(text);
+      if (seen && seen !== purse.mama.language) purses.update(purseId, (p) => { p.mama.language = seen; });
+      const lang = seen ?? purse.mama.language ?? "en";
       remember(purse, "mama", text);
       log({ type: "mama", text });
       await settleOpenOrder(purses.get(purseId));

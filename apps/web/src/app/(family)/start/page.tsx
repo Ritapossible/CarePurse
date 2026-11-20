@@ -29,7 +29,7 @@ function ErrorLine({ error }: { error: string | null }) {
 
 export default function StartPage() {
   const router = useRouter();
-  const { ready, authenticated, login, user } = usePrivy();
+  const { ready, authenticated, login, logout, user } = usePrivy();
   const api = useFamilyApi();
   const wallet = useStellarWallet();
   const [step, setStep] = useState<Step>("signin");
@@ -39,7 +39,6 @@ export default function StartPage() {
   const [you, setYou] = useState("");
   const [mamaName, setMamaName] = useState("");
   const [phone, setPhone] = useState("");
-  const [language, setLanguage] = useState<"en" | "pcm">("pcm");
   const [meter, setMeter] = useState("");
   const [disco, setDisco] = useState("ikeja-electric");
   const [network, setNetwork] = useState("mtn");
@@ -95,7 +94,7 @@ export default function StartPage() {
       const address = await wallet.ensure();
       const email = user?.email?.address ?? user?.google?.email ?? null;
       const prep = await api<{ status: string; hash?: string }>("POST", "prepare", {
-        guardian: { address, name: you, email }, mama: { name: mamaName, phone, language }, meter, disco, network, preset,
+        guardian: { address, name: you, email }, mama: { name: mamaName, phone }, meter, disco, network, preset,
       });
       if (prep.status === "pending" && prep.hash) {
         setBusy("Approve your rules…");
@@ -128,6 +127,19 @@ export default function StartPage() {
   }
 
   if (!ready) return <p className="text-muted">Loading…</p>;
+  return (
+    <>
+      {authenticated && (
+        <div className="mb-8 flex items-center justify-between gap-4 border-b border-line pb-4 text-sm">
+          <span className="min-w-0 truncate text-muted">Signed in as <span className="text-foreground">{user?.email?.address ?? user?.google?.email ?? "your account"}</span></span>
+          <button className="shrink-0 text-muted underline transition-colors duration-150 hover:text-foreground" disabled={Boolean(busy && busy !== "meter" && busy !== "usdc")} onClick={() => logout().then(() => router.push("/"))}>Sign out</button>
+        </div>
+      )}
+      {body()}
+    </>
+  );
+
+  function body() {
 
   if (!authenticated || step === "signin") {
     return (
@@ -153,14 +165,7 @@ export default function StartPage() {
         <label className="mt-5 block text-sm text-secondary">Network
           <select className={input} value={network} onChange={(e) => setNetwork(e.target.value)}>{NETWORKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         </label>
-        <fieldset className="mt-5">
-          <legend className="text-sm text-secondary">Mhasibu talks to her in</legend>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            {([["pcm", "Pidgin"], ["en", "English"]] as const).map(([v, l]) => (
-              <button key={v} type="button" onClick={() => setLanguage(v)} className={`h-12 rounded-[10px] border font-medium transition-colors duration-150 ${language === v ? "border-foreground bg-foreground text-background" : "border-line hover:bg-surface"}`}>{l}</button>
-            ))}
-          </div>
-        </fieldset>
+        <p className="mt-5 text-sm text-muted">Mama can write in English or Pidgin. Mhasibu answers in the one she uses.</p>
         <button className={`${primary} mt-8`} disabled={!ok} onClick={() => setStep("meter")}>Continue</button>
       </>
     );
@@ -264,4 +269,5 @@ export default function StartPage() {
   }
 
   return null;
+  }
 }

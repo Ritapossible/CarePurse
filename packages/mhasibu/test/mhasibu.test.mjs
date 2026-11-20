@@ -76,7 +76,7 @@ test("weekly electricity limit: after ₦15,000 this week, nothing more until Mo
   const { mhasibu, purses, wallet } = setup();
   for (const pick of ["4", "4", "4"]) { await mhasibu.handle("demo", "light"); await mhasibu.handle("demo", pick); }
   assert.equal(wallet.paid.length, 3);
-  const reply = await mhasibu.handle("demo", "light don finish");
+  const reply = await mhasibu.handle("demo", "my light is finished");
   assert.match(reply, /limit Adaeze set has been reached\. It opens again on Monday/);
   assert.equal(purses.get("demo").notifications.at(-1).kind, "limit-reached");
 });
@@ -185,7 +185,7 @@ test("the purse contract releases the money before Mhasibu pays over x402", asyn
   const pay = wallet.pay;
   wallet.pay = async (...a) => { steps.push(["pay"]); return pay(...a); };
   const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   await mhasibu.handle("demo", "1");
   assert.deepEqual(steps, [["release", String(500 * 6803)], ["pay"]]);
   assert.equal(purses.get("demo").spends[0].releaseTx, "rel1");
@@ -195,7 +195,7 @@ test("when the purse contract refuses, nothing is paid and the guardian hears ab
   const wallet = fakeWallet();
   wallet.release = async () => { throw new ContractRefused(3, "Error(Contract, #3)"); };
   const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   const reply = await mhasibu.handle("demo", "1");
   assert.equal(wallet.paid.length, 0);
   assert.match(reply, /limit Adaeze set has been reached/);
@@ -273,7 +273,7 @@ const R = (id) => orderRef(id).slice(0, 6);
 test("a paid top-up is committed on-chain, closing the open order", async () => {
   const wallet = phase2Wallet();
   const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   await mhasibu.handle("demo", "1");
   assert.deepEqual(wallet.chain.calls, ["release o500", `commit ${R("o500")}`]);
   assert.equal(purses.get("demo").openOrder, null);
@@ -283,7 +283,7 @@ test("payment fails after the release: refunded to the purse", async () => {
   const wallet = phase2Wallet();
   wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
   const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   assert.match(await mhasibu.handle("demo", "1"), /weren't charged/);
   assert.deepEqual(wallet.chain.calls, ["release o500", `refund ${R("o500")}`]);
   assert.equal(purses.get("demo").openOrder, null);
@@ -295,15 +295,15 @@ test("after a failed payment, no new money is released until the old signature h
   const pay = wallet.pay;
   wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
   const { mhasibu, purses, tick } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   await mhasibu.handle("demo", "1"); // signed (60 s window), failed, refunded
   wallet.pay = pay;
   tick(30_000);
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   assert.match(await mhasibu.handle("demo", "1"), /wait one minute/);
   assert.deepEqual(wallet.chain.calls, ["release o500", `refund ${R("o500")}`]); // nothing new released
   tick(61_000); // past the 60 s window + 30 s margin
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   assert.match(await mhasibu.handle("demo", "1"), /Done!/);
   assert.equal(wallet.chain.calls.filter((c) => c.startsWith("release")).length, 2);
 });
@@ -312,7 +312,7 @@ test("Mhasibu won't sign a payment that stays valid for long", async () => {
   for (const maxTimeoutSeconds of [3600, undefined]) {
     const wallet = fakeWallet({ tamper: { maxTimeoutSeconds } });
     const { mhasibu } = setup({ wallet });
-    await mhasibu.handle("demo", "light don finish");
+    await mhasibu.handle("demo", "my light is finished");
     await mhasibu.handle("demo", "1");
     assert.equal(wallet.paid.length, 0);
   }
@@ -323,7 +323,7 @@ test("the provider issued a token but settlement failed: Mama keeps the token, t
   wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 402)"); };
   wallet.chain.gateway.o500 = { id: "o500", status: "failed", ngn: 500, issued: { token: "1212 3434 5656 7878 9090", units: "2.2 kWh" } };
   const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   assert.match(await mhasibu.handle("demo", "1"), /1212 3434 5656 7878 9090/);
   assert.deepEqual(wallet.chain.calls, ["release o500", `pay-direct ${500 * 6803}`, `commit ${R("o500")}`]);
   const p = purses.get("demo");
@@ -336,7 +336,7 @@ test("a timeout after the release landed: not reported as free, settled on the n
   const wallet = phase2Wallet();
   wallet.chain.releaseThrows = "transaction poll timed out";
   const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   const reply = await mhasibu.handle("demo", "1");
   assert.match(reply, /can't confirm it yet/);
   assert.doesNotMatch(reply, /weren't charged/);
@@ -352,7 +352,7 @@ test("a send error before anything landed: the chain has no open order, so the r
   const wallet = phase2Wallet();
   wallet.release = async () => { throw new Error("send failed: txBadSeq"); };
   const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   await mhasibu.handle("demo", "1");
   assert.ok(purses.get("demo").openOrder);
   await mhasibu.handle("demo", "hello");
@@ -365,7 +365,7 @@ test("if settling keeps failing: counted as unconfirmed, no new purchase, settle
   wallet.chain.refundWorks = false;
   wallet.pay = async () => { throw new Error("payment not confirmed (HTTP 502)"); };
   const { mhasibu, purses } = setup({ wallet });
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   assert.match(await mhasibu.handle("demo", "1"), /can't confirm it yet/);
   assert.equal(wallet.chain.calls.filter((c) => c.startsWith("refund")).length, 3); // retried
   assert.equal(purses.get("demo").spends[0].unconfirmed, true);
@@ -398,7 +398,7 @@ test("the order id was lost: the chain's open order is settled by its reference 
   wallet.chain.gateway.lost1 = { id: "lost1", status: "failed", ngn: 100 };
   const { ContractRefused } = await import("../src/purse-contract.mjs");
   wallet.release = async () => { throw new ContractRefused(15, "Error(Contract, #15)"); }; // the contract: order open
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   assert.match(await mhasibu.handle("demo", "1"), /still finishing your last top-up/);
   assert.deepEqual(wallet.chain.calls, [`refund ${R("lost1")}`]); // returned to the purse by reference
   assert.equal(wallet.chain.open, null);
@@ -414,14 +414,14 @@ test("'NEPA card' and 'meter card' are electricity, 'recharge card' is airtime",
 // ── The token never disappears ────────────────────────────────
 test("the token is kept with the purchase, in Adaeze's receipt, and Mama can ask for it again", async () => {
   const { mhasibu, purses } = setup();
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   await mhasibu.handle("demo", "1");
   const p = purses.get("demo");
   assert.equal(p.spends[0].token, "1111 2222 3333 4444 5555");
   assert.equal(p.spends[0].units, "8.9 kWh (demo)");
   assert.match(p.notifications.find((n) => n.kind === "receipt").text, /Token: 1111 2222 3333 4444 5555/);
   // Many messages later, in different words:
-  for (const t of ["hello", "how much remain", "recharge my line", "0"]) await mhasibu.handle("demo", t);
+  for (const t of ["hello", "how much is left", "recharge my line", "0"]) await mhasibu.handle("demo", t);
   assert.match(await mhasibu.handle("demo", "send my token again"), /Your last electricity token \(₦500, .*\) is:\n1111 2222 3333 4444 5555\n\(8\.9 kWh \(demo\)\)/);
   assert.match(await mhasibu.handle("demo", "I no see the token"), /1111 2222 3333 4444 5555/);
   // From the menu (5), and in her purchase history.
@@ -465,7 +465,7 @@ test("the balance rule includes the fee: ₦5,100 in the purse can't buy ₦5,00
   assert.equal(room.tightest.rule, "purse balance");
   assert.ok(room.maxNgn < 5000 && room.maxNgn >= 4951);
   const { mhasibu } = setup({ wallet: feeWallet(5100) });
-  assert.doesNotMatch(await mhasibu.handle("demo", "light don finish"), /₦5,000/);
+  assert.doesNotMatch(await mhasibu.handle("demo", "my light is finished"), /₦5,000/);
 });
 
 test("on-chain caps include the fee, so they never refuse what the code allows", () => {
@@ -523,7 +523,7 @@ test("an order known only from the chain, still fulfilling: wait (its start come
   wallet.chain.gateway.o3 = { id: "o3", status: "fulfilling", ngn: 500, createdAt: new Date(MONDAY_10AM).toISOString(), issued: { token: "2222 3333 4444 5555 6666" } };
   const { ContractRefused } = await import("../src/purse-contract.mjs");
   wallet.release = async () => { throw new ContractRefused(15, "Error(Contract, #15)"); };
-  await mhasibu.handle("demo", "light don finish");
+  await mhasibu.handle("demo", "my light is finished");
   await mhasibu.handle("demo", "1");
   assert.deepEqual(wallet.chain.calls, []); // neither paid nor refunded while it may still settle
 });
@@ -597,8 +597,25 @@ test("each family's purse pays from its own contract", async () => {
   purses.put(newPurse({ ...DEMO_PURSE, id: "okafor", contractId: "CONTRACT_OKAFOR" }));
   purses.put(newPurse({ ...DEMO_PURSE, id: "bello", contractId: "CONTRACT_BELLO" }));
   const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => MONDAY_10AM, wait: async () => {} });
-  await mhasibu.handle("okafor", "light don finish");
+  await mhasibu.handle("okafor", "my light is finished");
   await mhasibu.handle("okafor", "1");
   assert.deepEqual(byContract.CONTRACT_OKAFOR.chain.calls, ["release o500", `commit ${R("o500")}`]);
   assert.equal(byContract.CONTRACT_BELLO, undefined); // the other family's purse was never touched
+});
+
+test("language is read from Mama's own words, not picked at sign-up", async () => {
+  const { detectLanguage } = await import("../src/language.mjs");
+  for (const t of ["Abeg buy light for me", "ligt don almst finsh", "wetin remain for my purse", "Make I get airtime", "light don finish o"]) assert.equal(detectLanguage(t), "pcm", t);
+  for (const t of ["Please buy light for me", "My light is almost finished", "How much is left?", "I need data please", "Thank you"]) assert.equal(detectLanguage(t), "en", t);
+  for (const t of ["1", "500", "light", "airtime", ""]) assert.equal(detectLanguage(t), null, t);
+
+  const { mhasibu, purses } = setup({ language: "en" });
+  const pidgin = await mhasibu.handle("demo", "Abeg buy light for me");
+  assert.match(pidgin, /I fit buy light/);
+  assert.equal(purses.get("demo").mama.language, "pcm");
+  const stillPidgin = await mhasibu.handle("demo", "0"); // no sign: keeps her last language
+  const english = await mhasibu.handle("demo", "Please buy light for me");
+  assert.match(english, /I can buy light/);
+  assert.equal(purses.get("demo").mama.language, "en");
+  assert.ok(stillPidgin);
 });
