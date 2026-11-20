@@ -49,7 +49,7 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
       <div role="dialog" aria-label={title} className="w-full max-w-md rounded-t-[24px] bg-white p-6 pb-8 sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-muted transition-colors hover:bg-surface hover:text-foreground"><Icon d={ICONS.close} /></button>
+          <button onClick={onClose} aria-label="Close" className="rounded-full p-2 text-muted transition-colors hover:bg-surface hover:text-foreground"><Icon d={ICONS.close} /></button>
         </div>
         <div className="mt-5">{children}</div>
       </div>
@@ -148,7 +148,7 @@ export default function DashboardPage() {
   if (!purse) {
     return error ? <p className="rounded-[10px] bg-danger-soft px-4 py-3 text-danger">{error}</p> : (
       <div className="space-y-4" aria-label="Loading">
-        <div className="h-8 w-48 animate-pulse rounded-lg bg-surface" />
+        <div className="h-8 w-48 animate-pulse rounded-[10px] bg-surface" />
         <div className="h-52 animate-pulse rounded-[24px] bg-surface" />
         <div className="h-24 animate-pulse rounded-2xl bg-surface" />
       </div>
@@ -251,7 +251,7 @@ export default function DashboardPage() {
         {purse.spends.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
             <p className="font-medium">No top-ups yet</p>
-            <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu for light, airtime or data, it shows here.</p>
+            <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu for light, airtime or data, it shows here</p>
           </div>
         ) : (
           <ul className="mt-1 divide-y divide-line">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
@@ -266,13 +266,13 @@ export default function DashboardPage() {
         </div>
         <ul className="mt-3 divide-y divide-line rounded-2xl border border-line">
           {(["electricity", "airtime", "data"] as const).map((u) => (
-            <li key={u} className="flex items-center gap-4 px-4 py-3.5">
+            <li key={u} className="flex items-center gap-4 px-4 py-4">
               <Icon d={ICONS[u]} className="h-5 w-5 text-muted" />
               <span className="flex-1 font-medium">{UTILITY[u]}</span>
               <span className="text-sm text-secondary">{preset[u]}</span>
             </li>
           ))}
-          <li className="flex items-center justify-between px-4 py-3.5">
+          <li className="flex items-center justify-between px-4 py-4">
             <span className="font-medium">Monthly total</span>
             <span className="text-sm text-secondary">up to {naira(purse.monthlyCap)}</span>
           </li>

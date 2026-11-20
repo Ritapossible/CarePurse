@@ -45,7 +45,7 @@ export default function AuthCard({
         <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${image ? "relative -mt-6 border-4 border-white bg-white shadow-sm" : "bg-surface"}`}>
           <LogoMark className="h-7 w-7" />
         </div>
-        <h1 className="mt-6 text-[26px] font-medium leading-tight">{title}</h1>
+        <h1 className="mt-6 text-[28px] font-medium leading-tight">{title}</h1>
         <p className="mt-2 text-[15px] text-secondary">{subtitle}</p>
 
         <button

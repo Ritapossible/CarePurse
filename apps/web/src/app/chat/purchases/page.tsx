@@ -26,11 +26,11 @@ function dayTitle(key: string) {
 function Token({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-surface px-3 py-2.5">
+    <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-surface px-3 py-3">
       <span className="whitespace-nowrap font-mono text-[15px] font-semibold tracking-wide">{value}</span>
       <button
         onClick={() => navigator.clipboard?.writeText(value.replace(/\s/g, "")).then(() => setCopied(true)).catch(() => {})}
-        className="shrink-0 rounded-lg border border-foreground px-3 py-1 text-sm transition-colors duration-150 hover:bg-white"
+        className="shrink-0 rounded-[10px] border border-foreground px-3 py-1 text-sm transition-colors duration-150 hover:bg-white"
       >
         {copied ? "Copied" : "Copy"}
       </button>
@@ -91,7 +91,7 @@ export default function PurchasesPage() {
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-3 pt-3">
       <section className="flex-1 rounded-[20px] border border-line bg-white">
         <header className="flex items-center gap-3 border-b border-line px-5 py-4">
-          <Link href="/chat" aria-label="Back to chat" className="-ml-1 rounded-lg p-1 transition-colors duration-150 hover:bg-surface">
+          <Link href="/chat" aria-label="Back to chat" className="-ml-1 rounded-[10px] p-1 transition-colors duration-150 hover:bg-surface">
             <svg width="22" height="22" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H3M7 3.5 2.5 8 7 12.5" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>
           </Link>
           <h1 className="text-lg font-medium">My purchases</h1>

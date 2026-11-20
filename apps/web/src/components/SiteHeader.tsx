@@ -39,7 +39,7 @@ export default function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/start" className="inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-[15px] font-medium text-background transition-colors duration-150 hover:bg-[#2b2825]">
+          <Link href="/start" className="inline-flex h-9 items-center rounded-[10px] bg-foreground px-4 text-[15px] font-medium text-background transition-colors duration-150 hover:bg-[#2b2825]">
             Launch App
           </Link>
           <MobileMenu items={MENU} />

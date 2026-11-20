@@ -74,7 +74,7 @@ export default function Home() {
                 How it works
               </Link>
             </div>
-            <p className="mt-5 text-sm text-muted">I’m Mama: ask your child to set up CarePurse and send you the link.</p>
+            <p className="mt-5 text-sm text-muted">I’m Mama: ask your child to set up CarePurse and send you the link</p>
           </div>
           {/* A real family, with the product in one glance on top */}
           <div className="relative">
@@ -82,16 +82,16 @@ export default function Home() {
               <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill priority sizes="(min-width: 768px) 45vw, 100vw" className="object-cover object-[60%_center]" />
               <div className="absolute inset-0 bg-linear-to-t from-black/45 via-transparent to-transparent" />
             </div>
-            <div className="absolute left-4 top-4 max-w-[70%] rounded-2xl rounded-bl-md bg-white/95 px-4 py-2.5 text-[15px] shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:left-6 sm:top-6">
+            <div className="absolute left-4 top-4 max-w-[70%] rounded-2xl rounded-bl-md bg-white/95 px-4 py-3 text-[15px] shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:left-6 sm:top-6">
               Abeg, light don almost finish
             </div>
-            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white/95 p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:inset-x-6 sm:bottom-6">
+            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white/95 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:inset-x-6 sm:bottom-6">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium">Electricity · ₦5,000</div>
-                <div className="truncate font-mono text-[12px] text-secondary">1111 2222 3333 4444 5555</div>
+                <div className="truncate font-mono text-xs text-secondary">1111 2222 3333 4444 5555</div>
               </div>
               <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Delivered</span>
             </div>
@@ -159,7 +159,7 @@ export default function Home() {
                 <div className="text-xs text-muted">Token</div>
                 <div className="mt-1 whitespace-nowrap font-mono text-[15px] font-semibold tracking-wide">1111 2222 3333 4444 5555</div>
               </div>
-              <dl className="mt-5 space-y-2.5 text-sm">
+              <dl className="mt-5 space-y-3 text-sm">
                 {RECEIPT.map((r) => (
                   <div key={r.k} className="flex justify-between gap-4">
                     <dt className="text-muted">{r.k}</dt>

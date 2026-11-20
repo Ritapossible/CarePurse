@@ -71,7 +71,7 @@ export default function InviteClient({ token }: { token: string }) {
         <p className="mt-16 text-lg text-secondary">{error ?? "Opening your link…"}</p>
       ) : (
         <>
-          <h1 className="mt-14 text-[36px] font-medium leading-tight">Welcome, Mama {invite.mamaName}</h1>
+          <h1 className="mt-14 text-4xl font-medium leading-tight">Welcome, Mama {invite.mamaName}</h1>
           <p className="mt-3 text-lg text-secondary">
             {pcm ? `${invite.guardianName} don set up CarePurse for you. Confirm your phone number to start.` : `${invite.guardianName} has set up CarePurse for you. Confirm your phone number to start.`}
           </p>

@@ -265,7 +265,7 @@ export default function StartPage() {
             </div>
           </>
         ) : (
-          <p className="text-secondary">You can send Mama a link from your dashboard.</p>
+          <p className="text-secondary">You can send Mama a link from your dashboard</p>
         )}
         <button className="mt-8 w-full py-2 font-medium underline" onClick={() => router.push("/dashboard")}>Go to your dashboard</button>
       </>

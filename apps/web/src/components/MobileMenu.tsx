@@ -29,7 +29,7 @@ export default function MobileMenu({ items }: { items: Item[] }) {
         aria-label="Open menu"
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className="grid h-9 w-9 place-items-center rounded-lg border border-line transition-colors duration-150 hover:bg-surface md:hidden"
+        className="grid h-9 w-9 place-items-center rounded-[10px] border border-line transition-colors duration-150 hover:bg-surface md:hidden"
       >
         <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true">
           <path d="M0 1h16M0 6h16M0 11h16" stroke="currentColor" strokeWidth="1.5" />
@@ -45,7 +45,7 @@ export default function MobileMenu({ items }: { items: Item[] }) {
                 <LogoMark className="h-7 w-7" />
                 CarePurse
               </Link>
-              <button type="button" aria-label="Close menu" onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-lg transition-colors duration-150 hover:bg-surface">
+              <button type="button" aria-label="Close menu" onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-[10px] transition-colors duration-150 hover:bg-surface">
                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                   <path d="M2 2l12 12M14 2 2 14" stroke="currentColor" strokeWidth="1.5" />
                 </svg>

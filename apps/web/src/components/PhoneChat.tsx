@@ -12,7 +12,7 @@ const LINES: Line[] = [
 
 export default function PhoneChat() {
   return (
-    <div className="mx-auto w-full max-w-[340px] rounded-[44px] border border-line bg-foreground p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
+    <div className="mx-auto w-full max-w-[340px] rounded-[44px] border border-line bg-foreground p-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
       <div className="overflow-hidden rounded-[36px] bg-background">
         <div className="flex justify-center pt-3">
           <div className="h-6 w-24 rounded-full bg-foreground" />
@@ -24,11 +24,11 @@ export default function PhoneChat() {
             <div className="text-xs text-muted">Light, airtime and data</div>
           </div>
         </div>
-        <div className="space-y-2.5 bg-surface px-4 py-5 text-[15px] leading-snug">
+        <div className="space-y-3 bg-surface px-4 py-5 text-[15px] leading-snug">
           {LINES.map((l, i) => (
             <div key={i} className={`flex ${l.from === "mama" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[85%] whitespace-pre-line rounded-2xl px-3.5 py-2.5 ${
+                className={`max-w-[85%] whitespace-pre-line rounded-2xl px-4 py-3 ${
                   l.from === "mama" ? "rounded-br-md bg-foreground text-background" : "rounded-bl-md border border-line bg-background"
                 }`}
               >

@@ -137,7 +137,7 @@ export default function AgentLog() {
       {status?.demoMode && status.phase === 2 && (
         <div className="space-y-3 border-t border-line px-5 py-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-muted">Skip Mhasibu&rsquo;s checks and ask the contract for more than Adaeze allows.</p>
+            <p className="text-sm text-muted">Skip Mhasibu&rsquo;s checks and ask the contract for more than Adaeze allows</p>
             <button
               disabled={trying !== null}
               onClick={async () => {
@@ -150,7 +150,7 @@ export default function AgentLog() {
             </button>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-muted">Ask the contract to pay a meter Adaeze never saved.</p>
+            <p className="text-sm text-muted">Ask the contract to pay a meter Adaeze never saved</p>
             <button
               disabled={trying !== null}
               onClick={async () => {

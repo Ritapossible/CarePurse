@@ -62,7 +62,7 @@ function Bubble({ line, onPick, live }: { line: ChatLine; onPick: (n: string) =>
   if (line.from === "mama") {
     return (
       <div className="flex flex-col items-end">
-        <div className="max-w-[82%] whitespace-pre-wrap rounded-[20px] rounded-br-md bg-foreground px-4 py-2.5 text-[17px] leading-relaxed text-background">{line.text}</div>
+        <div className="max-w-[82%] whitespace-pre-wrap rounded-[20px] rounded-br-md bg-foreground px-4 py-3 text-[17px] leading-relaxed text-background">{line.text}</div>
         {line.at && <span className="mt-1 pr-1 text-xs text-muted">{time(line.at)}</span>}
       </div>
     );
@@ -74,7 +74,7 @@ function Bubble({ line, onPick, live }: { line: ChatLine; onPick: (n: string) =>
     <div className="flex items-end gap-2">
       <MhasibuAvatar className="mb-5 h-7 w-7 shrink-0" />
       <div className="min-w-0 max-w-[82%]">
-        <div className="whitespace-pre-wrap rounded-[20px] rounded-bl-md border border-line bg-white px-4 py-2.5 text-[17px] leading-relaxed"><Text text={prose} /></div>
+        <div className="whitespace-pre-wrap rounded-[20px] rounded-bl-md border border-line bg-white px-4 py-3 text-[17px] leading-relaxed"><Text text={prose} /></div>
         {options.length >= 2 && (
           <div className="mt-2 flex flex-col gap-1.5">
             {options.map((o) => (
@@ -82,7 +82,7 @@ function Bubble({ line, onPick, live }: { line: ChatLine; onPick: (n: string) =>
                 key={o[1]}
                 disabled={!live}
                 onClick={() => onPick(o[1])}
-                className={`flex h-11 items-center gap-3 rounded-xl border px-4 text-left text-[16px] transition-colors duration-150 disabled:opacity-50 ${o[1] === "0" ? "border-line text-muted" : "border-line bg-white font-medium hover:border-foreground"}`}
+                className={`flex h-11 items-center gap-3 rounded-xl border px-4 text-left text-base transition-colors duration-150 disabled:opacity-50 ${o[1] === "0" ? "border-line text-muted" : "border-line bg-white font-medium hover:border-foreground"}`}
               >
                 <span className="w-4 font-mono text-sm text-muted">{o[1]}</span>
                 {o[2]}
@@ -163,7 +163,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
           <div className="mx-auto max-w-xs pt-8 text-center">
             <MhasibuAvatar className="mx-auto h-14 w-14" />
             <p className="mt-4 text-lg font-medium">Ask for light, airtime or data</p>
-            <p className="mt-1 text-[16px] text-secondary">Write in English or Pidgin, or tap a button below.</p>
+            <p className="mt-1 text-base text-secondary">Write in English or Pidgin, or tap a button below</p>
           </div>
         )}
         {lines.map((l, i) => (
