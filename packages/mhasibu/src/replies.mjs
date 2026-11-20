@@ -98,6 +98,22 @@ export const say = {
       : `Your last top-ups:\n${body}\nThis month: ${naira(monthNgn)}.`;
   },
 
+  // Purchases on one day or in one period she asked about ("yesterday", "16 Nov", "last week").
+  historyFor(lang, { label, utility = null, spends, totalNgn }) {
+    const multiDay = /week|month/.test(label);
+    const fmt = multiDay
+      ? { timeZone: "Africa/Lagos", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }
+      : { timeZone: "Africa/Lagos", hour: "numeric", minute: "2-digit" };
+    const on = /^(today|yesterday|this|last)/.test(label) ? label : `on ${label}`;
+    const what = utility ? LABEL[lang][utility] : "anything";
+    if (!spends.length) return lang === "pcm" ? `You no buy ${what} ${on}.` : `You didn't buy ${what} ${on}.`;
+    const body = spends.slice(-20).reverse().map((s) => `${new Date(s.at).toLocaleString("en-NG", fmt)}: ${naira(s.ngn)} ${LABEL[lang][s.utility]}${s.utility === "electricity" && s.token ? ` · token ${s.token}` : ""}${s.unconfirmed ? (lang === "pcm" ? " (we never confirm am yet)" : " (not confirmed yet)") : ""}`).join("\n");
+    const count = spends.length === 1 ? (lang === "pcm" ? "1 top-up" : "1 top-up") : `${spends.length} top-ups`;
+    return lang === "pcm"
+      ? `Wetin you buy ${on}:\n${body}\nTotal: ${naira(totalNgn)} (${count}).`
+      : `What you bought ${on}:\n${body}\nTotal: ${naira(totalNgn)} (${count}).`;
+  },
+
   // Greeting or "What can you help me do?": who Mhasibu is, everything it does, and the menu.
   help(lang, { name, guardian }) {
     return lang === "pcm"

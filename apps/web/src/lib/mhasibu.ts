@@ -96,6 +96,25 @@ export async function loadTokens(purse = "demo"): Promise<TokenRecord[]> {
   return (await res.json()).tokens;
 }
 
+// Mama's purchases for her Purchases page, newest first. Face value only (no service fee).
+export type Purchase = {
+  at: string;
+  utility: "electricity" | "airtime" | "data";
+  ngn: number;
+  to: string;
+  token: string | null;
+  units: string | null;
+  status: "done" | "checking";
+  link: string | null;
+};
+
+export async function loadPurchases(purse = "demo"): Promise<{ mama: { name: string }; purchases: Purchase[] }> {
+  const res = await fetch(`${MHASIBU_URL}/v1/purchases?purse=${purse}`, { headers: withCode() });
+  if (res.status === 401) throw new Error("access code needed");
+  if (!res.ok) throw new Error("could not load purchases");
+  return res.json();
+}
+
 export async function loadStatus(): Promise<Status> {
   const res = await fetch(`${MHASIBU_URL}/v1/status`);
   return res.json();

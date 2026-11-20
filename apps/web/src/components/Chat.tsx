@@ -1,5 +1,6 @@
 "use client";
 // Mama's chat. Deliberately plain: big text, numbered options, the token easy to read.
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import MhasibuAvatar from "./MhasibuAvatar";
 import { type ChatLine, type TokenRecord, loadHistory, loadTokens, saveAccessCode, sendMessage } from "@/lib/mhasibu";
@@ -125,10 +126,13 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
     <section className="flex h-full min-h-0 flex-col rounded-[20px] border border-line bg-surface">
       <header className="flex items-center gap-3 border-b border-line bg-white px-5 py-4 rounded-t-[20px]">
         <MhasibuAvatar className="h-10 w-10 shrink-0" />
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="font-semibold">Mhasibu</div>
-          <div className="text-sm text-muted">Helping {name} with light, airtime and data</div>
+          <div className="truncate text-sm text-muted">Helping {name} with light, airtime and data</div>
         </div>
+        <Link href="/chat/purchases" className="shrink-0 rounded-[10px] border border-line px-3 py-2 text-sm font-medium transition-colors duration-150 hover:border-foreground">
+          My purchases
+        </Link>
       </header>
 
       {lastToken && <LastToken record={lastToken} />}
@@ -147,7 +151,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
       </div>
 
       <div className="flex flex-wrap gap-2 px-4 pb-2">
-        {["Light don almost finish", "My data don finish", "Recharge my line", "Send my token again"].map((q) => (
+        {["Light don almost finish", "My data don finish", "Recharge my line", "Send my token again", "What did I buy?"].map((q) => (
           <button key={q} onClick={() => submit(q)} disabled={waiting} className="rounded-lg border border-line bg-white px-3 py-1.5 text-sm transition-colors duration-150 hover:border-foreground disabled:opacity-50">
             {q}
           </button>

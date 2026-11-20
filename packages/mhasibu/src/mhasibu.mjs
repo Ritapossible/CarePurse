@@ -15,6 +15,7 @@ import { createWallet } from "./wallet.mjs";
 import { createUnderstander, understandScripted } from "./understand.mjs";
 import { say } from "./replies.mjs";
 import { detectLanguage } from "./language.mjs";
+import { parseDay } from "./days.mjs";
 import { ContractRefused, orderRef } from "./purse-contract.mjs";
 
 const MINUTE = 60_000;
@@ -371,7 +372,7 @@ export function createMhasibu({
         if (!pick) return showMenu(purse, say.notAnOption(lang));
         if (pick === "check_balance") return balance(purse, lang);
         if (pick === "my_token") return lastToken(purse, lang);
-        if (pick === "history") return history(purse, lang);
+        if (pick === "history") return history(purse, lang, "");
         return offer(purses.get(purse.id), pick, lang);
       }
       const ngn = pending.options[choice - 1];
@@ -381,7 +382,7 @@ export function createMhasibu({
     }
     if (intent === "buy" && utility) return offer(purse, utility, lang);
     if (intent === "check_balance") return balance(purse, lang);
-    if (intent === "history") return history(purse, lang);
+    if (intent === "history") return history(purse, lang, text, utility);
     if (intent === "my_token") return lastToken(purse, lang);
     if (intent === "change_rules") {
       notifyGuardian(purse, "change-request", `Mama asked: "${text.slice(0, 200)}"`);
@@ -397,8 +398,15 @@ export function createMhasibu({
     return reply;
   }
 
-  // Her purchase history: the last 10 top-ups, newest first, and what she has spent this month.
-  function history(purse, lang) {
+  // Her purchase history. A day or period in her words ("yesterday", "on 16 Nov", "last week"):
+  // everything bought then, with the total. Otherwise the last 10 top-ups and this month's total.
+  // Naming a utility ("did I buy light on Monday?") narrows it to that utility.
+  function history(purse, lang, text, utility = null) {
+    const range = parseDay(text, clock());
+    if (range) {
+      const spends = purse.spends.filter((s) => { const at = Date.parse(s.at); return at >= range.from && at < range.to && (!utility || s.utility === utility); });
+      return say.historyFor(lang, { label: range.label, utility, spends, totalNgn: spends.reduce((sum, s) => sum + s.ngn, 0) });
+    }
     const since = periodStart("month", clock());
     const monthNgn = purse.spends.filter((s) => Date.parse(s.at) >= since).reduce((sum, s) => sum + s.ngn, 0);
     return say.history(lang, { spends: purse.spends, monthNgn });

@@ -114,6 +114,23 @@ const server = http.createServer(async (req, res) => {
       if (!purse) return send(res, 404, { error: "no such purse" });
       return send(res, 200, { mama: { name: purse.mama.name, language: purse.mama.language }, guardian: purse.guardian.name, history: purse.history.slice(-50) });
     }
+    // Mama's purchase history for her Purchases page, newest first. Face value only: the service
+    // fee is her daughter's and is never shown to Mama.
+    if (req.method === "GET" && url.pathname === "/v1/purchases") {
+      const purse = purses.get(url.searchParams.get("purse") ?? "demo");
+      if (!purse) return send(res, 404, { error: "no such purse" });
+      const purchases = [...purse.spends].reverse().slice(0, 200).map((s) => ({
+        at: s.at,
+        utility: s.utility,
+        ngn: s.ngn,
+        to: s.utility === "electricity" ? purse.destinations.electricity : purse.destinations[s.utility] ?? purse.mama.phone,
+        token: s.utility === "electricity" ? s.token ?? null : null,
+        units: s.units ?? null,
+        status: s.unconfirmed ? "checking" : "done",
+        link: s.tx ? explorer.tx(s.tx) : null,
+      }));
+      return send(res, 200, { mama: { name: purse.mama.name }, purchases });
+    }
     // Mama's electricity tokens, newest first: the chat pins the latest one so it never scrolls away.
     if (req.method === "GET" && url.pathname === "/v1/tokens") {
       const purse = purses.get(url.searchParams.get("purse") ?? "demo");

@@ -664,3 +664,33 @@ test("Mama can see her purchase history: menu 6 or in her own words, newest firs
   assert.equal(understandScripted("Show my purchase history").intent, "history");
   assert.match(await mhasibu.handle("demo", "abeg wetin I don buy"), /^Wetin you don buy last:/);
 });
+
+test("Mama can ask about one day or period: 'yesterday', 'on 16 Nov', 'last week', narrowed by utility", async () => {
+  const { parseDay } = await import("../src/days.mjs");
+  const FRI_9PM = Date.parse("2026-11-20T20:00:00Z"); // Friday 20 Nov, 21:00 in Lagos
+  const iso = (r) => r && [new Date(r.from).toISOString(), new Date(r.to).toISOString()];
+  assert.deepEqual(iso(parseDay("what did I buy yesterday", FRI_9PM)), ["2026-11-18T23:00:00.000Z", "2026-11-19T23:00:00.000Z"]);
+  assert.deepEqual(iso(parseDay("on 16 Nov", FRI_9PM)), ["2026-11-15T23:00:00.000Z", "2026-11-16T23:00:00.000Z"]);
+  assert.deepEqual(iso(parseDay("November 16th", FRI_9PM)), iso(parseDay("16/11", FRI_9PM)));
+  assert.deepEqual(iso(parseDay("on Monday", FRI_9PM)), iso(parseDay("16 Nov", FRI_9PM)));
+  assert.equal(parseDay("wetin I buy last week", FRI_9PM).label, "last week");
+  assert.equal(parseDay("on 25 Dec", FRI_9PM).from, Date.parse("2025-12-24T23:00:00Z")); // no year: the last one, not the future
+  assert.equal(parseDay("31 Feb", FRI_9PM), null);
+  assert.equal(parseDay("my meter 45012345678", FRI_9PM), null);
+  assert.equal(parseDay("what did I buy", FRI_9PM), null);
+
+  const { mhasibu, tick } = setup({ language: "en" }); // Monday 16 Nov, 10:00 Lagos
+  await mhasibu.handle("demo", "my light is finished");
+  await mhasibu.handle("demo", "1"); // ₦500 light, Monday
+  tick(24 * 60 * 60 * 1000); // Tuesday
+  await mhasibu.handle("demo", "airtime");
+  await mhasibu.handle("demo", "2"); // ₦200 airtime, Tuesday
+  assert.equal(understandScripted("did I buy light on Monday?").intent, "history");
+
+  const monday = await mhasibu.handle("demo", "What did I buy yesterday?");
+  assert.match(monday, /^What you bought yesterday:\n10:00.*₦500 light · token 1111 2222 3333 4444 5555\nTotal: ₦500 \(1 top-up\)\.$/);
+  assert.match(await mhasibu.handle("demo", "what did I buy on 16 Nov"), /^What you bought on Mon, 16 Nov:/);
+  assert.match(await mhasibu.handle("demo", "did I buy airtime on Monday?"), /^You didn't buy airtime on Mon, 16 Nov\.$/);
+  assert.match(await mhasibu.handle("demo", "what did I buy this week"), /₦200 airtime\n.*₦500 light.*\nTotal: ₦700 \(2 top-ups\)\.$/);
+  assert.match(await mhasibu.handle("demo", "abeg wetin I buy for 1 Nov"), /^You no buy anything on Sun, 1 Nov\.$/);
+});

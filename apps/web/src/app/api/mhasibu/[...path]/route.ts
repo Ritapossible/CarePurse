@@ -12,8 +12,8 @@ import { MAMA_COOKIE, UPSTREAM, purseForSession } from "@/lib/server/mhasibu";
 const KEY = process.env.MHASIBU_API_KEY ?? "";
 const ACCESS_CODE = process.env.WEB_ACCESS_CODE ?? "";
 const DEMO_ONLY = new Set(["POST v1/demo/overspend", "POST v1/demo/wrong-destination"]);
-const ALLOWED = new Set(["GET v1/status", "GET v1/history", "GET v1/tokens", "GET v1/events", "POST v1/chat", ...DEMO_ONLY]);
-const PER_PURSE = new Set(["GET v1/history", "GET v1/tokens", "GET v1/events", "POST v1/chat"]);
+const ALLOWED = new Set(["GET v1/status", "GET v1/history", "GET v1/tokens", "GET v1/purchases", "GET v1/events", "POST v1/chat", ...DEMO_ONLY]);
+const PER_PURSE = new Set(["GET v1/history", "GET v1/tokens", "GET v1/purchases", "GET v1/events", "POST v1/chat"]);
 
 function sameText(a: string, b: string) {
   const x = Buffer.from(a);
