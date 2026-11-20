@@ -24,7 +24,7 @@ const WORDS = {
   airtime: /\b(airtime|credit|recharge|call(ing)?|top ?up my line|vtu)\b/i,
   data: /\b(data|internet|mb|gb|browse|browsing|whatsapp|network bundle|bundle)\b/i,
   balance: /\b(balance|how much (remain|dey|is left|i get)|wetin remain|wey remain|money (remain|left)|how much (money )?(do |did )?(i|we) (have|get|got)|how much (money )?(is |dey )?(in|for|inside) (my|the) (purse|wallet|account)|how much (be|is) (my|the) (purse|wallet|account)|(my|the) (purse|wallet|account) (money|balance)|money (wey )?(dey|is) (in|for|inside) (my|the) (purse|wallet|account))\b/i,
-  history: /\b(history|wetin i (don )?buy|what (did )?i (buy|bought)|last time|receipts?)\b/i,
+  history: /\b(history|wetin i (don |dey )?buy|wetin (i|we) (don )?(buy|spend)|what (did |have |has )?i (buy|bought|spent|spend)|what i('ve| have)? bought|my (purchases|top ?ups|transactions|spending)|last time|receipts?|show me (my )?(purchases|top ?ups|what i bought))\b/i,
   changeRules: /\b(limit|increase|raise|add (another|new) (number|meter)|new number|change (my |the )?(number|meter|limit)|send\b.*\bto|neighbou?r|my friend|another (person|number|meter)|for (my|another) (friend|pikin|son|daughter|sister|brother))\b/i,
   help: /^\s*(hi|hello|hey|good (morning|afternoon|evening)|help|how far|abeg help|wetin you fit do)\b/i,
   // "What can you help me do?", "what do you do", "who are you", "wetin you dey do", "your services"

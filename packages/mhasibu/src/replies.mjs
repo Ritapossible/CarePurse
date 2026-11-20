@@ -12,8 +12,8 @@ const WHEN = {
 
 // The menu Mama answers with one digit (same order as MENU_CHOICES in mhasibu.mjs).
 const MENU = {
-  en: "1) Light\n2) Airtime\n3) Data\n4) How much is left\n5) My last light token",
-  pcm: "1) Light\n2) Airtime\n3) Data\n4) Wetin remain\n5) My last light token",
+  en: "1) Light\n2) Airtime\n3) Data\n4) How much is left\n5) My last light token\n6) What I bought",
+  pcm: "1) Light\n2) Airtime\n3) Data\n4) Wetin remain\n5) My last light token\n6) Wetin I don buy",
 };
 
 export const say = {
@@ -88,10 +88,14 @@ export const say = {
       : `Your last electricity token (${naira(spend.ngn)}, ${when}) is:\n${spend.token}${spend.units ? `\n(${spend.units})` : ""}`;
   },
 
-  history(lang, { spends }) {
+  // Her purchase history: newest first, with the date and time, the token for light, and this month's total.
+  history(lang, { spends, monthNgn = 0 }) {
     if (!spends.length) return lang === "pcm" ? "You never buy anything yet." : "You haven't bought anything yet.";
-    const body = spends.slice(-5).reverse().map((s) => `${new Date(s.at).toLocaleDateString("en-NG", { timeZone: "Africa/Lagos" })}: ${naira(s.ngn)} ${LABEL[lang][s.utility]}${s.token ? ` · token ${s.token}` : ""}${s.unconfirmed ? (lang === "pcm" ? " (we never confirm am yet)" : " (not confirmed yet)") : ""}`).join("\n");
-    return lang === "pcm" ? `Wetin you don buy last:\n${body}` : `Your last top-ups:\n${body}`;
+    const when = (at) => new Date(at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    const body = spends.slice(-10).reverse().map((s) => `${when(s.at)}: ${naira(s.ngn)} ${LABEL[lang][s.utility]}${s.utility === "electricity" && s.token ? ` · token ${s.token}` : ""}${s.unconfirmed ? (lang === "pcm" ? " (we never confirm am yet)" : " (not confirmed yet)") : ""}`).join("\n");
+    return lang === "pcm"
+      ? `Wetin you don buy last:\n${body}\nThis month: ${naira(monthNgn)}.`
+      : `Your last top-ups:\n${body}\nThis month: ${naira(monthNgn)}.`;
   },
 
   // Greeting or "What can you help me do?": who Mhasibu is, everything it does, and the menu.

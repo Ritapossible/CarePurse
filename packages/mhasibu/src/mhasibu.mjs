@@ -9,7 +9,7 @@
 //
 // "The AI proposes, the code decides": the model only classifies. Every amount, rule and payment is code.
 import { config as defaultConfig, explorer } from "./config.mjs";
-import { checkPurchase, headroom } from "./limits.mjs";
+import { checkPurchase, headroom, periodStart } from "./limits.mjs";
 import { createPurseStore } from "./purses.mjs";
 import { createWallet } from "./wallet.mjs";
 import { createUnderstander, understandScripted } from "./understand.mjs";
@@ -21,7 +21,7 @@ const MINUTE = 60_000;
 // After this long, a signed x402 authorisation has expired, so a "fulfilling" order can no longer settle.
 const SETTLE_WINDOW_MS = 30 * MINUTE;
 // The one-digit menu shown with help and "I didn't understand" (same order as MENU in replies.mjs).
-const MENU_CHOICES = [null, "electricity", "airtime", "data", "check_balance", "my_token"];
+const MENU_CHOICES = [null, "electricity", "airtime", "data", "check_balance", "my_token", "history"];
 
 export function createMhasibu({
   config = defaultConfig,
@@ -371,6 +371,7 @@ export function createMhasibu({
         if (!pick) return showMenu(purse, say.notAnOption(lang));
         if (pick === "check_balance") return balance(purse, lang);
         if (pick === "my_token") return lastToken(purse, lang);
+        if (pick === "history") return history(purse, lang);
         return offer(purses.get(purse.id), pick, lang);
       }
       const ngn = pending.options[choice - 1];
@@ -380,7 +381,7 @@ export function createMhasibu({
     }
     if (intent === "buy" && utility) return offer(purse, utility, lang);
     if (intent === "check_balance") return balance(purse, lang);
-    if (intent === "history") return say.history(lang, { spends: purse.spends });
+    if (intent === "history") return history(purse, lang);
     if (intent === "my_token") return lastToken(purse, lang);
     if (intent === "change_rules") {
       notifyGuardian(purse, "change-request", `Mama asked: "${text.slice(0, 200)}"`);
@@ -394,6 +395,13 @@ export function createMhasibu({
   function showMenu(purse, reply) {
     purses.update(purse.id, (p) => { p.pending = { menu: true, expiresAt: new Date(clock() + config.optionsTtlMinutes * MINUTE).toISOString() }; });
     return reply;
+  }
+
+  // Her purchase history: the last 10 top-ups, newest first, and what she has spent this month.
+  function history(purse, lang) {
+    const since = periodStart("month", clock());
+    const monthNgn = purse.spends.filter((s) => Date.parse(s.at) >= since).reduce((sum, s) => sum + s.ngn, 0);
+    return say.history(lang, { spends: purse.spends, monthNgn });
   }
 
   function lastToken(purse, lang) {

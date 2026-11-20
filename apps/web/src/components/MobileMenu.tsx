@@ -62,11 +62,11 @@ export default function MobileMenu({ items }: { items: Item[] }) {
                 ))}
               </ul>
               <Link
-                href="/demo"
+                href="/start"
                 onClick={() => setOpen(false)}
                 className="mt-6 flex h-14 items-center justify-center gap-2 rounded-[10px] bg-foreground text-lg font-medium text-background transition-colors duration-150 hover:bg-[#262626]"
               >
-                Open the demo
+                Launch App
                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                   <path d="M2 8h11M9 3.5 13.5 8 9 12.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
                 </svg>

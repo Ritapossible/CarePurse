@@ -649,3 +649,18 @@ test("Mama can ask her balance in naira: face value (no fee), then what she can 
   assert.match(en, /Here's what you can buy right now:\nlight: up to ₦/);
   assert.match(await mhasibu.handle("demo", "abeg how much money I get for my purse"), /^Money for your purse: ₦/);
 });
+
+test("Mama can see her purchase history: menu 6 or in her own words, newest first, with this month's total", async () => {
+  const { mhasibu } = setup({ language: "en" });
+  assert.match(await mhasibu.handle("demo", "What have I bought?"), /You haven't bought anything yet/);
+  await mhasibu.handle("demo", "my light is finished");
+  await mhasibu.handle("demo", "1"); // ₦500 of light
+  await mhasibu.handle("demo", "airtime");
+  await mhasibu.handle("demo", "2"); // ₦200 airtime
+  const menu = await mhasibu.handle("demo", "qwerty");
+  assert.match(menu, /6\) What I bought/);
+  const list = await mhasibu.handle("demo", "6");
+  assert.match(list, /^Your last top-ups:\n.*₦200 airtime\n.*₦500 light · token 1111 2222 3333 4444 5555\nThis month: ₦700\.$/);
+  assert.equal(understandScripted("Show my purchase history").intent, "history");
+  assert.match(await mhasibu.handle("demo", "abeg wetin I don buy"), /^Wetin you don buy last:/);
+});

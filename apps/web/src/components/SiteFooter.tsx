@@ -16,8 +16,7 @@ export default function SiteFooter() {
         <div>
           <h3 className="font-medium">Explore</h3>
           <ul className="mt-4 space-y-3 text-muted">
-            <li><Link href="/demo" className={link}>Live demo</Link></li>
-            <li><Link href="/chat" className={link}>Mama’s chat</Link></li>
+            <li><Link href="/start" className={link}>Launch App</Link></li>
             <li><Link href="/#how" className={link}>How it works</Link></li>
             <li><Link href="/#faq" className={link}>FAQ</Link></li>
           </ul>

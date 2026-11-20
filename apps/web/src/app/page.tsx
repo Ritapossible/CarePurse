@@ -58,9 +58,7 @@ export default function Home() {
         {/* Hero: text and the phone, centred against each other */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-24 pt-12 md:grid-cols-[1.1fr_1fr] md:gap-16 md:pt-20">
           <div>
-            <Link href="/demo" className="text-sm text-secondary transition-colors duration-150 hover:text-foreground">
-              Live on Stellar Testnet
-            </Link>
+            <p className="text-sm text-secondary">Live on Stellar Testnet</p>
             <h1 className="mt-6 text-[44px] font-medium leading-[1.04] tracking-[-0.03em] sm:text-6xl lg:text-[72px]">
               Keep Mama’s
               <br />
@@ -72,10 +70,10 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/start" className="inline-flex h-12 items-center justify-center gap-2 rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#262626]">
-                Set up for your mum <Arrow />
+                Launch App <Arrow />
               </Link>
-              <Link href="/demo" className="inline-flex h-12 items-center justify-center rounded-[10px] border border-line px-5 font-medium transition-colors duration-150 hover:bg-surface">
-                Open the demo
+              <Link href="#how" className="inline-flex h-12 items-center justify-center rounded-[10px] border border-line px-5 font-medium transition-colors duration-150 hover:bg-surface">
+                How it works
               </Link>
             </div>
             <p className="mt-5 text-sm text-muted">I’m Mama: ask your child to set up CarePurse and send you the link.</p>
@@ -115,10 +113,10 @@ export default function Home() {
               <p className="text-sm text-background/60">Agent &amp; x402 log</p>
               <h2 className="mt-3 max-w-xl text-4xl font-medium leading-[1.1] tracking-[-0.02em] sm:text-5xl">Watch every payment happen</h2>
               <p className="mt-5 max-w-lg text-lg leading-[1.6] text-background/70">
-                The contract check, the 402, the signed payment and the Stellar transaction appear as Mama chats.
+                The contract check, the 402, the signed payment and the Stellar transaction, for every top-up Mama asks for.
               </p>
-              <Link href="/demo" className="mt-8 inline-flex h-12 items-center gap-2 rounded-[10px] bg-background px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#e5e5e5]">
-                Open the demo <Arrow />
+              <Link href="/start" className="mt-8 inline-flex h-12 items-center gap-2 rounded-[10px] bg-background px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#e5e5e5]">
+                Launch App <Arrow />
               </Link>
             </div>
             <ol className="space-y-2 font-mono text-[13px]">
