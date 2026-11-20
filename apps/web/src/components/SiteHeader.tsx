@@ -19,7 +19,7 @@ const MENU = [
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <Link href="/" className={`flex items-center gap-2 font-semibold ${className}`}>
+    <Link href="/" className={`flex items-center gap-2 font-medium ${className}`}>
       <LogoMark className="h-7 w-7" />
       <span className="text-lg">CarePurse</span>
     </Link>
@@ -39,7 +39,7 @@ export default function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/start" className="inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-[15px] font-medium text-background transition-colors duration-150 hover:bg-[#262626]">
+          <Link href="/start" className="inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-[15px] font-medium text-background transition-colors duration-150 hover:bg-[#2b2825]">
             Launch App
           </Link>
           <MobileMenu items={MENU} />

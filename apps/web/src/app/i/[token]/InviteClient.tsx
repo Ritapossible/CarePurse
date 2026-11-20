@@ -8,7 +8,7 @@ import LogoMark from "@/components/LogoMark";
 type Invite = { mamaName: string; guardianName: string; phone: string; language: "en" | "pcm" };
 
 const input = "mt-2 h-14 w-full rounded-[10px] border border-line bg-background px-4 text-xl outline-none transition-colors duration-150 focus:border-foreground";
-const primary = "inline-flex h-14 w-full items-center justify-center rounded-[10px] bg-foreground px-5 text-lg font-medium text-background transition-colors duration-150 hover:bg-[#262626] disabled:opacity-40";
+const primary = "inline-flex h-14 w-full items-center justify-center rounded-[10px] bg-foreground px-5 text-lg font-medium text-background transition-colors duration-150 hover:bg-[#2b2825] disabled:opacity-40";
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -66,12 +66,12 @@ export default function InviteClient({ token }: { token: string }) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-12 pt-10">
-      <div className="flex items-center gap-2 text-lg font-semibold"><LogoMark className="h-7 w-7" />CarePurse</div>
+      <div className="flex items-center gap-2 text-lg font-medium"><LogoMark className="h-7 w-7" />CarePurse</div>
       {!invite ? (
         <p className="mt-16 text-lg text-secondary">{error ?? "Opening your link…"}</p>
       ) : (
         <>
-          <h1 className="mt-14 text-[36px] font-medium leading-tight tracking-[-0.02em]">Welcome, Mama {invite.mamaName}</h1>
+          <h1 className="mt-14 text-[36px] font-medium leading-tight">Welcome, Mama {invite.mamaName}</h1>
           <p className="mt-3 text-lg text-secondary">
             {pcm ? `${invite.guardianName} don set up CarePurse for you. Confirm your phone number to start.` : `${invite.guardianName} has set up CarePurse for you. Confirm your phone number to start.`}
           </p>

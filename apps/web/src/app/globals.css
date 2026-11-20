@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
-/* CarePurse: black on white. Three text roles (primary, secondary, muted), hairline borders.
-   Green only for the "live" dot, red only for errors. */
+/* CarePurse: ink on paper. One neutral ramp, tinted warm (a family home, not a bank):
+   three text roles (primary, secondary, muted), hairline borders.
+   Green only for "delivered/active", red only for errors. */
 :root {
   --background: #ffffff;
-  --foreground: #0a0a0a;
-  --secondary: #525252;
-  --muted: #737373;
-  --line: rgba(10, 10, 10, 0.09);
-  --surface: #f7f7f7;
-  --accent: #0a0a0a;
-  --accent-soft: #f2f2f2;
+  --foreground: #161412;
+  --secondary: #57524c;
+  --muted: #77716a;
+  --line: rgba(22, 20, 18, 0.09);
+  --surface: #f6f5f2;
+  --accent: #161412;
+  --accent-soft: #f0eeea;
   --live: #16a34a;
   --danger: #b42318;
   --danger-soft: #fdecea;
@@ -28,7 +29,7 @@
   --color-live: var(--live);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-instrument-sans);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -39,7 +40,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-instrument-sans), system-ui, sans-serif;
 }
 
 /* FAQ: native <details>, no script. */

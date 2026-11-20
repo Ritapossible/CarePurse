@@ -46,7 +46,7 @@ function Arrow() {
 }
 
 const label = "text-sm text-muted";
-const h2 = "mt-3 max-w-2xl text-4xl font-medium leading-[1.1] tracking-[-0.02em] sm:text-5xl";
+const h2 = "mt-3 max-w-2xl text-4xl font-medium leading-[1.1] sm:tracking-[-0.02em] sm:text-5xl";
 
 export default function Home() {
   return (
@@ -57,7 +57,7 @@ export default function Home() {
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-24 pt-12 md:grid-cols-[1.1fr_1fr] md:gap-16 md:pt-20">
           <div>
             <p className="text-sm text-secondary">For families in Nigeria</p>
-            <h1 className="mt-6 text-[44px] font-medium leading-[1.04] tracking-[-0.03em] sm:text-6xl lg:text-[72px]">
+            <h1 className="mt-6 text-[44px] font-medium leading-[1.04] tracking-[-0.02em] lg:tracking-[-0.03em] sm:text-6xl lg:text-[72px]">
               Keep Mama’s
               <br />
               utilities on
@@ -67,7 +67,7 @@ export default function Home() {
               you set.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/start" className="inline-flex h-12 items-center justify-center gap-2 rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#262626]">
+              <Link href="/start" className="inline-flex h-12 items-center justify-center gap-2 rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#2b2825]">
                 Launch App <Arrow />
               </Link>
               <Link href="#how" className="inline-flex h-12 items-center justify-center rounded-[10px] border border-line px-5 font-medium transition-colors duration-150 hover:bg-surface">
@@ -82,15 +82,15 @@ export default function Home() {
               <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill priority sizes="(min-width: 768px) 45vw, 100vw" className="object-cover object-[60%_center]" />
               <div className="absolute inset-0 bg-linear-to-t from-black/45 via-transparent to-transparent" />
             </div>
-            <div className="absolute left-4 top-4 max-w-[70%] rounded-2xl rounded-bl-md bg-white/95 px-4 py-2.5 text-[15px] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.3)] backdrop-blur sm:left-6 sm:top-6">
+            <div className="absolute left-4 top-4 max-w-[70%] rounded-2xl rounded-bl-md bg-white/95 px-4 py-2.5 text-[15px] shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:left-6 sm:top-6">
               Abeg, light don almost finish
             </div>
-            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white/95 p-3.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.4)] backdrop-blur sm:inset-x-6 sm:bottom-6">
+            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white/95 p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:inset-x-6 sm:bottom-6">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold">Electricity · ₦5,000</div>
+                <div className="text-sm font-medium">Electricity · ₦5,000</div>
                 <div className="truncate font-mono text-[12px] text-secondary">1111 2222 3333 4444 5555</div>
               </div>
               <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Delivered</span>
@@ -128,9 +128,9 @@ export default function Home() {
             <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/10 lg:bg-linear-to-r lg:from-black/80 lg:via-black/45 lg:to-transparent" />
             <div className="relative flex min-h-[680px] flex-col justify-end p-7 text-white sm:p-12 lg:min-h-[520px] lg:max-w-xl lg:justify-center">
               <p className="text-sm text-white/70">For Mama</p>
-              <h2 className="mt-3 text-4xl font-medium leading-[1.1] tracking-[-0.02em] sm:text-5xl">She asks. It’s done.</h2>
+              <h2 className="mt-3 text-4xl font-medium leading-[1.1] sm:tracking-[-0.02em] sm:text-5xl">She asks. It’s done.</h2>
               <p className="mt-4 text-lg leading-[1.6] text-white/80">No app to learn and no card to carry. She types in English or Pidgin, and her light, airtime or data arrives in seconds.</p>
-              <Link href="/start" className="mt-8 inline-flex h-12 w-fit items-center gap-2 rounded-[10px] bg-white px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#e5e5e5]">
+              <Link href="/start" className="mt-8 inline-flex h-12 w-fit items-center gap-2 rounded-[10px] bg-white px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#ebe8e3]">
                 Set it up for her <Arrow />
               </Link>
             </div>
@@ -142,18 +142,18 @@ export default function Home() {
           <div className="grid items-center gap-12 rounded-[20px] bg-foreground px-6 py-12 text-background sm:px-12 sm:py-16 lg:grid-cols-2">
             <div>
               <p className="text-sm text-background/60">Receipts</p>
-              <h2 className="mt-3 max-w-xl text-4xl font-medium leading-[1.1] tracking-[-0.02em] sm:text-5xl">Every top-up, accounted for</h2>
+              <h2 className="mt-3 max-w-xl text-4xl font-medium leading-[1.1] sm:tracking-[-0.02em] sm:text-5xl">Every top-up, accounted for</h2>
               <p className="mt-5 max-w-lg text-lg leading-[1.6] text-background/70">You get a receipt the moment Mama’s token arrives. Nothing is bought without your rules.</p>
-              <Link href="/start" className="mt-8 inline-flex h-12 items-center gap-2 rounded-[10px] bg-background px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#e5e5e5]">
+              <Link href="/start" className="mt-8 inline-flex h-12 items-center gap-2 rounded-[10px] bg-background px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#ebe8e3]">
                 Launch App <Arrow />
               </Link>
             </div>
-            <div className="mx-auto w-full max-w-sm rounded-2xl bg-background p-6 text-foreground shadow-[0_24px_48px_-16px_rgba(0,0,0,0.5)]">
+            <div className="mx-auto w-full max-w-sm rounded-2xl bg-background p-6 text-foreground">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium">Electricity</span>
                 <span className="inline-flex items-center gap-1.5 text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Delivered</span>
               </div>
-              <div className="mt-3 text-[40px] font-semibold leading-none tracking-[-0.03em] tabular-nums">₦5,000</div>
+              <div className="mt-3 text-[40px] font-medium leading-none tracking-[-0.02em] tabular-nums">₦5,000</div>
               <div className="mt-1 text-sm text-muted">Today, 21:00</div>
               <div className="mt-5 rounded-xl bg-surface px-4 py-3">
                 <div className="text-xs text-muted">Token</div>
@@ -189,7 +189,7 @@ export default function Home() {
         <section id="faq" className="border-t border-line">
           <div className="mx-auto max-w-3xl scroll-mt-20 px-6 py-24 md:py-32">
             <p className={label}>FAQ</p>
-            <h2 className="mt-3 text-4xl font-medium tracking-[-0.02em] sm:text-5xl">Questions, answered</h2>
+            <h2 className="mt-3 text-4xl font-medium sm:tracking-[-0.02em] sm:text-5xl">Questions, answered</h2>
             <div className="mt-10 border-t border-line">
               {FAQ.map((f) => (
                 <details key={f.q} className="border-b border-line">

@@ -44,11 +44,11 @@ function Row({ p }: { p: Purchase }) {
     <li className="px-5 py-4">
       <div className="flex items-baseline justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-[17px] font-semibold">{NAME[p.utility]}</div>
+          <div className="text-[17px] font-medium">{NAME[p.utility]}</div>
           <div className="mt-0.5 truncate text-sm text-muted">{time(p.at)} · {to}</div>
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-[17px] font-semibold tabular-nums">{naira(p.ngn)}</div>
+          <div className="text-[17px] font-medium tabular-nums">{naira(p.ngn)}</div>
           {p.status === "checking" && <div className="text-sm text-muted">Checking</div>}
         </div>
       </div>
@@ -94,12 +94,12 @@ export default function PurchasesPage() {
           <Link href="/chat" aria-label="Back to chat" className="-ml-1 rounded-lg p-1 transition-colors duration-150 hover:bg-surface">
             <svg width="22" height="22" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H3M7 3.5 2.5 8 7 12.5" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>
           </Link>
-          <h1 className="text-lg font-semibold">My purchases</h1>
+          <h1 className="text-lg font-medium">My purchases</h1>
         </header>
 
         <div className="px-5 pt-5">
           <p className="text-sm text-muted">This month</p>
-          <p className="mt-1 text-[32px] font-semibold leading-none tracking-[-0.02em] tabular-nums">{naira(month.ngn)}</p>
+          <p className="mt-1 text-[32px] font-medium leading-none tabular-nums">{naira(month.ngn)}</p>
           <p className="mt-1 text-sm text-muted">{month.count === 1 ? "1 top-up" : `${month.count} top-ups`}</p>
 
           <div className="mt-5 flex gap-2" role="tablist" aria-label="Show">
@@ -109,7 +109,7 @@ export default function PurchasesPage() {
                 role="tab"
                 aria-selected={filter === v}
                 onClick={() => setFilter(v)}
-                className={`h-9 rounded-full border px-4 text-sm font-medium transition-colors duration-150 ${filter === v ? "border-foreground bg-foreground text-background" : "border-line hover:border-foreground"}`}
+                className={`h-9 rounded-[10px] border px-4 text-sm font-medium transition-colors duration-150 ${filter === v ? "border-foreground bg-foreground text-background" : "border-line hover:border-foreground"}`}
               >
                 {l}
               </button>

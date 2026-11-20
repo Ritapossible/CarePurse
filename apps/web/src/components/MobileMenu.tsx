@@ -41,7 +41,7 @@ export default function MobileMenu({ items }: { items: Item[] }) {
           <button type="button" aria-label="Close menu" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/40" />
           <div className="relative mx-3 mt-3 space-y-3">
             <div className="flex h-16 items-center justify-between rounded-[20px] border border-line bg-background px-5 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
-              <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2 text-lg font-semibold">
+              <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2 text-lg font-medium">
                 <LogoMark className="h-7 w-7" />
                 CarePurse
               </Link>
@@ -55,7 +55,7 @@ export default function MobileMenu({ items }: { items: Item[] }) {
               <ul>
                 {items.map((i) => (
                   <li key={i.href} className="border-b border-dashed border-line">
-                    <Link href={i.href} onClick={() => setOpen(false)} className="block py-5 text-[32px] font-medium leading-none tracking-[-0.02em] transition-colors duration-150 hover:text-secondary">
+                    <Link href={i.href} onClick={() => setOpen(false)} className="block py-5 text-[32px] font-medium leading-none transition-colors duration-150 hover:text-secondary">
                       {i.label}
                     </Link>
                   </li>
@@ -64,7 +64,7 @@ export default function MobileMenu({ items }: { items: Item[] }) {
               <Link
                 href="/start"
                 onClick={() => setOpen(false)}
-                className="mt-6 flex h-14 items-center justify-center gap-2 rounded-[10px] bg-foreground text-lg font-medium text-background transition-colors duration-150 hover:bg-[#262626]"
+                className="mt-6 flex h-14 items-center justify-center gap-2 rounded-[10px] bg-foreground text-lg font-medium text-background transition-colors duration-150 hover:bg-[#2b2825]"
               >
                 Launch App
                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">

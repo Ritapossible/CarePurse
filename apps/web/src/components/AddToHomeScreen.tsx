@@ -75,12 +75,12 @@ export default function AddToHomeScreen() {
   return (
     <aside
       aria-label="Add CarePurse to your home screen"
-      className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md rounded-2xl border border-line bg-white p-4 shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
+      className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md rounded-2xl border border-line bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
     >
       <div className="flex items-start gap-3">
         <Image src="/icon.svg" alt="" width={44} height={44} className="h-11 w-11 rounded-xl" />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">Keep CarePurse on your home screen</p>
+          <p className="font-medium">Keep CarePurse on your home screen</p>
           <p className="mt-1 text-sm leading-relaxed text-secondary">
             {ios ? "Tap Share, then Add to Home Screen. It will open straight into your chat." : "Add the CarePurse icon so it opens straight into your chat."}
           </p>

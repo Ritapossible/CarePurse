@@ -11,14 +11,14 @@ import { DISCOS, NETWORKS, PRESETS, type Purse, explorer, inviteUrl, naira, useF
 type Step = "signin" | "mama" | "meter" | "limits" | "fund" | "invite";
 
 const input = "mt-2 h-12 w-full rounded-[10px] border border-line bg-background px-4 text-[17px] outline-none transition-colors duration-150 focus:border-foreground";
-const primary = "inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#262626] disabled:opacity-40";
+const primary = "inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#2b2825] disabled:opacity-40";
 const secondary = "inline-flex h-12 w-full items-center justify-center rounded-[10px] border border-line px-5 font-medium transition-colors duration-150 hover:bg-surface disabled:opacity-40";
 
 function Heading({ step, title, text }: { step?: string; title: string; text?: string }) {
   return (
     <div className="mb-8">
       {step && <p className="text-sm text-muted">{step}</p>}
-      <h1 className="mt-2 text-[32px] font-medium leading-tight tracking-[-0.02em]">{title}</h1>
+      <h1 className="mt-2 text-[32px] font-medium leading-tight">{title}</h1>
       {text && <p className="mt-3 text-secondary">{text}</p>}
     </div>
   );
@@ -129,7 +129,7 @@ export default function StartPage() {
 
   if (!ready) return <p className="text-muted">Loading…</p>;
   return (
-    <>
+    <div className="mx-auto max-w-xl">
       {authenticated && step !== "signin" && (
         <div className="mb-8 flex items-center justify-between gap-4 border-b border-line pb-4 text-sm">
           <span className="min-w-0 truncate text-muted">Signed in as <span className="text-foreground">{user?.email?.address ?? user?.google?.email ?? "your account"}</span></span>
@@ -137,7 +137,7 @@ export default function StartPage() {
         </div>
       )}
       {body()}
-    </>
+    </div>
   );
 
   function body() {

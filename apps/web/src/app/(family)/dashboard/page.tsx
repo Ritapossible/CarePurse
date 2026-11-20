@@ -28,7 +28,7 @@ const ICONS = {
 };
 function Icon({ d, className = "h-5 w-5" }: { d: string; className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={d} />
     </svg>
   );
@@ -41,10 +41,6 @@ const when = (iso: string) => {
   const time = d.toLocaleTimeString("en-NG", { timeZone: LAGOS, hour: "numeric", minute: "2-digit" });
   return day === today ? `Today, ${time}` : `${d.toLocaleDateString("en-NG", { timeZone: LAGOS, day: "numeric", month: "short" })}, ${time}`;
 };
-const greeting = () => {
-  const h = Number(new Date().toLocaleString("en-GB", { timeZone: LAGOS, hour: "numeric", hourCycle: "h23" }));
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-};
 const maskPhone = (p: string) => p.replace(/\D/g, "").replace(/^(\d{4})\d+(\d{3})$/, "$1 ••• $2");
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -52,7 +48,7 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
       <div role="dialog" aria-label={title} className="w-full max-w-md rounded-t-[24px] bg-white p-6 pb-8 sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 className="text-lg font-medium">{title}</h2>
           <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-muted transition-colors hover:bg-surface hover:text-foreground"><Icon d={ICONS.close} /></button>
         </div>
         <div className="mt-5">{children}</div>
@@ -71,7 +67,7 @@ function ActivityRow({ s }: { s: Spend }) {
           <div className="text-sm text-muted">{when(s.at)}{s.unconfirmed ? " · Checking" : ""}</div>
         </div>
         <div className="text-right">
-          <div className="font-semibold tabular-nums">−{naira(s.chargedNgn ?? s.ngn)}</div>
+          <div className="font-medium tabular-nums">−{naira(s.chargedNgn ?? s.ngn)}</div>
           {s.feeNgn ? <div className="text-xs text-muted">incl. {naira(s.feeNgn)} fee</div> : null}
         </div>
       </div>
@@ -139,7 +135,7 @@ export default function DashboardPage() {
   if (!authenticated) {
     return (
       <AuthCard
-        title="Welcome back"
+        title="Sign in"
         subtitle="Sign in to see Mama’s purse, receipts and limits."
         action="Sign in"
         onAction={() => login()}
@@ -172,38 +168,43 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Greeting and account menu */}
+    <div className="mx-auto max-w-5xl space-y-8">
+      {/* Page title and account menu */}
       <header className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-muted">{greeting()}</p>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">{you}</h1>
+          <p className="text-sm text-muted">Dashboard</p>
+          <h1 className="text-2xl font-medium">Mama {purse.mama.name}’s purse</h1>
         </div>
         <div className="relative">
-          <button onClick={() => setMenu((m) => !m)} aria-label="Account" className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-lg font-semibold text-background">
+          <button onClick={() => setMenu((m) => !m)} aria-label="Account" className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-lg font-medium text-background">
             {you.slice(0, 1).toUpperCase()}
           </button>
           {menu && (
-            <div className="absolute right-0 top-13 z-20 w-56 rounded-2xl border border-line bg-white p-2 shadow-[0_12px_32px_-12px_rgba(10,10,10,0.2)]">
-              <p className="truncate px-3 py-2 text-sm text-muted">{user?.email?.address ?? user?.google?.email}</p>
+            <div className="absolute right-0 top-13 z-20 w-56 rounded-2xl border border-line bg-white p-2 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+              <div className="px-3 py-2">
+                <p className="text-sm font-medium">{you}</p>
+                <p className="truncate text-sm text-muted">{user?.email?.address ?? user?.google?.email}</p>
+              </div>
               <button onClick={() => logout().then(() => router.push("/"))} className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-surface">Sign out</button>
             </div>
           )}
         </div>
       </header>
 
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
+      <div className="space-y-8">
       {/* Balance card */}
-      <section className="rounded-[24px] bg-foreground p-6 text-background shadow-[0_24px_48px_-24px_rgba(10,10,10,0.6)]">
+      <section className="rounded-[24px] bg-foreground p-6 text-background">
         <div className="flex items-center justify-between text-sm text-background/60">
           <span className="inline-flex items-center gap-2">
-            Mama {purse.mama.name}’s purse
+            Balance
             <button onClick={() => setHidden((h) => !h)} aria-label={hidden ? "Show balance" : "Hide balance"} className="text-background/60 hover:text-background">
               <Icon d={hidden ? ICONS.eyeOff : ICONS.eye} className="h-4 w-4" />
             </button>
           </span>
-          {purse.paused ? <span className="rounded-full bg-background/10 px-2.5 py-0.5 text-xs text-background">Paused</span> : <span className="inline-flex items-center gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>}
+          {purse.paused ? <span className="text-xs text-background">Paused</span> : <span className="inline-flex items-center gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>}
         </div>
-        <div className="mt-3 text-[44px] font-semibold leading-none tracking-[-0.03em] tabular-nums">{hidden ? "₦ ••••••" : naira(purse.balanceNgn ?? 0)}</div>
+        <div className="mt-3 text-[44px] font-medium leading-none tracking-[-0.02em] tabular-nums">{hidden ? "₦ ••••••" : naira(purse.balanceNgn ?? 0)}</div>
         <div className="mt-6">
           <div className="flex justify-between text-sm">
             <span className="text-background/60">Spent this month</span>
@@ -227,22 +228,24 @@ export default function DashboardPage() {
 
       {/* Mama */}
       <section className="flex items-center gap-4 rounded-2xl border border-line p-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface text-lg font-semibold">{purse.mama.name.slice(0, 1).toUpperCase()}</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface text-lg font-medium">{purse.mama.name.slice(0, 1).toUpperCase()}</span>
         <div className="min-w-0 flex-1">
           <div className="font-medium">Mama {purse.mama.name}</div>
           <div className="text-sm text-muted">{maskPhone(purse.mama.phone)} · Meter •••{purse.destinations.electricity.slice(-4)}</div>
         </div>
         {purse.invite.status === "joined" ? (
-          <span className="rounded-full bg-surface px-3 py-1 text-sm font-medium">{INVITE.joined}</span>
+          <span className="inline-flex items-center gap-1.5 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />{INVITE.joined}</span>
         ) : (
-          <button onClick={() => setSheet("invite")} className="rounded-full border border-foreground px-3 py-1 text-sm font-medium">{purse.invite.status === "waiting" ? "Resend" : "Invite"}</button>
+          <button onClick={() => setSheet("invite")} className="h-9 rounded-[10px] border border-foreground px-3 text-sm font-medium">{purse.invite.status === "waiting" ? "Resend" : "Invite"}</button>
         )}
       </section>
 
+      </div>
+      <div className="space-y-8">
       {/* Activity */}
       <section id="activity" className="scroll-mt-24">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold">Recent activity</h2>
+          <h2 className="text-lg font-medium">Recent activity</h2>
           {purse.spends.length > 5 && <button onClick={() => setAll((a) => !a)} className="text-sm text-muted hover:text-foreground">{all ? "Show less" : "View all"}</button>}
         </div>
         {purse.spends.length === 0 ? (
@@ -258,7 +261,7 @@ export default function DashboardPage() {
       {/* Limits */}
       <section id="limits" className="scroll-mt-24">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold">Limits</h2>
+          <h2 className="text-lg font-medium">Limits</h2>
           <span className="text-sm text-muted">{preset.label} plan</span>
         </div>
         <ul className="mt-3 divide-y divide-line rounded-2xl border border-line">
@@ -276,6 +279,9 @@ export default function DashboardPage() {
         </ul>
         <p className="mt-3 text-sm text-muted">Kept on Mama’s purse itself. Only your signature can change them.</p>
       </section>
+
+      </div>
+      </div>
 
       {error && <p className="rounded-[10px] bg-danger-soft px-4 py-3 text-danger">{error}</p>}
 

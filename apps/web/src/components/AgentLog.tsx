@@ -92,7 +92,7 @@ export default function AgentLog() {
     <section className="flex h-full min-h-0 flex-col rounded-[20px] border border-line bg-white">
       <header className="flex items-center justify-between border-b border-line px-5 py-4">
         <div>
-          <div className="font-semibold">Agent &amp; x402 Log</div>
+          <div className="font-medium">Agent &amp; x402 Log</div>
           <div className="text-sm text-muted">
             {status ? (
               <>
@@ -120,7 +120,7 @@ export default function AgentLog() {
         {rows.map(({ e, row }, i) => (
           <li key={i} className={`rounded-xl border px-3 py-2 ${TONE[row!.tone]}`}>
             <div className="flex justify-between gap-3">
-              <span className="font-semibold">{row!.label}</span>
+              <span className="font-medium">{row!.label}</span>
               <span className="text-muted">{new Date(e.at).toLocaleTimeString("en-GB")}</span>
             </div>
             <div className="mt-0.5 break-words">{row!.detail}</div>
