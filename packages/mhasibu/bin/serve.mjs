@@ -89,6 +89,11 @@ let busy = Promise.resolve(); // one message at a time, so two taps can't race a
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   // Public: status only (public keys and settings, nothing about Mama). Everything else needs the key.
+  // HEAD on /v1/status is for uptime monitors (UptimeRobot checks with HEAD): headers only, no body.
+  if (req.method === "HEAD" && url.pathname === "/v1/status") {
+    res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+    return res.end();
+  }
   if (!(req.method === "GET" && url.pathname === "/v1/status") && !authorised(req)) return send(res, 401, { error: "unauthorised" });
   try {
     if (req.method === "GET" && url.pathname === "/v1/status") {
