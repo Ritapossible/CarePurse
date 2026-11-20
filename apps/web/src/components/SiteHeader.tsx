@@ -28,7 +28,7 @@ export function Logo({ className = "" }: { className?: string }) {
 
 export default function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-background/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-line bg-[#fbf9f6]/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Logo />
         <nav className="hidden items-center gap-8 text-[15px] text-secondary md:flex">

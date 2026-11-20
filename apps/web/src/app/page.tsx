@@ -1,23 +1,35 @@
+// The landing page. Structure after HashPayLink: one idea per screen, text on one side and a
+// product card on the other, floating white cards on a soft warm wash, a partner strip and a
+// technology grid. Photos are framed as cards.
 import Image from "next/image";
 import Link from "next/link";
 import PhoneChat from "@/components/PhoneChat";
-import TokenCard, { Status } from "@/components/TokenCard";
+import { RAILS, RailLogo } from "@/components/Rails";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
+import TokenCard, { Status } from "@/components/TokenCard";
 
 const STEPS = [
   { title: "Fund the purse", tag: "You", text: "Add money once. It stays in Mama’s purse, not with us." },
-  { title: "Set the limits", tag: "You", text: "Per top-up, day, week and month. Only you can change them." },
-  { title: "Mama asks", tag: "Chat", text: "In English or Pidgin, typos included. No app to learn." },
+  { title: "Set her limits", tag: "You", text: "Per top-up, day, week and month. Only you can change them." },
+  { title: "Invite Mama", tag: "One link", text: "She signs in with her phone number. No app to install." },
+  { title: "Mama asks", tag: "Chat", text: "In English or Pidgin, typos included." },
   { title: "Mhasibu pays", tag: "Instant", text: "Only what you allowed, only to her saved meter or phone." },
-  { title: "The token arrives", tag: "Seconds", text: "In her chat and in your receipt. She can ask for it again." },
+  { title: "The token arrives", tag: "Seconds", text: "In her chat and on your receipts. She can ask for it again." },
+];
+
+const CHAT_POINTS = [
+  { tag: "Language", title: "English or Pidgin", text: "Mhasibu answers in the one she writes in." },
+  { tag: "Options", title: "Tap, don’t type", text: "Amounts come as buttons she can tap." },
+  { tag: "Tokens", title: "Never lost", text: "Her last light token stays pinned on top." },
+  { tag: "History", title: "Ask any day", text: "“What did I buy on Monday?” just works." },
 ];
 
 const RULES = [
   { title: "Hard limits", text: "Mama’s purse itself refuses any top-up over your caps, even if the AI asks." },
   { title: "Private AI", text: "Mama’s words go only to a model running in sealed hardware." },
-  { title: "Your fee, not hers", text: "3% on top, shown on your receipts. Mama sees face value." },
-  { title: "No lost tokens", text: "Every token is saved. She can ask for it again any time." },
+  { title: "Your fee, not hers", text: "3% on top, on your receipts. Mama sees face value." },
+  { title: "Saved payees only", text: "Money only goes to the meter and phone you saved." },
 ];
 
 const FAQ = [
@@ -25,18 +37,17 @@ const FAQ = [
   { q: "Does Mama need a wallet or crypto?", a: "No. She chats. You fund the purse." },
   { q: "What if she types it wrong?", a: "Mhasibu reads plain English and Pidgin, typos included. If it isn’t sure, it shows a short numbered menu." },
   { q: "What if a payment fails?", a: "The money goes back to the purse and she’s told she wasn’t charged." },
-  { q: "Can someone talk the AI into paying more?", a: "No. The AI only sorts her request. Amounts, limits and payees are checked in code and by the contract." },
+  { q: "Can someone talk the AI into paying more?", a: "No. The AI only sorts her request. Amounts, limits and payees are checked in code and by the purse itself." },
   { q: "What does it cost?", a: "A 3% service fee on each top-up, paid from the purse." },
+  { q: "Can she see what she bought?", a: "Yes. Her purchases page lists every top-up by day, and she can ask Mhasibu about any date." },
   { q: "Is this live?", a: "It’s a working pilot: payments run on a test network and utilities come from a sandbox, so no real money moves yet." },
 ];
 
-// The receipt card in the banner: what Adaeze sees after each top-up (sample values).
-const RECEIPT = [
-  { k: "For", v: "Mama Ngozi" },
-  { k: "Meter", v: "•••• 1111" },
-  { k: "Units", v: "8.9 kWh" },
-  { k: "Paid from", v: "Mama’s purse" },
-];
+const card = "rounded-[28px] border border-[#161412]/[0.06] bg-white shadow-[0_24px_60px_-28px_rgba(70,45,20,0.25)]";
+const eyebrow = "text-xs font-medium uppercase tracking-[0.18em] text-[#8a5a2b]";
+const h2 = "mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-5xl";
+const lead = "mt-5 max-w-md text-[17px] leading-[1.6] text-secondary";
+const section = "mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:min-h-[80svh] lg:gap-16 lg:py-20";
 
 function Arrow() {
   return (
@@ -46,188 +57,217 @@ function Arrow() {
   );
 }
 
-function HeroCopy({ dark = false }: { dark?: boolean }) {
+function Cta({ href = "/start", children, light = false }: { href?: string; children: React.ReactNode; light?: boolean }) {
   return (
-    <div>
-      <p className={`text-sm ${dark ? "text-white/70" : "text-secondary"}`}>For families in Nigeria</p>
-      <h1 className={`mt-6 text-[44px] font-medium leading-[1.04] tracking-[-0.02em] sm:text-6xl lg:text-[72px] lg:tracking-[-0.03em] ${dark ? "text-white" : ""}`}>
-        Keep Mama’s
-        <br />
-        utilities on
-      </h1>
-      <p className={`mt-6 max-w-[36rem] text-lg leading-[1.6] sm:text-xl ${dark ? "text-white/80" : "text-secondary"}`}>
-        Fund a purse for your parent. She asks in chat, and Mhasibu buys electricity, airtime and data within the limits you
-        set.
-      </p>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Link href="/start" className={`inline-flex h-12 items-center justify-center gap-2 rounded-[10px] px-5 font-medium transition-colors duration-150 ${dark ? "bg-white text-foreground hover:bg-[#ebe8e3]" : "bg-foreground text-background hover:bg-[#2b2825]"}`}>
-          Launch App <Arrow />
-        </Link>
-        <Link href="#how" className={`inline-flex h-12 items-center justify-center rounded-[10px] border px-5 font-medium transition-colors duration-150 ${dark ? "border-white/30 text-white hover:bg-white/10" : "border-line hover:bg-surface"}`}>
-          How it works
-        </Link>
-      </div>
-      <p className={`mt-5 text-sm ${dark ? "text-white/60" : "text-muted"}`}>I’m Mama: ask your child to set up CarePurse and send you the link</p>
-    </div>
+    <Link
+      href={href}
+      className={`mt-8 inline-flex h-12 items-center gap-3 rounded-full pl-6 pr-2 font-medium transition-colors duration-150 ${light ? "bg-white text-foreground hover:bg-[#f3efe9]" : "bg-foreground text-background hover:bg-[#2b2825]"}`}
+    >
+      {children}
+      <span className={`flex h-8 w-8 items-center justify-center rounded-full ${light ? "bg-foreground text-background" : "bg-white/15"}`}><Arrow /></span>
+    </Link>
   );
 }
-
-// The delivered-token card: the product's result, shown on top of the hero scene.
-function DeliveredCard({ className = "" }: { className?: string }) {
-  return (
-    <TokenCard
-      title="Electricity · ₦5,000"
-      token="1111 2222 3333 4444 5555"
-      right={<Status />}
-      className={`bg-white/95 text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur ${className}`}
-    />
-  );
-}
-
-const label = "text-sm text-muted";
-const h2 = "mt-3 max-w-2xl text-4xl font-medium leading-[1.1] sm:tracking-[-0.02em] sm:text-5xl";
 
 export default function Home() {
   return (
-    <>
+    <div className="relative">
+      {/* The warm wash behind the whole page: soft light, not a colour block */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#fbf9f6]">
+        <div className="absolute -left-40 -top-40 h-[640px] w-[640px] rounded-full bg-[#f4e3cf] opacity-60 blur-[120px]" />
+        <div className="absolute -right-40 top-1/3 h-[560px] w-[560px] rounded-full bg-[#efe6dc] opacity-70 blur-[120px]" />
+        <div className="absolute bottom-0 left-1/3 h-[480px] w-[480px] rounded-full bg-[#f6ebe0] opacity-60 blur-[120px]" />
+      </div>
+
       <SiteHeader />
       <main>
-        {/* Hero, large screens: the scene fills the hero (shifted right so the headline sits on the calm
-            wall), and the delivered token rises from the bottom edge. Scene generated for CarePurse (Higgsfield, Z Image). */}
-        <section className="relative hidden lg:block">
-          <div className="absolute inset-0 overflow-hidden bg-[#9b754e]">
-            <div className="absolute inset-y-0 left-[16%] right-0">
-              <Image src="/photos/scene-mama.jpg" alt="An older Nigerian woman in ankara and gele smiling at her phone at home, a prepaid meter glowing on the wall behind her" fill priority sizes="85vw" className="object-cover object-[50%_30%]" />
-              <div className="absolute inset-y-0 left-0 w-48 bg-linear-to-r from-[#9b754e] to-transparent" />
+        {/* Hero */}
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-12 pt-12 lg:min-h-[calc(100svh-64px-120px)] lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pt-8">
+          <div>
+            <p className={eyebrow}>Electricity · Airtime · Data</p>
+            <h1 className="mt-5 text-[44px] font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-[72px]">Keep Mama’s utilities on</h1>
+            <p className="mt-6 max-w-lg text-lg leading-[1.6] text-secondary">
+              Fund a purse for your parent in Nigeria. She asks in chat, and Mhasibu buys electricity, airtime and data within the
+              limits you set.
+            </p>
+            <div className="flex flex-wrap items-center gap-x-6">
+              <Cta>Launch App</Cta>
+              <Link href="#how" className="mt-8 inline-flex h-12 items-center rounded-full border border-[#161412]/10 bg-white/70 px-6 font-medium backdrop-blur transition-colors duration-150 hover:bg-white">How it works</Link>
             </div>
-            <div className="absolute inset-0 bg-linear-to-r from-black/50 via-black/20 to-transparent" />
+            <p className="mt-6 text-sm text-muted">I’m Mama: ask your child to set up CarePurse and send you the link</p>
           </div>
-          <div className="relative mx-auto flex min-h-[720px] max-w-6xl items-center px-6">
-            <div className="max-w-[520px]"><HeroCopy dark /></div>
-            <DeliveredCard className="absolute bottom-0 right-6 z-10 w-[360px] translate-y-1/2" />
+          <div className="relative">
+            <div className={`relative aspect-[5/6] overflow-hidden ${card} sm:aspect-[4/3] lg:aspect-[5/6]`}>
+              <Image src="/photos/scene-mama.jpg" alt="An older Nigerian woman in ankara and gele smiling at her phone at home, a prepaid meter glowing on the wall behind her" fill priority sizes="(min-width: 1024px) 520px, 100vw" className="object-cover object-[52%_center]" />
+            </div>
+            <TokenCard
+              title="Electricity · ₦5,000"
+              token="1111 2222 3333 4444 5555"
+              right={<Status />}
+              className="absolute inset-x-4 -bottom-6 bg-white shadow-[0_16px_40px_-12px_rgba(40,25,10,0.35)] sm:inset-x-8 lg:-left-10 lg:right-16"
+            />
           </div>
         </section>
-        <div className="hidden h-12 lg:block" aria-hidden="true" />
 
-        {/* Hero, phones and tablets: text first, then the scene with the product on top */}
-        <section className="mx-auto max-w-6xl px-6 pb-8 pt-12 md:pt-20 lg:hidden">
-          <HeroCopy />
-          <div className="relative mt-12">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-[#9b754e] sm:aspect-[16/10]">
-              <Image src="/photos/scene-mama.jpg" alt="An older Nigerian woman in ankara and gele smiling at her phone at home, a prepaid meter glowing on the wall behind her" fill priority sizes="100vw" className="object-cover object-[52%_center]" />
-            </div>
-            <DeliveredCard className="absolute inset-x-4 bottom-4 sm:inset-x-6 sm:bottom-6" />
-          </div>
+        {/* Partner strip */}
+        <section aria-label="Built with" className="mx-auto max-w-6xl px-6 pb-8 pt-10">
+          <ul className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6 rounded-[20px] border border-[#161412]/[0.06] bg-white/60 px-6 py-6 opacity-80 grayscale backdrop-blur">
+            {RAILS.filter((r) => r.name !== "Soroban").map((r) => (
+              <li key={r.name}><RailLogo rail={r} /></li>
+            ))}
+          </ul>
         </section>
 
-        {/* How it works */}
-        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24 md:py-32 lg:pt-16">
-          <p className={label}>How it works</p>
-          <h2 className={h2}>From your purse to her meter and phone</h2>
-          <div className="mt-12 grid items-start gap-12 lg:grid-cols-[1fr_380px]">
-          <ol className="divide-y divide-line rounded-2xl border border-line">
+        {/* How it works: a numbered card, like a list of products */}
+        <section id="how" className={`${section} scroll-mt-16 lg:grid-cols-[0.8fr_1.2fr]`}>
+          <div>
+            <p className={eyebrow}>How it works</p>
+            <h2 className={h2}>From your purse to her meter and phone</h2>
+            <p className={lead}>You set it up once in about three minutes. After that, Mama just chats.</p>
+            <Cta>Set it up for her</Cta>
+          </div>
+          <ol className={`${card} divide-y divide-[#161412]/[0.06] px-2 py-2 sm:px-4`}>
             {STEPS.map((s, i) => (
-              <li key={s.title} className="grid grid-cols-[32px_1fr] gap-4 p-6 sm:grid-cols-[40px_1fr]">
-                <span className="pt-0.5 font-mono text-sm tabular-nums text-muted">{i + 1}</span>
-                <div>
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h3 className="text-xl font-medium">{s.title}</h3>
-                    <span className="text-sm text-muted">{s.tag}</span>
+              <li key={s.title} className="flex items-center gap-4 px-3 py-4 sm:gap-5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f6f2ec] font-mono text-xs text-secondary">{String(i + 1).padStart(2, "0")}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-3">
+                    <h3 className="text-[17px] font-semibold">{s.title}</h3>
+                    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#8a5a2b]">{s.tag}</span>
                   </div>
-                  <p className="mt-1 text-secondary">{s.text}</p>
+                  <p className="mt-1 text-sm text-secondary">{s.text}</p>
                 </div>
               </li>
             ))}
           </ol>
-          <div className="lg:sticky lg:top-24"><PhoneChat /></div>
+        </section>
+
+        {/* Mama's chat */}
+        <section className={`${section} lg:grid-cols-[1fr_1fr]`}>
+          <div className="order-2 flex justify-center lg:order-1">
+            <PhoneChat />
           </div>
-        </section>
-
-        {/* For the family: text on a dark panel, the photo beside it */}
-        <section className="mx-auto max-w-6xl px-6 pb-6">
-          <div className="grid overflow-hidden rounded-[28px] bg-foreground text-white lg:grid-cols-2">
-            <div className="relative aspect-[4/3] lg:order-2 lg:aspect-auto lg:min-h-[480px]">
-              <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill sizes="(min-width: 1024px) 552px, 100vw" className="object-cover object-[55%_30%]" />
-            </div>
-            <div className="flex flex-col justify-center p-8 sm:p-12">
-              <p className="text-sm text-white/60">For you</p>
-              <h2 className="mt-3 text-4xl font-medium leading-[1.1] sm:text-5xl sm:tracking-[-0.02em]">Look after Mama from anywhere</h2>
-              <p className="mt-4 text-lg leading-[1.6] text-white/75">Fund her purse once and set her limits. She buys what she needs by chatting, and you see every receipt.</p>
-              <Link href="/start" className="mt-8 inline-flex h-12 w-fit items-center gap-2 rounded-[10px] bg-white px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#ebe8e3]">
-                Set it up for her <Arrow />
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Receipts: what the daughter sees after every top-up */}
-        <section id="log" className="mx-auto max-w-6xl scroll-mt-20 px-6">
-          <div className="grid items-center gap-12 rounded-[20px] bg-foreground px-6 py-12 text-background sm:px-12 sm:py-16 lg:grid-cols-2">
-            <div>
-              <p className="text-sm text-background/60">Receipts</p>
-              <h2 className="mt-3 max-w-xl text-4xl font-medium leading-[1.1] sm:tracking-[-0.02em] sm:text-5xl">Every top-up, accounted for</h2>
-              <p className="mt-5 max-w-lg text-lg leading-[1.6] text-background/70">You get a receipt the moment Mama’s token arrives. Nothing is bought without your rules.</p>
-              <Link href="/start" className="mt-8 inline-flex h-12 items-center gap-2 rounded-[10px] bg-background px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#ebe8e3]">
-                Launch App <Arrow />
-              </Link>
-            </div>
-            <div className="mx-auto w-full max-w-sm rounded-2xl bg-background p-6 text-foreground">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Electricity</span>
-                <span className="inline-flex items-center gap-1.5 text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Delivered</span>
-              </div>
-              <div className="mt-3 text-[40px] font-medium leading-none tracking-[-0.02em] tabular-nums">₦5,000</div>
-              <div className="mt-1 text-sm text-muted">Today, 21:00</div>
-              <div className="mt-5 rounded-xl bg-surface px-4 py-3">
-                <div className="text-xs text-muted">Token</div>
-                <div className="mt-1 whitespace-nowrap font-mono text-[15px] font-semibold tracking-wide">1111 2222 3333 4444 5555</div>
-              </div>
-              <dl className="mt-5 space-y-3 text-sm">
-                {RECEIPT.map((r) => (
-                  <div key={r.k} className="flex justify-between gap-4">
-                    <dt className="text-muted">{r.k}</dt>
-                    <dd className="font-medium">{r.v}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </div>
-        </section>
-
-        {/* The rules: a list, not four equal cards */}
-        <section id="rules" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24 md:py-32">
-          <p className={label}>The rules</p>
-          <h2 className={h2}>Limits live in code, not in the prompt</h2>
-          <dl className="mt-12 border-t border-line">
-            {RULES.map((r) => (
-              <div key={r.title} className="grid gap-2 border-b border-line py-6 md:grid-cols-[280px_1fr] md:gap-8">
-                <dt className="text-lg font-medium">{r.title}</dt>
-                <dd className="text-lg text-secondary">{r.text}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        {/* FAQ */}
-        <section id="faq" className="border-t border-line">
-          <div className="mx-auto max-w-3xl scroll-mt-20 px-6 py-24 md:py-32">
-            <p className={label}>FAQ</p>
-            <h2 className="mt-3 text-4xl font-medium sm:tracking-[-0.02em] sm:text-5xl">Questions, answered</h2>
-            <div className="mt-10 border-t border-line">
-              {FAQ.map((f) => (
-                <details key={f.q} className="border-b border-line">
-                  <summary className="flex cursor-pointer items-center justify-between gap-6 py-6 text-lg transition-colors duration-150 hover:text-secondary">
-                    {f.q}
-                    <span aria-hidden="true" className="faq-plus shrink-0 text-2xl font-light leading-none text-muted transition-transform duration-200">+</span>
-                  </summary>
-                  <p className="-mt-2 pb-6 pr-12 text-secondary">{f.a}</p>
-                </details>
+          <div className="order-1 lg:order-2">
+            <p className={eyebrow}>For Mama</p>
+            <h2 className={h2}>She asks. It’s done.</h2>
+            <p className={lead}>No app to learn and no card to carry. She chats with Mhasibu, and her light, airtime or data arrives in seconds.</p>
+            <div className="mt-8 grid max-w-lg gap-3 sm:grid-cols-2">
+              {CHAT_POINTS.map((p) => (
+                <div key={p.title} className={`${card} rounded-[20px] p-5 shadow-[0_12px_32px_-20px_rgba(70,45,20,0.25)]`}>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#8a5a2b]">{p.tag}</div>
+                  <div className="mt-2 font-semibold">{p.title}</div>
+                  <p className="mt-1 text-sm text-secondary">{p.text}</p>
+                </div>
               ))}
             </div>
           </div>
         </section>
+
+        {/* For the family: a photo card with the words on it, like a poster */}
+        <section className={`${section} lg:grid-cols-[1.4fr_0.6fr]`}>
+          <div className="relative min-h-[560px] overflow-hidden rounded-[28px] shadow-[0_24px_60px_-28px_rgba(70,45,20,0.35)]">
+            <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill sizes="(min-width: 1024px) 720px, 100vw" className="object-cover object-[60%_25%]" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/30 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-8 text-white sm:p-10">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/70">For you</p>
+              <h2 className="mt-3 max-w-md text-4xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-5xl">Look after Mama from anywhere</h2>
+              <p className="mt-4 max-w-md text-white/80">Fund her purse once and set her limits. She buys what she needs, and you see every receipt.</p>
+              <Cta light>Set it up for her</Cta>
+            </div>
+          </div>
+          <div className="hidden flex-col gap-4 lg:flex">
+            {[
+              { src: "/photos/embrace.jpg", alt: "A mother and her daughter hugging, smiling", pos: "50% 30%", tilt: "-rotate-2" },
+              { src: "/photos/elder.jpg", alt: "An older woman in a headwrap smiling with a thumbs up", pos: "50% 30%", tilt: "rotate-2 translate-x-6" },
+            ].map((p) => (
+              <div key={p.src} className={`relative aspect-[4/3] overflow-hidden rounded-[20px] border-4 border-white shadow-[0_16px_40px_-16px_rgba(70,45,20,0.35)] ${p.tilt}`}>
+                <Image src={p.src} alt={p.alt} fill sizes="280px" className="object-cover" style={{ objectPosition: p.pos }} />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Receipts: the daughter's dashboard */}
+        <section id="log" className={`${section} scroll-mt-16 lg:grid-cols-[0.9fr_1.1fr]`}>
+          <div>
+            <p className={eyebrow}>Your dashboard</p>
+            <h2 className={h2}>Every top-up, accounted for</h2>
+            <p className={lead}>Her balance, what she bought and the fee, in one place. You get a receipt the moment her token arrives.</p>
+            <Cta>Open your dashboard</Cta>
+          </div>
+          <div className={`${card} p-3 sm:p-6`}>
+            <div className="rounded-[20px] bg-foreground p-5 text-background sm:p-6">
+              <div className="flex items-center justify-between text-sm text-background/60">
+                <span>Mama Ngozi’s purse</span>
+                <span className="inline-flex items-center gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>
+              </div>
+              <div className="mt-3 text-[40px] font-semibold leading-none tracking-[-0.02em] tabular-nums">₦44,100</div>
+              <div className="mt-5 flex justify-between text-sm"><span className="text-background/60">Spent this month</span><span className="tabular-nums">₦6,500 <span className="text-background/50">of ₦120,000</span></span></div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/15"><div className="h-full w-[6%] rounded-full bg-background" /></div>
+            </div>
+            <div className="mt-4 space-y-3">
+              <TokenCard title="Electricity" token="1111 2222 3333 4444 5555" meta="Today, 21:00" className="border border-[#161412]/[0.06]" right={<div className="text-right"><div className="text-sm font-medium tabular-nums">−₦5,150</div><div className="text-xs text-muted">incl. ₦150 fee</div></div>} />
+              <TokenCard title="Airtime" meta="Yesterday, 18:40" className="border border-[#161412]/[0.06]" right={<div className="text-right"><div className="text-sm font-medium tabular-nums">−₦515</div><div className="text-xs text-muted">incl. ₦15 fee</div></div>} />
+            </div>
+          </div>
+        </section>
+
+        {/* The rules */}
+        <section id="rules" className={`${section} scroll-mt-16 lg:grid-cols-[0.8fr_1.2fr]`}>
+          <div>
+            <p className={eyebrow}>The rules</p>
+            <h2 className={h2}>Limits live in code, not in the prompt</h2>
+            <p className={lead}>The AI only understands what Mama asks. Every amount and payee is checked twice before money moves.</p>
+          </div>
+          <div className={`${card} grid gap-px overflow-hidden bg-[#161412]/[0.06] sm:grid-cols-2`}>
+            {RULES.map((r, i) => (
+              <div key={r.title} className="bg-white p-6">
+                <span className="font-mono text-xs text-muted">{String(i + 1).padStart(2, "0")}</span>
+                <div className="mt-3 text-lg font-semibold">{r.title}</div>
+                <p className="mt-1 text-sm text-secondary">{r.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* The technology */}
+        <section className={`${section} lg:grid-cols-[0.8fr_1.2fr]`}>
+          <div>
+            <p className={eyebrow}>Built with</p>
+            <h2 className={h2}>The technology behind CarePurse</h2>
+            <p className={lead}>Open networks and services, each doing one job well. Payments run on a test network for now.</p>
+          </div>
+          <div className={`${card} grid gap-px overflow-hidden bg-[#161412]/[0.06] sm:grid-cols-2`}>
+            {RAILS.map((r) => (
+              <div key={r.name} className="bg-white p-6">
+                <RailLogo rail={r} />
+                <p className="mt-2 text-sm text-secondary">{r.what}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className={`${section} scroll-mt-16 lg:grid-cols-[0.7fr_1.3fr]`}>
+          <div>
+            <p className={eyebrow}>FAQ</p>
+            <h2 className={h2}>A few things you might want to know</h2>
+            <Cta>Launch App</Cta>
+          </div>
+          <div className={`${card} grid gap-x-8 px-6 py-2 sm:grid-cols-2`}>
+            {FAQ.map((f) => (
+              <details key={f.q} className="border-b border-[#161412]/[0.06] last:border-b-0 sm:[&:nth-last-child(2)]:border-b-0">
+                <summary className="flex cursor-pointer items-center justify-between gap-4 py-5 text-[15px] font-medium transition-colors duration-150 hover:text-secondary">
+                  {f.q}
+                  <span aria-hidden="true" className="faq-plus shrink-0 text-xl font-light leading-none text-muted transition-transform duration-200">+</span>
+                </summary>
+                <p className="-mt-2 pb-5 text-sm text-secondary">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
       </main>
       <SiteFooter />
-    </>
+    </div>
   );
 }

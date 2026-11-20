@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { RAILS, RailLogo } from "./Rails";
 import { Logo } from "./SiteHeader";
 
 const REPO = "https://github.com/Ritapossible/CarePurse";
@@ -29,17 +28,6 @@ export default function SiteFooter() {
             <li><a href={`${REPO}#security`} className={link}>Security</a></li>
             <li><a href={`${REPO}#privacy`} className={link}>Privacy</a></li>
           </ul>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-line py-8 opacity-70 grayscale">
-          <span className="text-sm text-muted">Powered by</span>
-          {RAILS.filter((r) => r.name !== "Soroban").map((r) => (
-            <span key={r.name} title={r.what} className="scale-90">
-              <RailLogo rail={r} />
-            </span>
-          ))}
         </div>
       </div>
 
