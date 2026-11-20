@@ -1,27 +1,104 @@
 "use client";
-// The daughter's dashboard: balance, Mama's invite, receipts (with the fee, which only she sees),
-// her rules and the purse on Stellar.
+// The daughter's dashboard: Mama's purse at a glance, quick actions, Mama's status, activity and limits.
+// The service fee shows here only (Mama never sees it).
 import { usePrivy } from "@privy-io/react-auth";
-import AuthCard from "@/components/AuthCard";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { PRESETS, type Purse, explorer, inviteUrl, naira, useFamilyApi, whatsappUrl } from "@/lib/family";
+import QRCode from "qrcode";
+import AuthCard from "@/components/AuthCard";
+import { PRESETS, type Purse, type Spend, explorer, inviteUrl, naira, useFamilyApi, whatsappUrl } from "@/lib/family";
 
-const secondary = "inline-flex h-11 items-center justify-center rounded-[10px] border border-line px-4 font-medium transition-colors duration-150 hover:bg-surface disabled:opacity-40";
-const primary = "inline-flex h-11 items-center justify-center rounded-[10px] bg-foreground px-4 font-medium text-background transition-colors duration-150 hover:bg-[#262626]";
-const when = (iso: string) => new Date(iso).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" });
-const UTILITY = { electricity: "Light", airtime: "Airtime", data: "Data" } as Record<string, string>;
-const INVITE = { none: "Not sent yet", waiting: "Waiting for Mama", joined: "Mama has joined", expired: "Link expired" } as const;
+const LAGOS = "Africa/Lagos";
+const UTILITY: Record<string, string> = { electricity: "Electricity", airtime: "Airtime", data: "Data" };
+const INVITE = { none: "Not invited", waiting: "Invite sent", joined: "Active", expired: "Link expired" } as const;
+
+// Small line icons, drawn once, in currentColor.
+const ICONS = {
+  electricity: "M13 2 4 14h7l-1 8 9-12h-7z",
+  airtime: "M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2",
+  data: "M2 9a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0M12 19.5h.01",
+  add: "M12 5v14M5 12h14",
+  invite: "M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13",
+  limits: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4",
+  receipts: "M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4",
+  eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  eyeOff: "M3 3l18 18M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7c1.6 0 3-.4 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2",
+  close: "M6 6l12 12M18 6 6 18",
+  copy: "M9 9h11v11H9zM5 15H4V4h11v1",
+};
+function Icon({ d, className = "h-5 w-5" }: { d: string; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
+
+const when = (iso: string) => {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("en-CA", { timeZone: LAGOS });
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: LAGOS });
+  const time = d.toLocaleTimeString("en-NG", { timeZone: LAGOS, hour: "numeric", minute: "2-digit" });
+  return day === today ? `Today, ${time}` : `${d.toLocaleDateString("en-NG", { timeZone: LAGOS, day: "numeric", month: "short" })}, ${time}`;
+};
+const greeting = () => {
+  const h = Number(new Date().toLocaleString("en-GB", { timeZone: LAGOS, hour: "numeric", hourCycle: "h23" }));
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+};
+const maskPhone = (p: string) => p.replace(/\D/g, "").replace(/^(\d{4})\d+(\d{3})$/, "$1 ••• $2");
+
+function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div role="dialog" aria-label={title} className="w-full max-w-md rounded-t-[24px] bg-white p-6 pb-8 sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-muted transition-colors hover:bg-surface hover:text-foreground"><Icon d={ICONS.close} /></button>
+        </div>
+        <div className="mt-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityRow({ s }: { s: Spend }) {
+  return (
+    <li className="py-4">
+      <div className="flex items-center gap-4">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface"><Icon d={ICONS[s.utility as "electricity"] ?? ICONS.receipts} /></span>
+        <div className="min-w-0 flex-1">
+          <div className="font-medium">{UTILITY[s.utility] ?? s.utility}</div>
+          <div className="text-sm text-muted">{when(s.at)}{s.unconfirmed ? " · Checking" : ""}</div>
+        </div>
+        <div className="text-right">
+          <div className="font-semibold tabular-nums">−{naira(s.chargedNgn ?? s.ngn)}</div>
+          {s.feeNgn ? <div className="text-xs text-muted">incl. {naira(s.feeNgn)} fee</div> : null}
+        </div>
+      </div>
+      {(s.token || s.tx) && (
+        <div className="ml-15 mt-2 flex items-center justify-between gap-3 text-sm">
+          {s.token ? <span className="whitespace-nowrap font-mono text-[13px] text-secondary">{s.token}</span> : <span />}
+          {s.tx && <a href={explorer("tx", s.tx)} target="_blank" rel="noreferrer" className="shrink-0 text-muted underline-offset-4 hover:underline">Receipt</a>}
+        </div>
+      )}
+    </li>
+  );
+}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { ready, authenticated, login, logout } = usePrivy();
+  const { ready, authenticated, login, logout, user } = usePrivy();
   const api = useFamilyApi();
   const [purse, setPurse] = useState<Purse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [invite, setInvite] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [hidden, setHidden] = useState(false);
+  const [sheet, setSheet] = useState<"fund" | "invite" | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -39,6 +116,10 @@ export default function DashboardPage() {
     return () => clearTimeout(t);
   }, [ready, authenticated, load]);
 
+  useEffect(() => {
+    if (purse?.contractId) QRCode.toDataURL(purse.contractId, { margin: 1, width: 360 }).then(setQr).catch(() => {});
+  }, [purse?.contractId]);
+
   async function act(what: "invite" | "test-usdc") {
     setError(null);
     setBusy(what);
@@ -52,6 +133,7 @@ export default function DashboardPage() {
       setBusy(null);
     }
   }
+  const copy = (key: string, text: string) => navigator.clipboard?.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(null), 1500); });
 
   if (!ready) return <p className="text-muted">Loading…</p>;
   if (!authenticated) {
@@ -63,83 +145,185 @@ export default function DashboardPage() {
         onAction={() => login()}
         points={["Her balance and every top-up", "Invite or re-invite Mama", "Your limits, kept on her purse"]}
         alt={{ text: "New here?", link: "Set up for your mum", href: "/start" }}
+        image={{ src: "/photos/elder.jpg", alt: "An older woman in a headwrap smiling with a thumbs up", position: "50% 30%" }}
       />
     );
   }
-  if (!purse) return <p className="text-muted">{error ?? "Loading…"}</p>;
+  if (!purse) {
+    return error ? <p className="rounded-[10px] bg-danger-soft px-4 py-3 text-danger">{error}</p> : (
+      <div className="space-y-4" aria-label="Loading">
+        <div className="h-8 w-48 animate-pulse rounded-lg bg-surface" />
+        <div className="h-52 animate-pulse rounded-[24px] bg-surface" />
+        <div className="h-24 animate-pulse rounded-2xl bg-surface" />
+      </div>
+    );
+  }
 
-  const p = PRESETS[purse.preset];
+  const preset = PRESETS[purse.preset];
+  const month = purse.monthNgn ?? 0;
+  const used = Math.min(100, Math.round((month / purse.monthlyCap) * 100));
+  const you = purse.guardian.name || user?.email?.address?.split("@")[0] || "there";
+  const spends = all ? purse.spends : purse.spends.slice(0, 5);
+  const ACTIONS = [
+    { key: "fund", label: "Add money", icon: ICONS.add, onClick: () => setSheet("fund") },
+    { key: "invite", label: "Invite Mama", icon: ICONS.invite, onClick: () => setSheet("invite") },
+    { key: "limits", label: "Limits", icon: ICONS.limits, onClick: () => document.getElementById("limits")?.scrollIntoView({ behavior: "smooth" }) },
+    { key: "receipts", label: "Receipts", icon: ICONS.receipts, onClick: () => document.getElementById("activity")?.scrollIntoView({ behavior: "smooth" }) },
+  ];
+
   return (
-    <div className="space-y-10">
-      <section>
-        <p className="text-sm text-muted">Mama {purse.mama.name}’s purse</p>
-        <div className="mt-2 text-[44px] font-medium leading-none tracking-[-0.03em] tabular-nums">{naira(purse.balanceNgn ?? 0)}</div>
-        <p className="mt-2 text-sm text-muted">{purse.balanceUsdc ?? 0} USDC on Stellar Testnet</p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button className={secondary} disabled={busy === "test-usdc" || purse.testUsdcLeft <= 0} onClick={() => act("test-usdc")}>{busy === "test-usdc" ? "Sending…" : "Get 10 test USDC"}</button>
-          <a className={secondary} href={explorer("contract", purse.contractId)} target="_blank" rel="noreferrer">Purse on Stellar</a>
+    <div className="space-y-8">
+      {/* Greeting and account menu */}
+      <header className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted">{greeting()}</p>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em]">{you}</h1>
+        </div>
+        <div className="relative">
+          <button onClick={() => setMenu((m) => !m)} aria-label="Account" className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-lg font-semibold text-background">
+            {you.slice(0, 1).toUpperCase()}
+          </button>
+          {menu && (
+            <div className="absolute right-0 top-13 z-20 w-56 rounded-2xl border border-line bg-white p-2 shadow-[0_12px_32px_-12px_rgba(10,10,10,0.2)]">
+              <p className="truncate px-3 py-2 text-sm text-muted">{user?.email?.address ?? user?.google?.email}</p>
+              <button onClick={() => logout().then(() => router.push("/"))} className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-surface">Sign out</button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Balance card */}
+      <section className="rounded-[24px] bg-foreground p-6 text-background shadow-[0_24px_48px_-24px_rgba(10,10,10,0.6)]">
+        <div className="flex items-center justify-between text-sm text-background/60">
+          <span className="inline-flex items-center gap-2">
+            Mama {purse.mama.name}’s purse
+            <button onClick={() => setHidden((h) => !h)} aria-label={hidden ? "Show balance" : "Hide balance"} className="text-background/60 hover:text-background">
+              <Icon d={hidden ? ICONS.eyeOff : ICONS.eye} className="h-4 w-4" />
+            </button>
+          </span>
+          {purse.paused ? <span className="rounded-full bg-background/10 px-2.5 py-0.5 text-xs text-background">Paused</span> : <span className="inline-flex items-center gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>}
+        </div>
+        <div className="mt-3 text-[44px] font-semibold leading-none tracking-[-0.03em] tabular-nums">{hidden ? "₦ ••••••" : naira(purse.balanceNgn ?? 0)}</div>
+        <div className="mt-6">
+          <div className="flex justify-between text-sm">
+            <span className="text-background/60">Spent this month</span>
+            <span className="tabular-nums">{hidden ? "••••" : naira(month)} <span className="text-background/50">of {naira(purse.monthlyCap)}</span></span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/15">
+            <div className="h-full rounded-full bg-background" style={{ width: `${used}%` }} />
+          </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-line p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-medium">Mama’s invite</h2>
-          <span className="text-sm text-muted">{INVITE[purse.invite.status]}</span>
-        </div>
-        {purse.invite.status !== "joined" && (
-          <>
-            {invite ? (
-              <>
-                <div className="mt-4 break-all rounded-[10px] bg-surface px-4 py-3 font-mono text-sm">{inviteUrl(invite)}</div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <button className={secondary} onClick={() => navigator.clipboard?.writeText(inviteUrl(invite)).then(() => setCopied(true))}>{copied ? "Copied" : "Copy link"}</button>
-                  <a className={primary} href={whatsappUrl(purse.mama.name, invite)} target="_blank" rel="noreferrer">Share on WhatsApp</a>
-                </div>
-              </>
-            ) : (
-              <button className={`${secondary} mt-4 w-full`} disabled={busy === "invite"} onClick={() => act("invite")}>{busy === "invite" ? "Making a link…" : "Send a new invite"}</button>
-            )}
-            <p className="mt-3 text-sm text-muted">A new link cancels the old one. Each link works once, for 7 days.</p>
-          </>
-        )}
+      {/* Quick actions */}
+      <section className="grid grid-cols-4 gap-3">
+        {ACTIONS.map((a) => (
+          <button key={a.key} onClick={a.onClick} className="group flex flex-col items-center gap-2">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-line bg-white transition-colors duration-150 group-hover:border-foreground"><Icon d={a.icon} /></span>
+            <span className="text-[13px] font-medium">{a.label}</span>
+          </button>
+        ))}
       </section>
 
-      <section>
-        <h2 className="font-medium">Receipts</h2>
-        {purse.spends.length === 0 ? (
-          <p className="mt-3 text-secondary">Nothing bought yet.</p>
+      {/* Mama */}
+      <section className="flex items-center gap-4 rounded-2xl border border-line p-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface text-lg font-semibold">{purse.mama.name.slice(0, 1).toUpperCase()}</span>
+        <div className="min-w-0 flex-1">
+          <div className="font-medium">Mama {purse.mama.name}</div>
+          <div className="text-sm text-muted">{maskPhone(purse.mama.phone)} · Meter •••{purse.destinations.electricity.slice(-4)}</div>
+        </div>
+        {purse.invite.status === "joined" ? (
+          <span className="rounded-full bg-surface px-3 py-1 text-sm font-medium">{INVITE.joined}</span>
         ) : (
-          <ul className="mt-3 divide-y divide-line border-y border-line">
-            {purse.spends.map((s, i) => (
-              <li key={i} className="flex items-start justify-between gap-4 py-4">
-                <div>
-                  <div className="font-medium">{UTILITY[s.utility] ?? s.utility} {naira(s.ngn)}</div>
-                  <div className="text-sm text-muted">{when(s.at)}{s.token ? ` · token ${s.token}` : ""}</div>
-                </div>
-                <div className="text-right text-sm">
-                  <div className="tabular-nums">Charged {naira(s.chargedNgn ?? s.ngn)}</div>
-                  {s.feeNgn ? <div className="text-muted">incl. {naira(s.feeNgn)} fee</div> : null}
-                  {s.tx && <a href={explorer("tx", s.tx)} target="_blank" rel="noreferrer" className="text-muted underline">Stellar</a>}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <button onClick={() => setSheet("invite")} className="rounded-full border border-foreground px-3 py-1 text-sm font-medium">{purse.invite.status === "waiting" ? "Resend" : "Invite"}</button>
         )}
       </section>
 
-      <section>
-        <h2 className="font-medium">Her rules · {p.label}</h2>
-        <dl className="mt-3 grid grid-cols-[96px_1fr] gap-y-2 text-[15px]">
-          <dt className="text-muted">Light</dt><dd>{p.electricity}, meter <span className="font-mono">{purse.destinations.electricity}</span></dd>
-          <dt className="text-muted">Airtime</dt><dd>{p.airtime}, to <span className="font-mono">{purse.destinations.airtime}</span></dd>
-          <dt className="text-muted">Data</dt><dd>{p.data}</dd>
-          <dt className="text-muted">Month</dt><dd>up to {naira(purse.monthlyCap)}</dd>
-        </dl>
-        <p className="mt-3 text-sm text-muted">Enforced by the purse contract. Only your signature can change them.</p>
+      {/* Activity */}
+      <section id="activity" className="scroll-mt-24">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold">Recent activity</h2>
+          {purse.spends.length > 5 && <button onClick={() => setAll((a) => !a)} className="text-sm text-muted hover:text-foreground">{all ? "Show less" : "View all"}</button>}
+        </div>
+        {purse.spends.length === 0 ? (
+          <div className="mt-3 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+            <p className="font-medium">No top-ups yet</p>
+            <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu for light, airtime or data, it shows here.</p>
+          </div>
+        ) : (
+          <ul className="mt-1 divide-y divide-line">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
+        )}
+      </section>
+
+      {/* Limits */}
+      <section id="limits" className="scroll-mt-24">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold">Limits</h2>
+          <span className="text-sm text-muted">{preset.label} plan</span>
+        </div>
+        <ul className="mt-3 divide-y divide-line rounded-2xl border border-line">
+          {(["electricity", "airtime", "data"] as const).map((u) => (
+            <li key={u} className="flex items-center gap-4 px-4 py-3.5">
+              <Icon d={ICONS[u]} className="h-5 w-5 text-muted" />
+              <span className="flex-1 font-medium">{UTILITY[u]}</span>
+              <span className="text-sm text-secondary">{preset[u]}</span>
+            </li>
+          ))}
+          <li className="flex items-center justify-between px-4 py-3.5">
+            <span className="font-medium">Monthly total</span>
+            <span className="text-sm text-secondary">up to {naira(purse.monthlyCap)}</span>
+          </li>
+        </ul>
+        <p className="mt-3 text-sm text-muted">Kept on Mama’s purse itself. Only your signature can change them.</p>
       </section>
 
       {error && <p className="rounded-[10px] bg-danger-soft px-4 py-3 text-danger">{error}</p>}
-      <button className="text-sm text-muted underline" onClick={() => logout().then(() => router.push("/"))}>Sign out</button>
+
+      <p className="border-t border-line pt-6 text-xs text-muted">
+        Purse ID <span className="font-mono">{purse.contractId.slice(0, 6)}…{purse.contractId.slice(-4)}</span> ·{" "}
+        <a href={explorer("contract", purse.contractId)} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">View details</a>
+      </p>
+
+      {sheet === "fund" && (
+        <Sheet title="Add money" onClose={() => setSheet(null)}>
+          <p className="text-sm text-secondary">Send USDC on Stellar to Mama’s purse. It’s ready for her as soon as it lands.</p>
+          {qr && <img src={qr} alt="QR code of Mama’s purse address" width={180} height={180} className="mx-auto mt-5 rounded-xl border border-line" />}
+          <button onClick={() => copy("address", purse.contractId)} className="mt-5 flex w-full items-center gap-3 rounded-xl bg-surface px-4 py-3 text-left">
+            <span className="min-w-0 flex-1 break-all font-mono text-[13px]">{purse.contractId}</span>
+            <span className="shrink-0 text-sm font-medium">{copied === "address" ? "Copied" : "Copy"}</span>
+          </button>
+          <div className="mt-5 border-t border-line pt-5">
+            <p className="text-sm text-muted">Testing? Add 10 test dollars ({purse.testUsdcLeft} left).</p>
+            <button disabled={busy === "test-usdc" || purse.testUsdcLeft <= 0} onClick={() => act("test-usdc")} className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-foreground font-medium text-background disabled:opacity-40">
+              {busy === "test-usdc" ? "Adding…" : "Add test money"}
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {sheet === "invite" && (
+        <Sheet title={`Invite Mama ${purse.mama.name}`} onClose={() => setSheet(null)}>
+          {purse.invite.status === "joined" ? (
+            <p className="text-secondary">Mama has joined. She chats with Mhasibu from her phone.</p>
+          ) : invite ? (
+            <>
+              <p className="text-sm text-secondary">Send her this link. It works once, for 7 days.</p>
+              <button onClick={() => copy("invite", inviteUrl(invite))} className="mt-4 flex w-full items-center gap-3 rounded-xl bg-surface px-4 py-3 text-left">
+                <span className="min-w-0 flex-1 break-all font-mono text-[13px]">{inviteUrl(invite)}</span>
+                <span className="shrink-0 text-sm font-medium">{copied === "invite" ? "Copied" : "Copy"}</span>
+              </button>
+              <a href={whatsappUrl(purse.mama.name, invite)} target="_blank" rel="noreferrer" className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-foreground font-medium text-background">Share on WhatsApp</a>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-secondary">{purse.invite.status === "waiting" ? "A link was sent but not used yet. A new link cancels the old one." : "Make a link for Mama. She signs in with her phone number."}</p>
+              <button disabled={busy === "invite"} onClick={() => act("invite")} className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-foreground font-medium text-background disabled:opacity-40">
+                {busy === "invite" ? "Making a link…" : "Create invite link"}
+              </button>
+            </>
+          )}
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ export type Purse = {
   paused: boolean;
   invite: { status: "none" | "waiting" | "joined" | "expired"; expiresAt: string | null; usedAt: string | null };
   spends: Spend[];
+  monthNgn?: number;
   notifications: { at: string; kind: string; text: string }[];
   testUsdcLeft: number;
 };

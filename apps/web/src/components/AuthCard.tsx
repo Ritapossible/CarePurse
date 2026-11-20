@@ -1,4 +1,5 @@
 // The sign-in card for the daughter: setup (/start) and her dashboard. One action, a few facts, no clutter.
+import Image from "next/image";
 import Link from "next/link";
 import LogoMark from "./LogoMark";
 
@@ -20,6 +21,7 @@ export default function AuthCard({
   points,
   alt,
   error,
+  image,
 }: {
   title: string;
   subtitle: string;
@@ -29,11 +31,18 @@ export default function AuthCard({
   points: string[];
   alt: { text: string; link: string; href: string };
   error?: string | null;
+  image?: { src: string; alt: string; position?: string };
 }) {
   return (
     <div className="mx-auto w-full max-w-sm pt-6 sm:pt-12">
-      <div className="rounded-[20px] border border-line bg-white p-7 shadow-[0_1px_2px_rgba(10,10,10,0.04),0_12px_32px_-12px_rgba(10,10,10,0.12)]">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface">
+      <div className="overflow-hidden rounded-[20px] border border-line bg-white shadow-[0_1px_2px_rgba(10,10,10,0.04),0_12px_32px_-12px_rgba(10,10,10,0.12)]">
+        {image && (
+          <div className="relative h-48 bg-surface">
+            <Image src={image.src} alt={image.alt} fill priority sizes="384px" className="object-cover" style={{ objectPosition: image.position ?? "center" }} />
+          </div>
+        )}
+        <div className={`p-7 ${image ? "pt-0" : ""}`}>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${image ? "relative -mt-6 border-4 border-white bg-white shadow-sm" : "bg-surface"}`}>
           <LogoMark className="h-7 w-7" />
         </div>
         <h1 className="mt-6 text-[26px] font-semibold leading-tight tracking-[-0.02em]">{title}</h1>
@@ -59,6 +68,7 @@ export default function AuthCard({
             </li>
           ))}
         </ul>
+        </div>
       </div>
       <p className="mt-6 text-center text-sm text-muted">
         {alt.text}{" "}

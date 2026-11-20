@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import PhoneChat from "@/components/PhoneChat";
 import SiteFooter from "@/components/SiteFooter";
@@ -75,14 +76,34 @@ export default function Home() {
             </div>
             <p className="mt-5 text-sm text-muted">I’m Mama: ask your child to set up CarePurse and send you the link.</p>
           </div>
-          <PhoneChat />
+          {/* A real family, with the product in one glance on top */}
+          <div className="relative">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-surface sm:aspect-[5/6]">
+              <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill priority sizes="(min-width: 768px) 45vw, 100vw" className="object-cover object-[60%_center]" />
+              <div className="absolute inset-0 bg-linear-to-t from-black/45 via-transparent to-transparent" />
+            </div>
+            <div className="absolute left-4 top-4 max-w-[70%] rounded-2xl rounded-bl-md bg-white/95 px-4 py-2.5 text-[15px] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.3)] backdrop-blur sm:left-6 sm:top-6">
+              Abeg, light don almost finish
+            </div>
+            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white/95 p-3.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.4)] backdrop-blur sm:inset-x-6 sm:bottom-6">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold">Electricity · ₦5,000</div>
+                <div className="truncate font-mono text-[12px] text-secondary">1111 2222 3333 4444 5555</div>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Delivered</span>
+            </div>
+          </div>
         </section>
 
         {/* How it works */}
         <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24 md:py-32">
           <p className={label}>How it works</p>
           <h2 className={h2}>From your purse to her meter and phone</h2>
-          <ol className="mt-12 divide-y divide-line rounded-2xl border border-line">
+          <div className="mt-12 grid items-start gap-12 lg:grid-cols-[1fr_380px]">
+          <ol className="divide-y divide-line rounded-2xl border border-line">
             {STEPS.map((s, i) => (
               <li key={s.title} className="grid grid-cols-[32px_1fr] gap-4 p-6 sm:grid-cols-[40px_1fr]">
                 <span className="pt-0.5 font-mono text-sm tabular-nums text-muted">{i + 1}</span>
@@ -96,6 +117,24 @@ export default function Home() {
               </li>
             ))}
           </ol>
+          <PhoneChat />
+          </div>
+        </section>
+
+        {/* For Mama: a full photo banner */}
+        <section className="mx-auto max-w-6xl px-6 pb-6">
+          <div className="relative overflow-hidden rounded-[28px]">
+            <Image src="/photos/phone.jpg" alt="An older woman in a red gele talking on her phone" fill sizes="(min-width: 1152px) 1104px, 100vw" className="object-cover object-[50%_8%] lg:object-[50%_25%]" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/10 lg:bg-linear-to-r lg:from-black/80 lg:via-black/45 lg:to-transparent" />
+            <div className="relative flex min-h-[680px] flex-col justify-end p-7 text-white sm:p-12 lg:min-h-[520px] lg:max-w-xl lg:justify-center">
+              <p className="text-sm text-white/70">For Mama</p>
+              <h2 className="mt-3 text-4xl font-medium leading-[1.1] tracking-[-0.02em] sm:text-5xl">She asks. It’s done.</h2>
+              <p className="mt-4 text-lg leading-[1.6] text-white/80">No app to learn and no card to carry. She types in English or Pidgin, and her light, airtime or data arrives in seconds.</p>
+              <Link href="/start" className="mt-8 inline-flex h-12 w-fit items-center gap-2 rounded-[10px] bg-white px-5 font-medium text-foreground transition-colors duration-150 hover:bg-[#e5e5e5]">
+                Set it up for her <Arrow />
+              </Link>
+            </div>
+          </div>
         </section>
 
         {/* Receipts: what the daughter sees after every top-up */}

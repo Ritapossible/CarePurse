@@ -7,7 +7,7 @@
 // Callers are trusted: the web app's server verifies the daughter's Privy login (privyId) and
 // Mama's session before it reaches this, and Mhasibu's API needs its key.
 import crypto from "node:crypto";
-import { PRESETS } from "./limits.mjs";
+import { PRESETS, periodStart, spentSince } from "./limits.mjs";
 import { newPurse } from "./purses.mjs";
 
 const DAY = 86_400_000;
@@ -148,6 +148,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
         paused: p.paused,
         invite: { status: inviteStatus(p), expiresAt: p.invite?.expiresAt ?? null, usedAt: p.invite?.usedAt ?? null },
         spends: [...p.spends].reverse().slice(0, 20),
+        monthNgn: spentSince(p.spends, periodStart("month", now())),
         notifications: [...(p.notifications ?? [])].reverse().slice(0, 20),
         testUsdcLeft: TEST_USDC_TIMES - (p.testUsdc ?? 0),
       },

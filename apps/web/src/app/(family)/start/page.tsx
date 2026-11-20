@@ -152,6 +152,7 @@ export default function StartPage() {
         onAction={() => login()}
         points={["Takes about three minutes", "Only you can change her limits", "Mama just chats. No app to learn"]}
         alt={{ text: "Already set up?", link: "Sign in", href: "/dashboard" }}
+        image={{ src: "/photos/embrace.jpg", alt: "A mother and her daughter hugging, smiling", position: "50% 30%" }}
         error={error}
       />
     );
