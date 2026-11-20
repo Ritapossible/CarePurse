@@ -85,7 +85,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] Write the contract and its tests (`contracts/purse`, 10 tests). 14 Nov.
 - [x] Mhasibu calls `buy` before paying (when `PURSE_CONTRACT_ID` is set).
 - [x] **Mentor's demo moment:** "Try to take 7 USDC" in the log panel (or `npm run overspend`) skips Mhasibu's own checks; the contract refuses it on-chain (per top-up cap).
-- [ ] **Demo moment:** ask Mhasibu to pay a number the daughter didn't save. The contract refuses, live.
+- [x] **Demo moment:** ask Mhasibu to pay a number the daughter didn't save. The contract refuses, live. 20 Nov.
 
 ### Step 6: Polish and record (24-27 Nov)
 - [ ] Run the golden path five times in a row without failure.

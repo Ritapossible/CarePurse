@@ -107,5 +107,11 @@ export async function tryOverspend() {
   return res.json();
 }
 
+// The unsaved meter and amount are fixed by the server, never chosen here.
+export async function tryWrongDestination() {
+  const res = await fetch(`${MHASIBU_URL}/v1/demo/wrong-destination`, { method: "POST", headers: withCode({ "content-type": "application/json" }), body: "{}" });
+  return res.json();
+}
+
 export const usdc = (baseUnits?: string) => (baseUnits ? (Number(baseUnits) / 1e7).toFixed(7).replace(/0+$/, "").replace(/\.$/, "") : "");
 export const short = (s?: string) => (s && s.length > 12 ? `${s.slice(0, 6)}…${s.slice(-4)}` : s ?? "");
