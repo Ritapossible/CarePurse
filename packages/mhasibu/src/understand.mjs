@@ -23,7 +23,7 @@ const WORDS = {
   electricity: /\b(light|nepa|electric(ity)?|power|current|meter|token|units?|prepaid|bulb|phcn|disco)\b/i,
   airtime: /\b(airtime|credit|recharge|call(ing)?|top ?up my line|vtu)\b/i,
   data: /\b(data|internet|mb|gb|browse|browsing|whatsapp|network bundle|bundle)\b/i,
-  balance: /\b(balance|how much (remain|dey|is left|i get)|wetin remain|wey remain|money (remain|left))\b/i,
+  balance: /\b(balance|how much (remain|dey|is left|i get)|wetin remain|wey remain|money (remain|left)|how much (money )?(do |did )?(i|we) (have|get|got)|how much (money )?(is |dey )?(in|for|inside) (my|the) (purse|wallet|account)|how much (be|is) (my|the) (purse|wallet|account)|(my|the) (purse|wallet|account) (money|balance)|money (wey )?(dey|is) (in|for|inside) (my|the) (purse|wallet|account))\b/i,
   history: /\b(history|wetin i (don )?buy|what (did )?i (buy|bought)|last time|receipts?)\b/i,
   changeRules: /\b(limit|increase|raise|add (another|new) (number|meter)|new number|change (my |the )?(number|meter|limit)|send\b.*\bto|neighbou?r|my friend|another (person|number|meter)|for (my|another) (friend|pikin|son|daughter|sister|brother))\b/i,
   help: /^\s*(hi|hello|hey|good (morning|afternoon|evening)|help|how far|abeg help|wetin you fit do)\b/i,
@@ -106,7 +106,7 @@ intent:
 - buy: she wants electricity, airtime or data now ("light don almost finish", "abeg recharge my line", "my data don finish")
 - choose: she is picking a numbered option; put the number in choice
 - cancel: she says no, cancel, or 0
-- check_balance: she asks how much is left
+- check_balance: she asks how much is left, or her balance or how much money is in her purse (in naira or not)
 - history: she asks what was bought before
 - my_token: she asks to see her electricity token again ("send my token again", "I no see the token", "wetin be my token number"). Not when her light or units have run out: that is buy.
 - change_rules: she asks to send to another number or meter, add a number, or raise a limit

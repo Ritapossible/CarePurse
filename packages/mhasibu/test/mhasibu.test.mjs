@@ -634,3 +634,18 @@ test("'What can you help me do?' lists every service, in her language, with the 
   const pcm = await mhasibu.handle("demo", "wetin you fit do for me");
   assert.match(pcm, /See wetin I fit do/);
 });
+
+test("Mama can ask her balance in naira: face value (no fee), then what she can buy now", async () => {
+  for (const t of ["What is my balance in naira?", "How much do I have?", "How much is in my purse", "how much money I get", "wetin remain"]) {
+    assert.equal(understandScripted(t).intent, "check_balance", t);
+  }
+  assert.equal(understandScripted("Buy 500 naira light").intent, "buy");
+
+  const { mhasibu } = setup({ wallet: fakeWallet({ balanceNgn: 10_300 }), language: "en" });
+  const { config } = await import("../src/config.mjs");
+  const faceValue = Math.floor((10_300 * 10_000) / (10_000 + (config.serviceFeeBps ?? 0)));
+  const en = await mhasibu.handle("demo", "What is my balance in naira?");
+  assert.ok(en.startsWith(`Your purse has ₦${faceValue.toLocaleString("en-NG")}.`), en);
+  assert.match(en, /Here's what you can buy right now:\nlight: up to ₦/);
+  assert.match(await mhasibu.handle("demo", "abeg how much money I get for my purse"), /^Money for your purse: ₦/);
+});

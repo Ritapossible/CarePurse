@@ -404,6 +404,8 @@ export function createMhasibu({
   async function balance(purse, lang) {
     const balanceNgn = await walletOf(purse).balanceNgn({ includeAgent: Boolean(purse.openOrder) });
     const lines = ["electricity", "airtime", "data"].map((u) => ({ utility: u, maxNgn: headroom(purse, u, { balanceNgn, now: clock(), feeBps }).maxNgn }));
-    return say.balance(lang, { lines });
+    // Her balance in naira at face value: the fee is Adaeze's, so it is taken out, as in "purse balance".
+    const purseNgn = Math.max(0, Math.floor((balanceNgn * 10_000) / (10_000 + feeBps)));
+    return say.balance(lang, { purseNgn, lines });
   }
 }

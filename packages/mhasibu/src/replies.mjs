@@ -71,9 +71,12 @@ export const say = {
   tryLater(lang) { return lang === "pcm" ? "The network say make we wait small. Nobody charge you. Try again after 5 minutes." : "The network asked us to wait a little. You weren't charged. Please try again in 5 minutes."; },
   refused(lang) { return lang === "pcm" ? "I no fit do that one. Nothing don pay." : "I can't do that one. Nothing was paid."; },
 
-  balance(lang, { lines }) {
+  // Her purse in naira first, then what her limits let her buy right now.
+  balance(lang, { purseNgn, lines }) {
     const body = lines.map(({ utility, maxNgn }) => `${LABEL[lang][utility]}: up to ${naira(maxNgn)} now`).join("\n");
-    return lang === "pcm" ? `This na wetin you fit buy now:\n${body}` : `Here's what you can buy right now:\n${body}`;
+    return lang === "pcm"
+      ? `Money for your purse: ${naira(purseNgn)}.\nThis na wetin you fit buy now:\n${body}`
+      : `Your purse has ${naira(purseNgn)}.\nHere's what you can buy right now:\n${body}`;
   },
 
   // Her last electricity token, any time she asks. Tokens are kept with every purchase.
