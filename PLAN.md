@@ -59,7 +59,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 ### Step 3: Mama's chat (18-20 Nov), Must have
 - [x] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)
 - [x] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome. 16 Nov (`/i/[token]`; httpOnly session cookie, her chat only reaches her purse).
-- [ ] "Add to home screen" prompt, shown once.
+- [x] "Add to home screen" prompt, shown once. 20 Nov.
 - [x] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction (`apps/web`, `/chat`). 14 Nov.
 - [x] The token never disappears: pinned "Last light token" card, "send my token again" in any words, menu 5, kept on the order and purchase record, in Adaeze's receipt. 14 Nov.
 - [ ] SMS the token to Mama's phone (production; needs an SMS provider).
