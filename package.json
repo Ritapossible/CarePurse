@@ -1,0 +1,14 @@
+{
+  "name": "carepurse-backend",
+  "private": true,
+  "description": "Runs the CarePurse backend (gateway + Mhasibu) as one service. The web app lives in apps/web.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "install:backend": "cd services/gateway && npm ci --omit=dev && cd ../../packages/mhasibu && npm ci --omit=dev",
+    "build": "echo no build step",
+    "start": "node deploy/backend/start.mjs"
+  }
+}

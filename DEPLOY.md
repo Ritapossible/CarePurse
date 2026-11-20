@@ -44,7 +44,12 @@ The gateway and Mhasibu run together in **one** Pxxl Web Service (`Dockerfile`, 
 
 **Create the service (pxxl.app dashboard)**
 1. **New Project** → connect GitHub → `Ritapossible/CarePurse` → branch `main`.
-2. Type: **Web Service**. Build: **Dockerfile** (the one at the repo root; leave the base directory empty). Region: the default (`eu-central`) is fine.
+2. Type: **Web Service**, port `3000`, working directory `/`. Pxxl detects Node from the root `package.json` (without it, it fails with "unsupported language: unknown"). Commands:
+   - Install: `npm run install:backend`
+   - Build: `npm run build` (does nothing; there is no build step)
+   - Start: `npm start`
+
+   (Or choose **Dockerfile** instead: the one at the repo root does the same.)
 3. **Health check path:** `/v1/status`.
 4. **Secrets → Bulk Edit:** paste the contents of `deploy/backend/settings.env` (public settings only).
 5. **Secrets → New Variable**, one by one (they stay hidden):
