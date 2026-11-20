@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import PhoneChat from "@/components/PhoneChat";
+import TokenCard, { Status } from "@/components/TokenCard";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 
@@ -74,16 +75,12 @@ function HeroCopy({ dark = false }: { dark?: boolean }) {
 // The delivered-token card: the product's result, shown on top of the hero scene.
 function DeliveredCard({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-3 rounded-2xl bg-white/95 p-4 text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur ${className}`}>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium">Electricity · ₦5,000</div>
-        <div className="whitespace-nowrap font-mono text-xs text-secondary">1111 2222 3333 4444 5555</div>
-      </div>
-      <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" aria-label="Delivered" /><span className="hidden sm:inline">Delivered</span></span>
-    </div>
+    <TokenCard
+      title="Electricity · ₦5,000"
+      token="1111 2222 3333 4444 5555"
+      right={<Status />}
+      className={`bg-white/95 text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur ${className}`}
+    />
   );
 }
 

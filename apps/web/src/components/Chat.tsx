@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import MhasibuAvatar from "./MhasibuAvatar";
+import TokenCard from "./TokenCard";
 import { type ChatLine, type TokenRecord, loadHistory, loadTokens, saveAccessCode, sendMessage } from "@/lib/mhasibu";
 
 const LAGOS = "Africa/Lagos";
@@ -19,19 +20,21 @@ function LastToken({ record }: { record: TokenRecord }) {
   const [copied, setCopied] = useState(false);
   const when = new Date(record.at).toLocaleString("en-NG", { timeZone: LAGOS, day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
   return (
-    <div className="border-b border-line bg-white px-4 py-3">
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-xs text-muted">Last light token · ₦{record.ngn.toLocaleString("en-NG")} · {when}</div>
-          <div className="mt-0.5 whitespace-nowrap font-mono text-[17px] font-semibold tracking-wide">{record.token}</div>
-        </div>
-        <button
-          onClick={() => navigator.clipboard?.writeText(record.token.replace(/\s/g, "")).then(() => setCopied(true)).catch(() => {})}
-          className="h-9 shrink-0 rounded-[10px] border border-foreground px-4 text-sm font-medium transition-colors duration-150 hover:bg-surface"
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
+    <div className="border-b border-line bg-white px-2">
+      <TokenCard
+        large
+        title={`Last light token · ₦${record.ngn.toLocaleString("en-NG")}`}
+        token={record.token}
+        meta={`${when}${record.units ? ` · ${record.units}` : ""}`}
+        right={
+          <button
+            onClick={() => navigator.clipboard?.writeText(record.token.replace(/\s/g, "")).then(() => setCopied(true)).catch(() => {})}
+            className="h-9 shrink-0 rounded-[10px] border border-foreground px-4 text-sm font-medium transition-colors duration-150 hover:bg-surface"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        }
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Footer from "@/components/Footer";
+import TokenCard from "@/components/TokenCard";
 import { type Purchase, loadPurchases } from "@/lib/mhasibu";
 
 type Filter = "all" | Purchase["utility"];
@@ -23,16 +24,15 @@ function dayTitle(key: string) {
   return new Date(`${key}T12:00:00Z`).toLocaleDateString("en-NG", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
 }
 
-function Token({ value }: { value: string }) {
+function CopyToken({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-surface px-3 py-3">
-      <span className="whitespace-nowrap font-mono text-[15px] font-semibold tracking-wide">{value}</span>
+    <div className="flex justify-end px-4 pb-2">
       <button
         onClick={() => navigator.clipboard?.writeText(value.replace(/\s/g, "")).then(() => setCopied(true)).catch(() => {})}
-        className="shrink-0 rounded-[10px] border border-foreground px-3 py-1 text-sm transition-colors duration-150 hover:bg-white"
+        className="h-9 rounded-[10px] border border-foreground px-4 text-sm font-medium transition-colors duration-150 hover:bg-surface"
       >
-        {copied ? "Copied" : "Copy"}
+        {copied ? "Copied" : "Copy token"}
       </button>
     </div>
   );
@@ -41,24 +41,20 @@ function Token({ value }: { value: string }) {
 function Row({ p }: { p: Purchase }) {
   const to = p.utility === "electricity" ? `Meter ${p.to}` : p.to;
   return (
-    <li className="px-5 py-4">
-      <div className="flex items-baseline justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-[17px] font-medium">{NAME[p.utility]}</div>
-          <div className="mt-0.5 truncate text-sm text-muted">{time(p.at)} · {to}</div>
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="text-[17px] font-medium tabular-nums">{naira(p.ngn)}</div>
-          {p.status === "checking" && <div className="text-sm text-muted">Checking</div>}
-        </div>
-      </div>
-      {p.token && <Token value={p.token} />}
-      {(p.units || p.link) && (
-        <div className="mt-2 flex items-center justify-between text-sm text-muted">
-          <span>{p.units ?? ""}</span>
-          {p.link && <a href={p.link} target="_blank" rel="noreferrer" className="underline">Receipt on Stellar</a>}
-        </div>
-      )}
+    <li className="px-3 py-1">
+      <TokenCard
+        large
+        title={NAME[p.utility]}
+        token={p.token}
+        meta={`${time(p.at)} · ${to}${p.units ? ` · ${p.units}` : ""}`}
+        right={
+          <div className="shrink-0 text-right">
+            <div className="text-[17px] font-medium tabular-nums">{naira(p.ngn)}</div>
+            {p.status === "checking" ? <div className="text-xs text-muted">Checking</div> : p.link ? <a href={p.link} target="_blank" rel="noreferrer" className="text-xs text-muted underline">Receipt</a> : null}
+          </div>
+        }
+      />
+      {p.token && <CopyToken value={p.token} />}
     </li>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import AuthCard from "@/components/AuthCard";
+import TokenCard from "@/components/TokenCard";
 import { PRESETS, type Purse, type Spend, explorer, inviteUrl, naira, useFamilyApi, whatsappUrl } from "@/lib/family";
 
 const LAGOS = "Africa/Lagos";
@@ -59,24 +60,20 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
 
 function ActivityRow({ s }: { s: Spend }) {
   return (
-    <li className="py-4">
-      <div className="flex items-center gap-4">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface"><Icon d={ICONS[s.utility as "electricity"] ?? ICONS.receipts} /></span>
-        <div className="min-w-0 flex-1">
-          <div className="font-medium">{UTILITY[s.utility] ?? s.utility}</div>
-          <div className="text-sm text-muted">{when(s.at)}{s.unconfirmed ? " · Checking" : ""}</div>
-        </div>
-        <div className="text-right">
-          <div className="font-medium tabular-nums">−{naira(s.chargedNgn ?? s.ngn)}</div>
-          {s.feeNgn ? <div className="text-xs text-muted">incl. {naira(s.feeNgn)} fee</div> : null}
-        </div>
-      </div>
-      {(s.token || s.tx) && (
-        <div className="ml-15 mt-2 flex items-center justify-between gap-3 text-sm">
-          {s.token ? <span className="whitespace-nowrap font-mono text-[13px] text-secondary">{s.token}</span> : <span />}
-          {s.tx && <a href={explorer("tx", s.tx)} target="_blank" rel="noreferrer" className="shrink-0 text-muted underline-offset-4 hover:underline">Receipt</a>}
-        </div>
-      )}
+    <li>
+      <TokenCard
+        title={UTILITY[s.utility] ?? s.utility}
+        token={s.utility === "electricity" ? s.token : null}
+        meta={`${when(s.at)}${s.unconfirmed ? " · Checking" : ""}`}
+        className="border border-line bg-white"
+        right={
+          <div className="shrink-0 text-right">
+            <div className="text-sm font-medium tabular-nums">−{naira(s.chargedNgn ?? s.ngn)}</div>
+            {s.feeNgn ? <div className="text-xs text-muted">incl. {naira(s.feeNgn)} fee</div> : null}
+            {s.tx && <a href={explorer("tx", s.tx)} target="_blank" rel="noreferrer" className="text-xs text-muted underline-offset-4 hover:underline">Receipt</a>}
+          </div>
+        }
+      />
     </li>
   );
 }
@@ -254,7 +251,7 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu for light, airtime or data, it shows here</p>
           </div>
         ) : (
-          <ul className="mt-1 divide-y divide-line">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
+          <ul className="mt-3 space-y-3">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
         )}
       </section>
 
