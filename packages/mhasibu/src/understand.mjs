@@ -27,6 +27,8 @@ const WORDS = {
   history: /\b(history|wetin i (don )?buy|what (did )?i (buy|bought)|last time|receipts?)\b/i,
   changeRules: /\b(limit|increase|raise|add (another|new) (number|meter)|new number|change (my |the )?(number|meter|limit)|send\b.*\bto|neighbou?r|my friend|another (person|number|meter)|for (my|another) (friend|pikin|son|daughter|sister|brother))\b/i,
   help: /^\s*(hi|hello|hey|good (morning|afternoon|evening)|help|how far|abeg help|wetin you fit do)\b/i,
+  // "What can you help me do?", "what do you do", "who are you", "wetin you dey do", "your services"
+  services: /\b(what (else )?(can|do|could) you (help( me)?( with| do)?|do|offer)|how (can|could|do) you help|who are you|what are you|(wetin|which kin(d)? thing) (you|una) (fit|dey|go) (do|help)|how (you|una) (fit|go|dey) help|wetin be (your|una) work|(your|una) services?|what services?)\b/i,
   tokenAsk: /\b(my|last|the|that|which|wetin be|what is|what's)\s+(light\s+|meter\s+|electricity\s+)?tokens?\b|\btokens?\s+(again|number|no show|didn'?t come|did not come)\b|\b(send|show|resend|repeat|give me|see|find|lost|forget|forgot)\b.*\btokens?\b/i,
   ranOut: /\b(finish|finished|don finish|run out|ran out|low|almost|buy|recharge|top ?up)\b/i,
   cancel: /^\s*(0|no|cancel|stop|leave am|forget am|no be am|no need)\s*[.!]*\s*$/i,
@@ -93,7 +95,7 @@ export function understandScripted(text) {
   if (WORDS.balance.test(t)) return { intent: "check_balance", utility, choice: null };
   if (WORDS.history.test(t)) return { intent: "history", utility, choice: null };
   if (utility) return { intent: "buy", utility, choice: null };
-  if (WORDS.help.test(t)) return { intent: "help", utility: null, choice: null };
+  if (WORDS.help.test(t) || WORDS.services.test(t)) return { intent: "help", utility: null, choice: null };
   return { intent: "unknown", utility: null, choice: null };
 }
 
@@ -108,7 +110,7 @@ intent:
 - history: she asks what was bought before
 - my_token: she asks to see her electricity token again ("send my token again", "I no see the token", "wetin be my token number"). Not when her light or units have run out: that is buy.
 - change_rules: she asks to send to another number or meter, add a number, or raise a limit
-- help: greeting or asking what you can do
+- help: greeting, or asking what you can do or who you are (\"What can you help me do?\", \"wetin you fit do\")
 - unknown: anything else
 
 utility: electricity (light, NEPA, current, meter, token, units), airtime (credit, recharge, call), data (internet, MB, GB, browse), or null.

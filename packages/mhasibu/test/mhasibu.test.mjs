@@ -619,3 +619,18 @@ test("language is read from Mama's own words, not picked at sign-up", async () =
   assert.equal(purses.get("demo").mama.language, "en");
   assert.ok(stillPidgin);
 });
+
+test("'What can you help me do?' lists every service, in her language, with the menu", async () => {
+  for (const t of ["What can you help me do?", "what can you do", "Who are you?", "wetin you fit do for me", "how you fit help me", "what services do you offer"]) {
+    assert.equal(understandScripted(t).intent, "help", t);
+  }
+  assert.equal(understandScripted("Can you help me buy light").intent, "buy");
+
+  const { mhasibu } = setup({ language: "en" });
+  const en = await mhasibu.handle("demo", "What can you help me do?");
+  for (const s of ["Buy electricity", "Buy airtime", "Buy data", "how much is left", "last light token", "what you've bought", "1) Light"]) assert.ok(en.includes(s), s);
+  assert.match(await mhasibu.handle("demo", "1"), /I can buy light/); // the menu works right after
+
+  const pcm = await mhasibu.handle("demo", "wetin you fit do for me");
+  assert.match(pcm, /See wetin I fit do/);
+});

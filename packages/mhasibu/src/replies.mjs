@@ -91,10 +91,17 @@ export const say = {
     return lang === "pcm" ? `Wetin you don buy last:\n${body}` : `Your last top-ups:\n${body}`;
   },
 
+  // Greeting or "What can you help me do?": who Mhasibu is, everything it does, and the menu.
   help(lang, { name, guardian }) {
     return lang === "pcm"
-      ? `Mama ${name}, I be Mhasibu. ${guardian} set up CarePurse for you. Tell me when your light, airtime or data dey low, or reply with a number:\n${MENU.pcm}`
-      : `Mama ${name}, I'm Mhasibu. ${guardian} set up CarePurse for you. Tell me when your light, airtime or data is low, or reply with a number:\n${MENU.en}`;
+      ? `Mama ${name}, I be Mhasibu. ${guardian} set up CarePurse for you. See wetin I fit do:\n` +
+        `• Buy light for your meter\n• Buy airtime for your phone\n• Buy data for your phone\n` +
+        `• Tell you how much remain for your purse\n• Send your last light token again\n• Show wetin you don buy\n` +
+        `${guardian} dey pay from your purse, within the limit wey she set. Tell me wetin you need, or reply with a number:\n${MENU.pcm}`
+      : `Mama ${name}, I'm Mhasibu. ${guardian} set up CarePurse for you. Here's what I can do:\n` +
+        `• Buy electricity for your meter\n• Buy airtime for your phone\n• Buy data for your phone\n` +
+        `• Tell you how much is left in your purse\n• Send your last light token again\n• Show what you've bought\n` +
+        `${guardian} pays from your purse, within the limits she set. Tell me what you need, or reply with a number:\n${MENU.en}`;
   },
 
   // When Mhasibu can't tell what Mama wants: say so, and give her a menu she answers with one digit.
