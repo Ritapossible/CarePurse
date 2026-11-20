@@ -2,7 +2,7 @@
 // The daughter's dashboard: balance, Mama's invite, receipts (with the fee, which only she sees),
 // her rules and the purse on Stellar.
 import { usePrivy } from "@privy-io/react-auth";
-import Link from "next/link";
+import AuthCard from "@/components/AuthCard";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { PRESETS, type Purse, explorer, inviteUrl, naira, useFamilyApi, whatsappUrl } from "@/lib/family";
@@ -56,11 +56,14 @@ export default function DashboardPage() {
   if (!ready) return <p className="text-muted">Loading…</p>;
   if (!authenticated) {
     return (
-      <div className="py-12 text-center">
-        <h1 className="text-[32px] font-medium tracking-[-0.02em]">Your dashboard</h1>
-        <button className={`${primary} mt-8 w-full`} onClick={() => login()}>Sign in with email or Google</button>
-        <p className="mt-4 text-sm text-muted">New here? <Link href="/start" className="underline">Set up CarePurse for your mum</Link></p>
-      </div>
+      <AuthCard
+        title="Welcome back"
+        subtitle="Sign in to see Mama’s purse, receipts and limits."
+        action="Sign in"
+        onAction={() => login()}
+        points={["Her balance and every top-up", "Invite or re-invite Mama", "Your limits, kept on her purse"]}
+        alt={{ text: "New here?", link: "Set up for your mum", href: "/start" }}
+      />
     );
   }
   if (!purse) return <p className="text-muted">{error ?? "Loading…"}</p>;

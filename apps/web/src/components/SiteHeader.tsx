@@ -11,7 +11,7 @@ const NAV = [
 // The phone menu has room for every section.
 const MENU = [
   { href: "/#how", label: "How it works" },
-  { href: "/#log", label: "Live log" },
+  { href: "/#log", label: "Receipts" },
   { href: "/#rules", label: "The rules" },
   { href: "/#faq", label: "FAQ" },
   { href: "/dashboard", label: "Sign in" },

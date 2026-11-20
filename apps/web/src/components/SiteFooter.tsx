@@ -33,16 +33,13 @@ export default function SiteFooter() {
       </div>
 
       <div className="mx-auto max-w-6xl px-6">
-        <div className="border-t border-line py-12">
-          <p className="text-muted">Built on</p>
-          <ul className="mt-8 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-            {RAILS.map((r) => (
-              <li key={r.name}>
-                <RailLogo rail={r} />
-                <p className="mt-2 text-[15px] text-secondary">{r.what}</p>
-              </li>
-            ))}
-          </ul>
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-line py-8 opacity-70 grayscale">
+          <span className="text-sm text-muted">Powered by</span>
+          {RAILS.filter((r) => r.name !== "Soroban").map((r) => (
+            <span key={r.name} title={r.what} className="scale-90">
+              <RailLogo rail={r} />
+            </span>
+          ))}
         </div>
       </div>
 

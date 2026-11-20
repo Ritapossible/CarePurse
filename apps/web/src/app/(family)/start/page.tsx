@@ -5,6 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
+import AuthCard from "@/components/AuthCard";
 import { DISCOS, NETWORKS, PRESETS, type Purse, explorer, inviteUrl, naira, useFamilyApi, useStellarWallet, whatsappUrl } from "@/lib/family";
 
 type Step = "signin" | "mama" | "meter" | "limits" | "fund" | "invite";
@@ -129,7 +130,7 @@ export default function StartPage() {
   if (!ready) return <p className="text-muted">Loading…</p>;
   return (
     <>
-      {authenticated && (
+      {authenticated && step !== "signin" && (
         <div className="mb-8 flex items-center justify-between gap-4 border-b border-line pb-4 text-sm">
           <span className="min-w-0 truncate text-muted">Signed in as <span className="text-foreground">{user?.email?.address ?? user?.google?.email ?? "your account"}</span></span>
           <button className="shrink-0 text-muted underline transition-colors duration-150 hover:text-foreground" disabled={Boolean(busy && busy !== "meter" && busy !== "usdc")} onClick={() => logout().then(() => router.push("/"))}>Sign out</button>
@@ -143,14 +144,16 @@ export default function StartPage() {
 
   if (!authenticated || step === "signin") {
     return (
-      <>
-        <Heading title="Set up CarePurse for your mum" text="Sign in, tell us about Mama, choose her limits. It takes about three minutes." />
-        <button className={primary} disabled={authenticated} onClick={() => login()}>
-          {authenticated ? "Getting your wallet ready…" : "Continue with email or Google"}
-        </button>
-        <p className="mt-4 text-sm text-muted">We create a Stellar wallet for you. There’s no seed phrase to keep.</p>
-        <ErrorLine error={error} />
-      </>
+      <AuthCard
+        title="Set up CarePurse"
+        subtitle="Electricity, airtime and data for your mum, within limits you set."
+        action={authenticated ? "Getting your account ready" : "Get started"}
+        busy={authenticated}
+        onAction={() => login()}
+        points={["Takes about three minutes", "Only you can change her limits", "Mama just chats. No app to learn"]}
+        alt={{ text: "Already set up?", link: "Sign in", href: "/dashboard" }}
+        error={error}
+      />
     );
   }
 
