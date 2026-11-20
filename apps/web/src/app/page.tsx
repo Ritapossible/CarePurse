@@ -45,6 +45,32 @@ function Arrow() {
   );
 }
 
+function HeroCopy({ dark = false }: { dark?: boolean }) {
+  return (
+    <div>
+      <p className={`text-sm ${dark ? "text-white/70" : "text-secondary"}`}>For families in Nigeria</p>
+      <h1 className={`mt-6 text-[44px] font-medium leading-[1.04] tracking-[-0.02em] sm:text-6xl lg:text-[72px] lg:tracking-[-0.03em] ${dark ? "text-white" : ""}`}>
+        Keep Mama’s
+        <br />
+        utilities on
+      </h1>
+      <p className={`mt-6 max-w-[36rem] text-lg leading-[1.6] sm:text-xl ${dark ? "text-white/80" : "text-secondary"}`}>
+        Fund a purse for your parent. She asks in chat, and Mhasibu buys electricity, airtime and data within the limits you
+        set.
+      </p>
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <Link href="/start" className={`inline-flex h-12 items-center justify-center gap-2 rounded-[10px] px-5 font-medium transition-colors duration-150 ${dark ? "bg-white text-foreground hover:bg-[#ebe8e3]" : "bg-foreground text-background hover:bg-[#2b2825]"}`}>
+          Launch App <Arrow />
+        </Link>
+        <Link href="#how" className={`inline-flex h-12 items-center justify-center rounded-[10px] border px-5 font-medium transition-colors duration-150 ${dark ? "border-white/30 text-white hover:bg-white/10" : "border-line hover:bg-surface"}`}>
+          How it works
+        </Link>
+      </div>
+      <p className={`mt-5 text-sm ${dark ? "text-white/60" : "text-muted"}`}>I’m Mama: ask your child to set up CarePurse and send you the link</p>
+    </div>
+  );
+}
+
 const label = "text-sm text-muted";
 const h2 = "mt-3 max-w-2xl text-4xl font-medium leading-[1.1] sm:tracking-[-0.02em] sm:text-5xl";
 
@@ -53,34 +79,28 @@ export default function Home() {
     <>
       <SiteHeader />
       <main>
-        {/* Hero: text and the phone, centred against each other */}
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-24 pt-12 md:grid-cols-[1.1fr_1fr] md:gap-16 md:pt-20">
-          <div>
-            <p className="text-sm text-secondary">For families in Nigeria</p>
-            <h1 className="mt-6 text-[44px] font-medium leading-[1.04] tracking-[-0.02em] lg:tracking-[-0.03em] sm:text-6xl lg:text-[72px]">
-              Keep Mama’s
-              <br />
-              utilities on
-            </h1>
-            <p className="mt-6 max-w-[36rem] text-lg leading-[1.6] text-secondary sm:text-xl">
-              Fund a purse for your parent. She asks in chat, and Mhasibu buys electricity, airtime and data within the limits
-              you set.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/start" className="inline-flex h-12 items-center justify-center gap-2 rounded-[10px] bg-foreground px-5 font-medium text-background transition-colors duration-150 hover:bg-[#2b2825]">
-                Launch App <Arrow />
-              </Link>
-              <Link href="#how" className="inline-flex h-12 items-center justify-center rounded-[10px] border border-line px-5 font-medium transition-colors duration-150 hover:bg-surface">
-                How it works
-              </Link>
-            </div>
-            <p className="mt-5 text-sm text-muted">I’m Mama: ask your child to set up CarePurse and send you the link</p>
+        {/* Hero, large screens: the scene fills the hero, the headline sits on the calm wall,
+            and Mama's chat rises from the bottom edge. Scene: generated for CarePurse (Higgsfield, Z Image). */}
+        <section className="relative hidden lg:block">
+          <div className="absolute inset-0 overflow-hidden bg-[#7b6248]">
+            <Image src="/photos/scene.jpg" alt="A Nigerian living room at dusk: a prepaid meter glowing on the wall beside a lamp, an ankara cloth on the side table" fill priority sizes="100vw" className="object-cover object-[65%_center]" />
+            <div className="absolute inset-0 bg-linear-to-r from-black/45 via-black/15 to-transparent" />
           </div>
-          {/* A real family, with the product in one glance on top */}
-          <div className="relative">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-surface sm:aspect-[5/6]">
-              <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill priority sizes="(min-width: 768px) 45vw, 100vw" className="object-cover object-[60%_center]" />
-              <div className="absolute inset-0 bg-linear-to-t from-black/45 via-transparent to-transparent" />
+          <div className="relative mx-auto grid min-h-[720px] max-w-6xl grid-cols-[1fr_340px] items-center gap-16 px-6">
+            <HeroCopy dark />
+            <div className="relative z-10 translate-y-24 self-end">
+              <PhoneChat />
+            </div>
+          </div>
+        </section>
+        <div className="hidden h-24 lg:block" aria-hidden="true" />
+
+        {/* Hero, phones and tablets: text first, then the scene with the product on top */}
+        <section className="mx-auto max-w-6xl px-6 pb-8 pt-12 md:pt-20 lg:hidden">
+          <HeroCopy />
+          <div className="relative mt-12">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-[#7b6248] sm:aspect-[16/10]">
+              <Image src="/photos/scene.jpg" alt="A Nigerian living room at dusk: a prepaid meter glowing on the wall beside a lamp" fill priority sizes="100vw" className="object-cover object-[64%_center]" />
             </div>
             <div className="absolute left-4 top-4 max-w-[70%] rounded-2xl rounded-bl-md bg-white/95 px-4 py-3 text-[15px] shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur sm:left-6 sm:top-6">
               Abeg, light don almost finish
@@ -91,15 +111,15 @@ export default function Home() {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium">Electricity · ₦5,000</div>
-                <div className="truncate font-mono text-xs text-secondary">1111 2222 3333 4444 5555</div>
+                <div className="whitespace-nowrap font-mono text-xs text-secondary">1111 2222 3333 4444 5555</div>
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Delivered</span>
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" aria-label="Delivered" /><span className="hidden sm:inline">Delivered</span></span>
             </div>
           </div>
         </section>
 
         {/* How it works */}
-        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24 md:py-32">
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24 md:py-32 lg:pt-16">
           <p className={label}>How it works</p>
           <h2 className={h2}>From your purse to her meter and phone</h2>
           <div className="mt-12 grid items-start gap-12 lg:grid-cols-[1fr_380px]">
@@ -117,7 +137,10 @@ export default function Home() {
               </li>
             ))}
           </ol>
-          <PhoneChat />
+          <div className="relative hidden aspect-[4/5] overflow-hidden rounded-[28px] bg-surface lg:sticky lg:top-24 lg:block">
+            <Image src="/photos/hug.jpg" alt="A smiling mother in a headwrap hugged by her grown-up daughter" fill sizes="380px" className="object-cover object-[60%_center]" />
+          </div>
+          <div className="lg:hidden"><PhoneChat /></div>
           </div>
         </section>
 
