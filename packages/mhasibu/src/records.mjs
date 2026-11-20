@@ -45,12 +45,25 @@ export async function openRecords(databaseUrl, kinds, { log = console, encryptio
   const box = sealer((encryptionKey ?? "").trim());
   if (!box) log.warn?.("DATA_ENCRYPTION_KEY is not set: records are stored unencrypted. Set it in production.");
   const pool = new pg.Pool({ connectionString: databaseUrl, max: 3 });
-  await pool.query(`create table if not exists ${TABLE} (
+  // The gateway and Mhasibu share one database and start together. Two "create table if not exists"
+  // at the same moment can clash in Postgres, so take a lock first: one creates, the other waits.
+  const setup = await pool.connect();
+  try {
+    await setup.query("begin");
+    await setup.query("select pg_advisory_xact_lock(hashtext($1))", [TABLE]);
+    await setup.query(`create table if not exists ${TABLE} (
     kind text not null,
     id text not null,
     doc jsonb not null,
     updated_at timestamptz not null default now(),
     primary key (kind, id))`);
+    await setup.query("commit");
+  } catch (err) {
+    await setup.query("rollback").catch(() => {});
+    throw err;
+  } finally {
+    setup.release();
+  }
   const { rows: stored } = await pool.query(`select kind, id, doc from ${TABLE} where kind = any($1)`, [kinds]);
   const rows = stored.map((r) => {
     if (r.doc?.enc === undefined) return r; // a plain row from before the key: sealed on its next save
