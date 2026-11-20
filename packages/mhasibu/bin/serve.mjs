@@ -9,6 +9,7 @@
 // machine are accepted (local development).
 //   POST /v1/demo/overspend  demo only (DEMO_MODE=1): bypass Mhasibu's code checks and ask
 //                            the purse contract for more than the cap, to show the on-chain refusal
+//   POST /v1/demo/wrong-destination  demo only: ask the contract to pay an unsaved meter
 // npm run serve   (port MHASIBU_PORT, default 4022)
 import http from "node:http";
 import crypto from "node:crypto";
@@ -180,6 +181,33 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         if (!(err instanceof ContractRefused)) throw err;
         emit({ type: "contract-refused", rule: err.rule, code: err.code });
+        return send(res, 200, { refused: true, rule: err.rule, code: err.code });
+      }
+    }
+    if (req.method === "POST" && url.pathname === "/v1/demo/wrong-destination") {
+      if (!demoMode) return send(res, 404, { error: "demo mode is off" });
+      if (!config.purseContractId) return send(res, 409, { error: "no purse contract deployed" });
+      const purse = purses.get("demo");
+      if (!purse) return send(res, 409, { error: "no demo purse" });
+
+      // Fixed on the server, never taken from the request. Pick a valid-looking meter that is not
+      // Adaeze's saved meter, then ask for one base unit. Destination is checked before money moves.
+      const wrongMeter = purse.destinations.electricity === "2222222222222" ? "3333333333333" : "2222222222222";
+      const amount = 1n;
+      const orderId = `wrong-destination-${Date.now()}`;
+      const soroban = createSoroban({ rpcUrl: config.rpcUrl });
+      const agent = Keypair.fromSecret(config.agentSecret);
+      emit({ type: "attack", kind: "wrong-destination", text: `Bypassing Mhasibu's own checks: asking the purse contract to pay unsaved meter ${wrongMeter}` });
+      try {
+        const r = await soroban.invoke(agent, config.purseContractId, "buy",
+          buyArgs({ utility: "electricity", destination: wrongMeter, amount, orderId, key: config.destHashKey, contractId: config.purseContractId }));
+        emit({ type: "contract-ok", tx: r.hash, text: "The contract allowed the unsaved meter (it shouldn't): refunding now" });
+        const back = await soroban.invoke(agent, config.purseContractId, "refund", refundArgs(orderId));
+        emit({ type: "refunded", tx: back.hash, amount: String(amount) });
+        return send(res, 200, { refused: false, tx: r.hash, refunded: back.hash });
+      } catch (err) {
+        if (!(err instanceof ContractRefused)) throw err;
+        emit({ type: "contract-refused", kind: "wrong-destination", rule: err.rule, code: err.code });
         return send(res, 200, { refused: true, rule: err.rule, code: err.code });
       }
     }

@@ -59,7 +59,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 ### Step 3: Mama's chat (18-20 Nov), Must have
 - [x] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)
 - [x] Mama joins from the invite link: phone pre-filled, code shown on screen, chat opens with a welcome. 16 Nov (`/i/[token]`; httpOnly session cookie, her chat only reaches her purse).
-- [ ] "Add to home screen" prompt, shown once.
+- [x] "Add to home screen" prompt, shown once. 20 Nov.
 - [x] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction (`apps/web`, `/chat`). 14 Nov.
 - [x] The token never disappears: pinned "Last light token" card, "send my token again" in any words, menu 5, kept on the order and purchase record, in Adaeze's receipt. 14 Nov.
 - [ ] SMS the token to Mama's phone (production; needs an SMS provider).
@@ -85,7 +85,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] Write the contract and its tests (`contracts/purse`, 10 tests). 14 Nov.
 - [x] Mhasibu calls `buy` before paying (when `PURSE_CONTRACT_ID` is set).
 - [x] **Mentor's demo moment:** "Try to take 7 USDC" in the log panel (or `npm run overspend`) skips Mhasibu's own checks; the contract refuses it on-chain (per top-up cap).
-- [ ] **Demo moment:** ask Mhasibu to pay a number the daughter didn't save. The contract refuses, live.
+- [x] **Demo moment:** ask Mhasibu to pay a number the daughter didn't save. The contract refuses, live. 20 Nov.
 
 ### Step 6: Polish and record (24-27 Nov)
 - [ ] Run the golden path five times in a row without failure.

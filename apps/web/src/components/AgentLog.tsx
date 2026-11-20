@@ -2,7 +2,7 @@
 // The Agent & x402 Log: every step Mhasibu takes, live, for the judges.
 // Mama never sees this; it sits beside her chat on the demo page.
 import { useEffect, useRef, useState } from "react";
-import { type LogEvent, type Status, eventsUrl, loadStatus, short, tryOverspend, usdc } from "@/lib/mhasibu";
+import { type LogEvent, type Status, eventsUrl, loadStatus, short, tryOverspend, tryWrongDestination, usdc } from "@/lib/mhasibu";
 
 type Tone = "plain" | "x402" | "chain" | "ok" | "no";
 type Row = { tone: Tone; label: string; detail: string; link?: string };
@@ -27,7 +27,7 @@ function describe(e: LogEvent): Row | null {
     case "contract-ok":
       return { tone: "ok", label: "Contract approved", detail: e.text ?? "caps passed; released exactly this amount to the agent wallet", link: e.link };
     case "contract-refused":
-      return { tone: "no", label: "Refused on-chain", detail: `the purse contract said no: ${e.rule} limit (Error #${e.code}). No USDC moved.` };
+      return { tone: "no", label: "Refused on-chain", detail: e.rule === "destination" ? `the meter is not one Adaeze saved (Error #${e.code}). No USDC moved.` : `the purse contract said no: ${e.rule} limit (Error #${e.code}). No USDC moved.` };
     case "signing":
       return { tone: "x402", label: "Sign and retry", detail: `signed a Soroban auth entry for exactly ${usdc(e.amount)} USDC, retried with PAYMENT-SIGNATURE` };
     case "paid":
@@ -49,7 +49,7 @@ function describe(e: LogEvent): Row | null {
     case "notify-guardian":
       return { tone: "plain", label: "Adaeze notified", detail: `${e.kind}` };
     case "attack":
-      return { tone: "no", label: "Overspend attempt", detail: e.text ?? "" };
+      return { tone: "no", label: e.kind === "wrong-destination" ? "Wrong meter attempt" : "Overspend attempt", detail: e.text ?? "" };
     case "payment-failed":
     case "error":
       return { tone: "no", label: "Error", detail: e.message ?? "" };
@@ -70,7 +70,7 @@ export default function AgentLog() {
   const [events, setEvents] = useState<LogEvent[]>([]);
   const [status, setStatus] = useState<Status | null>(null);
   const [live, setLive] = useState(false);
-  const [trying, setTrying] = useState(false);
+  const [trying, setTrying] = useState<"overspend" | "destination" | null>(null);
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,18 +135,33 @@ export default function AgentLog() {
       </ol>
 
       {status?.demoMode && status.phase === 2 && (
-        <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-3">
-          <p className="text-sm text-muted">Skip Mhasibu&rsquo;s own checks and ask the contract for more than Adaeze allows.</p>
-          <button
-            disabled={trying}
-            onClick={async () => {
-              setTrying(true);
-              await tryOverspend().finally(() => setTrying(false));
-            }}
-            className="shrink-0 rounded-[10px] border border-danger px-4 py-2 text-sm font-medium text-danger transition-colors duration-150 hover:bg-danger-soft disabled:opacity-50"
-          >
-            {trying ? "Asking the contract…" : "Try to take more than the cap"}
-          </button>
+        <div className="space-y-3 border-t border-line px-5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted">Skip Mhasibu&rsquo;s checks and ask the contract for more than Adaeze allows.</p>
+            <button
+              disabled={trying !== null}
+              onClick={async () => {
+                setTrying("overspend");
+                await tryOverspend().finally(() => setTrying(null));
+              }}
+              className="shrink-0 rounded-[10px] border border-danger px-4 py-2 text-sm font-medium text-danger transition-colors duration-150 hover:bg-danger-soft disabled:opacity-50"
+            >
+              {trying === "overspend" ? "Asking the contract…" : "Try to take more than the cap"}
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted">Ask the contract to pay a meter Adaeze never saved.</p>
+            <button
+              disabled={trying !== null}
+              onClick={async () => {
+                setTrying("destination");
+                await tryWrongDestination().finally(() => setTrying(null));
+              }}
+              className="shrink-0 rounded-[10px] border border-danger px-4 py-2 text-sm font-medium text-danger transition-colors duration-150 hover:bg-danger-soft disabled:opacity-50"
+            >
+              {trying === "destination" ? "Asking the contract…" : "Try a different meter"}
+            </button>
+          </div>
         </div>
       )}
     </section>
