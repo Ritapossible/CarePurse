@@ -1,4 +1,4 @@
-# Deploying CarePurse (Google Cloud Run or Render for the backend, Vercel for the web app)
+# Deploying CarePurse (Pxxl or Render for the backend, Vercel for the web app)
 
 Stellar **testnet** and the VTpass **sandbox** only. Three services from one Blueprint (`render.yaml`):
 
@@ -34,53 +34,32 @@ Why Neon: Render's free Postgres is deleted after 30 days (mid-December, around 
    - web `WEB_ACCESS_CODE` (**required**) = a code for the demo link, then share `https://<web>/demo?code=<code>`. Without it the web app keeps Mama's chat closed (503), so the agent key can never be used by an anonymous visitor
 4. Check: open `https://<gateway>/health`, `https://<mhasibu>/v1/status` (the only public Mhasibu route; everything else answers 401 without the key), then `https://<web>/demo?code=<code>` and send "Abeg, light don almost finish", then "1".
 
-## Backend on Google Cloud Run
+## Backend on Pxxl
 
-The gateway and Mhasibu run together in **one** Cloud Run service (`Dockerfile`, `deploy/cloudrun/start.mjs`): Mhasibu is public, the gateway listens only inside the container. They stay two programs, so the x402 payment between them is real. The web app stays on Vercel.
+The gateway and Mhasibu run together in **one** Pxxl Web Service (`Dockerfile`, `deploy/backend/start.mjs`): Mhasibu answers on Pxxl's `PORT`, the gateway listens only inside the container. They stay two programs, so the x402 payment between them is real. Together they use about 256 MB, inside the free plan's 0.5 GB (each is capped at about 200 MB). The web app stays on Vercel.
 
 **Before you start**
-1. **Google Cloud:** console.cloud.google.com → create a project (e.g. `carepurse`) → link a billing account (a card is required even for the free tier). Then **Billing → Budgets & alerts → a $5 budget** so you're told before anything costs money.
-2. **Neon (free Postgres):** create a database and copy its connection string. Cloud Run's disk is wiped on every restart, so without it purses, chats and tokens are lost.
-3. Have ready: the agent secret key and the demo guardian secret (your wallet note), the three VTpass sandbox keys, and the NEAR AI key.
+1. **Neon (free Postgres):** create a database and copy its connection string. The container's disk is wiped on every redeploy, so without it purses, chats and tokens are lost.
+2. Have ready: the agent secret key and the demo guardian secret (your wallet note), the three VTpass sandbox keys, and the NEAR AI key.
 
-**Deploy (in Cloud Shell: the `>_` icon at the top right of the console)**
-
-```bash
-gcloud config set project YOUR_PROJECT_ID
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
-git clone https://github.com/Ritapossible/CarePurse && cd CarePurse
-
-# Secrets you type (input is hidden; nothing is saved to a file)
-for s in AGENT_SECRET_KEY TREASURY_SECRET VTPASS_API_KEY VTPASS_SECRET_KEY VTPASS_PUBLIC_KEY LLM_API_KEY DATABASE_URL; do
-  read -rsp "$s: " v; echo; printf %s "$v" | gcloud secrets create $s --data-file=-; unset v
-done
-# Secrets generated for you
-for s in MHASIBU_API_KEY GATEWAY_API_KEY DATA_ENCRYPTION_KEY; do
-  openssl rand -hex 32 | tr -d '\n' | gcloud secrets create $s --data-file=-
-done
-
-# Let Cloud Run read them
-PROJECT=$(gcloud config get-value project)
-PN=$(gcloud projects describe $PROJECT --format='value(projectNumber)')
-gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$PN-compute@developer.gserviceaccount.com --role=roles/secretmanager.secretAccessor
-
-# Build and deploy (about 3 minutes)
-gcloud run deploy carepurse-backend --source . --region europe-west1 --allow-unauthenticated \
-  --max-instances 1 --cpu 1 --memory 512Mi --timeout 3600 \
-  --env-vars-file deploy/cloudrun/env.yaml \
-  --set-secrets AGENT_SECRET_KEY=AGENT_SECRET_KEY:latest,TREASURY_SECRET=TREASURY_SECRET:latest,VTPASS_API_KEY=VTPASS_API_KEY:latest,VTPASS_SECRET_KEY=VTPASS_SECRET_KEY:latest,VTPASS_PUBLIC_KEY=VTPASS_PUBLIC_KEY:latest,LLM_API_KEY=LLM_API_KEY:latest,DATABASE_URL=DATABASE_URL:latest,MHASIBU_API_KEY=MHASIBU_API_KEY:latest,GATEWAY_API_KEY=GATEWAY_API_KEY:latest,DATA_ENCRYPTION_KEY=DATA_ENCRYPTION_KEY:latest
-```
-
-- `--allow-unauthenticated` lets Vercel reach it; Mhasibu still answers only with `MHASIBU_API_KEY` (except `/v1/status`).
-- `--max-instances 1` keeps one copy running, so two taps can never pay twice.
+**Create the service (pxxl.app dashboard)**
+1. **New Project** → connect GitHub → `Ritapossible/CarePurse` → branch `main`.
+2. Type: **Web Service**. Build: **Dockerfile** (the one at the repo root; leave the base directory empty). Region: the default (`eu-central`) is fine.
+3. **Health check path:** `/v1/status`.
+4. **Secrets → Bulk Edit:** paste the contents of `deploy/backend/settings.env` (public settings only).
+5. **Secrets → New Variable**, one by one (they stay hidden):
+   - `AGENT_SECRET_KEY`, `TREASURY_SECRET` (the demo guardian secret)
+   - `VTPASS_API_KEY`, `VTPASS_SECRET_KEY`, `VTPASS_PUBLIC_KEY`
+   - `LLM_API_KEY` (NEAR AI)
+   - `DATABASE_URL` (Neon)
+   - `MHASIBU_API_KEY`, `GATEWAY_API_KEY`, `DATA_ENCRYPTION_KEY`: long random strings you make up (e.g. a password manager's generator, 40+ characters). Keep `MHASIBU_API_KEY` and `DATA_ENCRYPTION_KEY` in your password manager too.
+6. **Deploy.** Every push to `main` redeploys automatically.
 
 **Then**
-1. Copy the service URL it prints (`https://carepurse-backend-….run.app`) and check `https://<url>/v1/status`.
-2. **Vercel** (Settings → Environment Variables): `MHASIBU_URL` = that URL; `MHASIBU_API_KEY` = the generated key. To see it once: `gcloud secrets versions access latest --secret MHASIBU_API_KEY` (copy it into Vercel, then `clear` the screen). Redeploy Vercel.
-3. **UptimeRobot:** one HTTP(s) monitor on `https://<url>/v1/status` every 5 minutes. Each ping is a tiny request, well inside the free tier.
-4. **Updates:** after a push to `main`, run the same `gcloud run deploy …` again from Cloud Shell (`cd CarePurse && git pull` first).
-
-**Cost:** the free tier covers the pings and normal demo use. The one thing that costs money is **leaving the demo page (live log) open for days**: its live connection keeps the server busy the whole time. Close the tab after demos; the budget alert warns you if anything adds up.
+1. Open `https://<your-pxxl-address>/v1/status`: you should see `{"phase":2,…`.
+2. **Vercel** (Settings → Environment Variables): `MHASIBU_URL` = that address, `MHASIBU_API_KEY` = the same key. Redeploy Vercel.
+3. **UptimeRobot:** one HTTP(s) monitor on `/v1/status` every 5 minutes.
+4. **Check after the first deploy** (Pxxl's docs don't say): that it stays awake overnight, that the demo's live log keeps streaming, and that a top-up reaches Stellar, NEAR AI and VTpass from the server.
 
 ## Web app on Vercel (recommended)
 

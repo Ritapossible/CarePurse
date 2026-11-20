@@ -1,5 +1,5 @@
-# CarePurse backend for Google Cloud Run: the x402 gateway and Mhasibu in one container.
-# Stellar testnet and the VTpass sandbox only. No secrets in the image: set them on Cloud Run.
+# CarePurse backend (hosted on Pxxl): the x402 gateway and Mhasibu in one container.
+# Stellar testnet and the VTpass sandbox only. No secrets in the image: set them in Pxxl's Secrets.
 FROM node:22-slim
 ENV NODE_ENV=production
 WORKDIR /app
@@ -11,11 +11,11 @@ RUN cd services/gateway && npm ci --omit=dev && cd ../../packages/mhasibu && npm
 
 COPY services/gateway services/gateway
 COPY packages/mhasibu packages/mhasibu
-COPY deploy/cloudrun deploy/cloudrun
+COPY deploy/backend deploy/backend
 
 # Local JSON files are only used without DATABASE_URL; keep that path writable (data is lost on restart).
 RUN mkdir -p /app/.data && chown node:node /app/.data
 
 USER node
-EXPOSE 8080
-CMD ["node", "deploy/cloudrun/start.mjs"]
+EXPOSE 3000
+CMD ["node", "deploy/backend/start.mjs"]
