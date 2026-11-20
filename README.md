@@ -300,4 +300,4 @@ Fixed on 16 Nov, checked live on testnet: plain sha256 fingerprints became keyed
 | Name | GitHub |
 |---|---|
 | Rita | [@Ritapossible](https://github.com/Ritapossible) |
-| Gloria | added after her first push |
+| Gloria | [@Gloria-Robinson](https://github.com/Gloria-Robinson) |
