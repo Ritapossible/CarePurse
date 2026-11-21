@@ -703,3 +703,27 @@ test("on-chain caps leave room for the naira strengthening after setup (₦5,000
   const noMargin = capBaseUnits(5000, capRate({ ngnPerUsdc: 1470, capRateMarginBps: 0 }), 500, 7, 300);
   assert.ok(priceLater > noMargin); // without the room, the contract would have refused it
 });
+
+test("Mama names an amount: within her limits she confirms once; over them she is told why, and what she can have", async () => {
+  const { mhasibu, wallet, purses } = setup({ language: "en" });
+  const over = await mhasibu.handle("demo", "Buy airtime of #2000");
+  assert.match(over, /^I can't buy ₦2,000 of airtime\. Adaeze allows up to ₦500 of airtime at a time\. I can buy:\n1\) ₦100\n2\) ₦200\n3\) ₦500\n0\) Cancel/);
+  assert.ok(purses.get("demo").notifications.some((n) => n.kind === "asked-over-limit"));
+
+  // "Can't you buy another #2000?" right after: same airtime, same honest answer (not "I didn't understand")
+  assert.match(await mhasibu.handle("demo", "Can't you buy another #2000?"), /^I can't buy ₦2,000 of airtime\. Adaeze allows up to ₦500/);
+  assert.match(await mhasibu.handle("demo", "3"), /₦500/); // then she picks what she can have
+  assert.equal(wallet.paid.length, 1);
+
+  const ok = await mhasibu.handle("demo", "buy airtime 200");
+  assert.match(ok, /^Shall I buy ₦200 of airtime for 08011111111\?\n1\) Yes, buy ₦200\n0\) Cancel/);
+  await mhasibu.handle("demo", "1");
+  assert.equal(wallet.paid.length, 2);
+
+  // No utility named: ask which; then the amount carries over
+  assert.match(await mhasibu.handle("demo", "#300 please"), /^What should I buy ₦300 of\?/);
+  assert.match(await mhasibu.handle("demo", "3"), /^₦300 isn't a size I can buy for data\. These are:\n1\) ₦100\n2\) ₦200\n3\) ₦500/);
+
+  // Daily limit: after ₦700 of airtime today, ₦500 more is over the ₦1,000 a day
+  assert.match(await mhasibu.handle("demo", "abeg buy airtime #500"), /^I no fit buy ₦500 airtime\. Na ₦300 airtime remain for you today\. I fit buy:\n1\) ₦100\n2\) ₦200\n0\) Cancel/);
+});

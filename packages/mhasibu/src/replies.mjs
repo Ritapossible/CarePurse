@@ -44,6 +44,56 @@ export const say = {
     return `The ${u} limit ${guardian} set has been reached.${when ? ` It opens again ${when}.` : ""} I've let ${guardian} know.`;
   },
 
+  // She asked for a specific amount. Within her limits: confirm it once. Over: say why, plainly,
+  // then what she can have. Not a size we sell: the nearest sizes.
+  confirmAmount(lang, { utility, ngn, destinationLabel }) {
+    const u = LABEL[lang][utility];
+    return lang === "pcm"
+      ? `Make I buy ${naira(ngn)} ${u} for ${destinationLabel}?\n1) Yes, buy ${naira(ngn)}\n0) Cancel\nReply with the number.`
+      : `Shall I buy ${naira(ngn)} of ${u} for ${destinationLabel}?\n1) Yes, buy ${naira(ngn)}\n0) Cancel\nReply with the number.`;
+  },
+
+  amountNotAllowed(lang, { utility, askedNgn, maxNgn, rule, guardian, options }) {
+    const u = LABEL[lang][utility];
+    const max = naira(maxNgn);
+    const why = {
+      en: {
+        "per top-up": `${guardian} allows up to ${max} of ${u} at a time.`,
+        "per day": `You have ${max} of ${u} left for today.`,
+        "per week": `You have ${max} of ${u} left for this week.`,
+        "per month": `You have ${max} of ${u} left for this month.`,
+        "purse per month": `Your purse has ${max} left to spend this month.`,
+        "purse balance": `Your purse only has enough for ${max} now.`,
+      },
+      pcm: {
+        "per top-up": `${guardian} allow only ${max} ${u} at once.`,
+        "per day": `Na ${max} ${u} remain for you today.`,
+        "per week": `Na ${max} ${u} remain for you this week.`,
+        "per month": `Na ${max} ${u} remain for you this month.`,
+        "purse per month": `Na ${max} remain for your purse this month.`,
+        "purse balance": `Money for your purse fit only buy ${max} now.`,
+      },
+    }[lang][rule] ?? "";
+    const list = options.map((o, i) => `${i + 1}) ${naira(o)}`).join("\n");
+    return lang === "pcm"
+      ? `I no fit buy ${naira(askedNgn)} ${u}. ${why} I fit buy:\n${list}\n0) Cancel\nReply with the number.`
+      : `I can't buy ${naira(askedNgn)} of ${u}. ${why} I can buy:\n${list}\n0) Cancel\nReply with the number.`;
+  },
+
+  notASize(lang, { utility, askedNgn, options }) {
+    const u = LABEL[lang][utility];
+    const list = options.map((o, i) => `${i + 1}) ${naira(o)}`).join("\n");
+    return lang === "pcm"
+      ? `I no fit buy exactly ${naira(askedNgn)} ${u}. See the ones wey dey:\n${list}\n0) Cancel\nReply with the number.`
+      : `${naira(askedNgn)} isn't a size I can buy for ${u}. These are:\n${list}\n0) Cancel\nReply with the number.`;
+  },
+
+  whichUtility(lang, { askedNgn }) {
+    return lang === "pcm"
+      ? `Wetin make I buy ${naira(askedNgn)} for? Reply with a number:\n1) Light\n2) Airtime\n3) Data`
+      : `What should I buy ${naira(askedNgn)} of? Reply with a number:\n1) Light\n2) Airtime\n3) Data`;
+  },
+
   lowBalance(lang, { guardian }) {
     return lang === "pcm" ? `Money for your CarePurse no reach for this one. I don tell ${guardian} make she add more.` : `There isn't enough in your CarePurse for this. I've asked ${guardian} to add more.`;
   },

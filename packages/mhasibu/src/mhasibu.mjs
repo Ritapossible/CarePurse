@@ -16,6 +16,7 @@ import { createUnderstander, understandScripted } from "./understand.mjs";
 import { say } from "./replies.mjs";
 import { detectLanguage } from "./language.mjs";
 import { parseDay } from "./days.mjs";
+import { parseAmount } from "./amount.mjs";
 import { ContractRefused, orderRef } from "./purse-contract.mjs";
 
 const MINUTE = 60_000;
@@ -51,7 +52,8 @@ export function createMhasibu({
   };
   const remember = (purse, from, text) => purses.update(purse.id, (p) => p.history.push({ at: new Date(clock()).toISOString(), from, text }));
 
-  async function offer(purse, utility, lang) {
+  // askedNgn: an amount she named ("buy airtime of #2000"). Code decides what is possible.
+  async function offer(purse, utility, lang, askedNgn = null) {
     // Don't even offer sizes while the last top-up is unsettled.
     if (purse.openOrder) return say.stillSettling(lang, { guardian: purse.guardian.name });
     const now = clock();
@@ -68,8 +70,19 @@ export function createMhasibu({
       return say.capReached(lang, { utility, guardian: purse.guardian.name, period: room.tightest.period });
     }
     const recent = purse.spends.filter((s) => s.utility === utility && now - Date.parse(s.at) < config.duplicateWindowMinutes * MINUTE).at(-1);
-    purses.update(purse.id, (p) => { p.pending = { utility, options: options.map((o) => o.ngn), expiresAt: new Date(now + config.optionsTtlMinutes * MINUTE).toISOString() }; });
     const destinationLabel = utility === "electricity" ? `meter ${purse.destinations.electricity}` : purse.destinations[utility];
+    const sizes = options.map((o) => o.ngn);
+    const keep = (choices) => purses.update(purse.id, (p) => { p.pending = { utility, options: choices, expiresAt: new Date(now + config.optionsTtlMinutes * MINUTE).toISOString() }; });
+    if (askedNgn) {
+      if (sizes.includes(askedNgn)) { keep([askedNgn]); return say.confirmAmount(lang, { utility, ngn: askedNgn, destinationLabel }); }
+      keep(sizes);
+      if (askedNgn > room.maxNgn) {
+        notifyGuardian(purse, "asked-over-limit", `Mama asked for ₦${askedNgn.toLocaleString("en-NG")} of ${utility}; the ${room.tightest.rule} limit allows ₦${room.maxNgn.toLocaleString("en-NG")} now.`);
+        return say.amountNotAllowed(lang, { utility, askedNgn, maxNgn: room.maxNgn, rule: room.tightest.rule, guardian: purse.guardian.name, options: sizes });
+      }
+      return say.notASize(lang, { utility, askedNgn, options: sizes });
+    }
+    keep(sizes);
     return say.options(lang, { utility, options, destinationLabel, recentNgn: recent?.ngn });
   }
 
@@ -363,6 +376,16 @@ export function createMhasibu({
       purses.update(purse.id, (p) => { p.pending = null; });
       return say.cancelled(lang);
     }
+    // An amount in her words ("buy airtime of #2000", or "can't you buy another #2000?" right
+    // after an airtime offer). Code reads the amount and decides; the model never sets one.
+    const liveUtility = pendingLive && pending.utility ? pending.utility : null;
+    const asked = parseAmount(text, { utilityNamed: Boolean(utility || liveUtility) });
+    if (asked && ["buy", "unknown", "help", "choose"].includes(intent)) {
+      const u = utility ?? liveUtility;
+      if (u) return offer(purses.get(purse.id), u, lang, asked);
+      purses.update(purse.id, (p) => { p.pending = { menu: true, askedNgn: asked, expiresAt: new Date(clock() + config.optionsTtlMinutes * MINUTE).toISOString() }; });
+      return say.whichUtility(lang, { askedNgn: asked });
+    }
     if (intent === "choose") {
       if (!pending) return showMenu(purse, say.notUnderstood(lang));
       if (!pendingLive) { purses.update(purse.id, (p) => { p.pending = null; }); return say.expired(lang); }
@@ -373,7 +396,7 @@ export function createMhasibu({
         if (pick === "check_balance") return balance(purse, lang);
         if (pick === "my_token") return lastToken(purse, lang);
         if (pick === "history") return history(purse, lang, "");
-        return offer(purses.get(purse.id), pick, lang);
+        return offer(purses.get(purse.id), pick, lang, pending.askedNgn ?? null);
       }
       const ngn = pending.options[choice - 1];
       if (!ngn) return say.notAnOption(lang);
