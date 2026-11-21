@@ -279,7 +279,7 @@ CarePurse moves money for an elderly user, so no single mistake, crash or attack
 
 Reviewed by six rounds of external review, each finding checked against the code before changing anything ([`MEMORY.md`](MEMORY.md)).
 
-**Known limits (hackathon):** Mama's sign-in code is shown on screen until SMS is connected (Termii); all purses share one agent wallet (made safe by the global hold above); one instance per service.
+**Known limits (hackathon):** Mama's sign-in code is shown on screen until SMS is connected (Termii); all purses share one agent wallet (made safe by the global hold above); one instance per service. Each is on the [roadmap](#status-and-roadmap).
 
 ## Privacy
 
@@ -319,11 +319,16 @@ docs/                  Diagrams and the ideation deck
 
 **Working today on Stellar testnet:** sign-up with Privy and a purse contract per family, Mama's invite and sign-in, the chat in English and Pidgin, electricity, airtime and data through x402 and the VTpass sandbox, on-chain limits and refusals, plan changes, pause, withdraw, purchases, accounts, and the live naira rate.
 
-**Next:**
+**Before mainnet** (CarePurse runs on Stellar testnet and the VTpass sandbox for now):
+- **SMS through Termii** for Mama's sign-in code and her token, instead of showing the code on screen
+- **A native speaker's review** of the Pidgin replies
+- **One agent wallet per family**, instead of one shared wallet made safe by the global hold
+- **The guardian pinned to her Privy wallet** on the server, checked with Privy's server key
+- **Mainnet money:** Circle USDC on Stellar mainnet, an off-ramp to refill the naira float, and production VTpass keys
+- **More than one instance** per service, with the rate and payment holds shared through the database
+
+**Growth:**
 - **Mhasibu AI on WhatsApp:** Mama chats with the same agent in the app she already uses every day, with no link or website to open
-- SMS through Termii for Mama's sign-in code and her token
-- A native speaker's review of the Pidgin replies
-- Mainnet: real USDC, an off-ramp to refill the naira float, and production VTpass keys
 - **Beyond Nigeria:** other African countries, starting with **Tanzania** (Swahili, Tanzanian shillings, local electricity and mobile networks), then more of East and West Africa
 
 Built for **EmpowerHer: Building the Agent Economy** (Stallion). Stellar **testnet** and the VTpass **sandbox** only.

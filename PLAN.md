@@ -54,7 +54,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] **Test:** "Abeg, light don almost finish" → options → "1" → paid on Stellar testnet → token, live via `npm run chat`. 12 offline tests (`npm test`).
 - [x] Claude live through OpenServ (`LLM_BASE_URL`, model `claude-opus-5.5`): about 2 s per message, Pidgin understood, injection attempt classed as unknown. Tested 13 Nov.
 - [x] Switched to a private model for privacy: `deepseek-ai/DeepSeek-V4.1-Flash-1017` on NEAR AI Cloud (verifiable, runs in a TEE), `LLM_API=openai`. 13 of 13 live Mama messages answered by the model itself (Pidgin, typos, rule changes, injection), about 2 s each. Corrected 16 Nov: the first pick, `deepseek/deepseek-v4.1-flash`, is not private. Claude stays an option. Tested 16 Nov.
-- [ ] Have a native speaker check the Pidgin replies in `src/replies.mjs`.
+- [ ] Have a native speaker check the Pidgin replies in `src/replies.mjs` (on the roadmap, below).
 
 ### Step 3: Mama's chat (18-20 Nov), Must have
 - [x] First screen: "Set up CarePurse for your mum", plus an "I'm Mama" message: "Ask your child to set up CarePurse and send you the link." (`SIGNUP.md`)
@@ -62,7 +62,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] "Add to home screen" prompt, shown once. 20 Nov.
 - [x] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction (`apps/web`, `/chat`). 14 Nov.
 - [x] The token never disappears: pinned "Last light token" card, "send my token again" in any words, menu 5, kept on the order and purchase record, in Adaeze's receipt. 14 Nov.
-- [ ] SMS the token to Mama's phone (production; needs an SMS provider).
+- [ ] SMS the token to Mama's phone (production; needs an SMS provider; on the roadmap, below).
 - [x] English and Pidgin replies (language read from her messages, 20 Nov).
 - [x] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
 - [x] **Agent & x402 Log** panel beside the chat (`/demo`), 14 Nov: each step live, from Mama's message, the contract check and the 402 challenge to the signed payment and the Stellar Testnet settlement link. Mama's own chat stays simple.
@@ -119,5 +119,15 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 Electricity, airtime and data all pass in the VTpass sandbox (GitHub Actions workflow "VTpass sandbox"). Still to do: the "full" mode run (needs the `AGENT_SECRET_KEY` secret), and a friendly reply for VTpass's duplicate guard (`019`). See `MEMORY.md`.
 
 ### After the hackathon
+
+Before mainnet (we are on Stellar testnet and the VTpass sandbox for now):
+- [ ] SMS through Termii for Mama's sign-in code and her token (no code on screen).
+- [ ] A native speaker reviews the Pidgin replies.
+- [ ] One agent wallet per family, instead of the shared wallet and global hold.
+- [ ] Pin the guardian to her Privy wallet on the server (Privy server key).
+- [ ] Mainnet: Circle USDC on Stellar mainnet, an off-ramp to refill the naira float, production VTpass keys.
+- [ ] More than one instance per service (rate and payment holds shared through the database).
+
+Growth:
 - [ ] Mhasibu AI on WhatsApp (WhatsApp Business API): Mama chats where she already is.
 - [ ] Expand beyond Nigeria, starting with Tanzania (Swahili, shillings, local electricity and mobile networks).
