@@ -213,3 +213,26 @@ test("account: an empty purse is deleted for good, with Mama's access", async ()
   assert.equal(f2.sessionPurse(session), null);
   assert.equal(families.profile({ privyId: GUARDIAN.privyId }).profile, null);
 });
+
+test("activity: her full history, newest first, a page at a time, filterable", async () => {
+  const { families, purses } = setup();
+  const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  purses.update(prep.purseId, (p) => {
+    for (let i = 0; i < 25; i++) p.spends.push({ at: new Date(NOW + i * 60_000).toISOString(), utility: i % 5 === 0 ? "airtime" : "electricity", ngn: 1000, chargedNgn: 1030, feeNgn: 30 });
+  });
+  const first = families.activity({ privyId: GUARDIAN.privyId });
+  assert.equal(first.items.length, 20);
+  assert.equal(first.total, 25);
+  assert.equal(first.nextOffset, 20);
+  assert.ok(first.items[0].at > first.items[1].at); // newest first
+  assert.deepEqual(first.totals, { ngn: 25_000, chargedNgn: 25_750, feeNgn: 750 });
+  const second = families.activity({ privyId: GUARDIAN.privyId, offset: 20 });
+  assert.equal(second.items.length, 5);
+  assert.equal(second.nextOffset, null);
+  const airtime = families.activity({ privyId: GUARDIAN.privyId, utility: "airtime" });
+  assert.equal(airtime.total, 5);
+  assert.ok(airtime.items.every((s) => s.utility === "airtime"));
+  assert.throws(() => families.activity({ privyId: GUARDIAN.privyId, utility: "gas" }), /unknown utility/);
+  assert.throws(() => families.activity({ privyId: "someone-else" }), /no purse/);
+});

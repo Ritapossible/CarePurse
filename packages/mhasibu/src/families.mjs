@@ -336,6 +336,28 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     };
   }
 
+  // Her full purchase history, newest first, a page at a time (the dashboard shows only the latest).
+  // `utility` filters to electricity, airtime or data. Totals cover every matching purchase.
+  function activity({ privyId, utility, offset = 0, limit = 20 }) {
+    const p = byGuardian(privyId);
+    if (!p) throw new FamilyError(404, "no purse yet");
+    if (utility && !["electricity", "airtime", "data"].includes(utility)) throw new FamilyError(400, "unknown utility");
+    const all = [...p.spends].reverse().filter((s) => !utility || s.utility === utility);
+    const from = Math.max(0, Math.floor(Number(offset) || 0));
+    const size = Math.min(50, Math.max(1, Math.floor(Number(limit) || 20)));
+    return {
+      items: all.slice(from, from + size),
+      total: all.length,
+      nextOffset: from + size < all.length ? from + size : null,
+      totals: {
+        ngn: all.reduce((n, s) => n + s.ngn, 0),
+        chargedNgn: all.reduce((n, s) => n + (s.chargedNgn ?? s.ngn), 0),
+        feeNgn: all.reduce((n, s) => n + (s.feeNgn ?? 0), 0),
+      },
+      mama: { name: p.mama.name },
+    };
+  }
+
   async function sendNewInvite({ privyId }) {
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
@@ -406,5 +428,5 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   // The purse a guardian (Privy user) owns, or null.
   const guardianPurse = (privyId) => byGuardian(privyId)?.id ?? null;
 
-  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, testUsdc, dashboard, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
+  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, testUsdc, dashboard, activity, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
 }

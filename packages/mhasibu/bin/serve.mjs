@@ -186,6 +186,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/v1/family") {
       return send(res, 200, await families.dashboard({ privyId: url.searchParams.get("privyId") }));
     }
+    if (req.method === "GET" && url.pathname === "/v1/family/activity") {
+      const q = url.searchParams;
+      return send(res, 200, families.activity({ privyId: q.get("privyId"), utility: q.get("utility") || undefined, offset: q.get("offset"), limit: q.get("limit") }));
+    }
     if (req.method === "POST" && url.pathname === "/v1/family/prepare") return send(res, 200, await families.prepare(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/complete") return send(res, 200, await families.complete(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/limits/prepare") return send(res, 200, await families.prepareLimits(await readJson(req)));

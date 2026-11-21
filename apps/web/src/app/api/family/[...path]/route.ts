@@ -15,6 +15,12 @@ async function handle(request: Request, path: string[]) {
   switch (route) {
     case "GET purse":
       return passThrough(await mhasibuFetch(`/v1/family?privyId=${encodeURIComponent(privyId)}`));
+    case "GET activity": {
+      const q = new URL(request.url).searchParams;
+      const params = new URLSearchParams({ privyId });
+      for (const k of ["utility", "offset", "limit"]) if (q.get(k)) params.set(k, q.get(k)!);
+      return passThrough(await mhasibuFetch(`/v1/family/activity?${params}`));
+    }
     case "GET profile":
       return passThrough(await mhasibuFetch(`/v1/family/profile?privyId=${encodeURIComponent(privyId)}`));
     case "POST profile":

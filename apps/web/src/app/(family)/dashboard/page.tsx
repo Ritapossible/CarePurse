@@ -6,11 +6,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import AuthCard from "@/components/AuthCard";
-import TokenCard from "@/components/TokenCard";
+import Link from "next/link";
+import ActivityRow, { UTILITY, when } from "@/components/ActivityRow";
 import { PRESETS, type Purse, type Spend, explorer, inviteUrl, naira, useFamilyApi, useStellarWallet, whatsappUrl } from "@/lib/family";
 
-const LAGOS = "Africa/Lagos";
-const UTILITY: Record<string, string> = { electricity: "Electricity", airtime: "Airtime", data: "Data" };
 const INVITE = { none: "Not invited", waiting: "Invite sent", joined: "Active", expired: "Link expired" } as const;
 
 // Small line icons, drawn once, in currentColor.
@@ -38,13 +37,6 @@ function Icon({ d, className = "h-5 w-5" }: { d: string; className?: string }) {
   );
 }
 
-const when = (iso: string) => {
-  const d = new Date(iso);
-  const day = d.toLocaleDateString("en-CA", { timeZone: LAGOS });
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: LAGOS });
-  const time = d.toLocaleTimeString("en-NG", { timeZone: LAGOS, hour: "numeric", minute: "2-digit" });
-  return day === today ? `Today, ${time}` : `${d.toLocaleDateString("en-NG", { timeZone: LAGOS, day: "numeric", month: "short" })}, ${time}`;
-};
 const maskPhone = (p: string) => p.replace(/\D/g, "").replace(/^(\d{4})\d+(\d{3})$/, "$1 ••• $2");
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -58,26 +50,6 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
         <div className="mt-5">{children}</div>
       </div>
     </div>
-  );
-}
-
-function ActivityRow({ s }: { s: Spend }) {
-  return (
-    <li>
-      <TokenCard
-        title={UTILITY[s.utility] ?? s.utility}
-        token={s.utility === "electricity" ? s.token : null}
-        meta={`${when(s.at)}${s.unconfirmed ? " · Checking" : ""}`}
-        className="border border-line bg-white"
-        right={
-          <div className="shrink-0 text-right">
-            <div className="text-sm font-medium tabular-nums">−{naira(s.chargedNgn ?? s.ngn)}</div>
-            {s.feeNgn ? <div className="text-xs text-muted">incl. {naira(s.feeNgn)} fee</div> : null}
-            {s.tx && <a href={explorer("tx", s.tx)} target="_blank" rel="noreferrer" className="text-xs text-muted underline-offset-4 hover:underline">Receipt</a>}
-          </div>
-        }
-      />
-    </li>
   );
 }
 
@@ -99,7 +71,6 @@ export default function DashboardPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const wallet = useStellarWallet();
   const [qr, setQr] = useState<string | null>(null);
-  const [all, setAll] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -241,7 +212,7 @@ export default function DashboardPage() {
   const preset = PRESETS[purse.preset];
   const month = purse.monthNgn ?? 0;
   const used = Math.min(100, Math.round((month / purse.monthlyCap) * 100));
-  const spends = all ? purse.spends : purse.spends.slice(0, 5);
+  const spends = purse.spends.slice(0, 3);
   const rowIcon = "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface";
   const rowButton = "h-9 shrink-0 rounded-[10px] border border-line px-3.5 text-sm font-medium transition-colors duration-150 hover:border-foreground disabled:opacity-40";
   const joined = purse.invite.status === "joined";
@@ -352,7 +323,9 @@ export default function DashboardPage() {
           <section id="activity" className="scroll-mt-24">
             <div className="flex items-baseline justify-between">
               <h2 className="text-lg font-medium">Recent activity</h2>
-              {purse.spends.length > 5 && <button onClick={() => setAll((a) => !a)} className="text-sm text-muted hover:text-foreground">{all ? "Show less" : "View all"}</button>}
+              {purse.spends.length > 0 && (
+                <Link href="/activity" className="text-sm text-muted underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline">See all</Link>
+              )}
             </div>
             {purse.spends.length === 0 ? (
               <div className="mt-3 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
@@ -360,7 +333,15 @@ export default function DashboardPage() {
                 <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu AI for light, airtime or data, it shows here</p>
               </div>
             ) : (
-              <ul className="mt-3 space-y-3">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
+              <>
+                <ul className="mt-3 space-y-3">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
+                {purse.spends.length > spends.length && (
+                  <Link href="/activity" className="mt-3 flex h-11 items-center justify-center gap-1.5 rounded-xl border border-line bg-white text-sm font-medium transition-colors duration-150 hover:border-foreground">
+                    See all activity
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                  </Link>
+                )}
+              </>
             )}
           </section>
 
