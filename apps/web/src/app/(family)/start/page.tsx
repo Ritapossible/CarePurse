@@ -240,6 +240,7 @@ export default function StartPage() {
             <span>{purse.balanceUsdc ?? 0} USDC</span>
           </div>
           <div className="mt-1 text-[32px] font-medium tabular-nums">{naira(purse.balanceNgn ?? 0)}</div>
+          {purse.rate && <div className="mt-1 text-sm text-muted tabular-nums">1 USDC = ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")}{purse.rate.live ? " (today’s rate)" : ""}</div>}
           {qr && <img src={qr} alt="QR code of the purse address" width={176} height={176} className="mx-auto mt-4" />}
           <div className="mt-4 break-all rounded-[10px] bg-surface px-4 py-3 font-mono text-sm">{purse.contractId}</div>
           <a href={explorer("contract", purse.contractId)} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-muted underline">See it on Stellar</a>

@@ -16,6 +16,7 @@ function setup() {
     completeGuardianCall: async (pending, address, sig) => { if (sig !== "0xgood") throw new Error("signature doesn't match payload"); calls.push(["complete", address]); return { hash: "txhash" }; },
     sendTestUsdc: async (contractId, usdc) => { calls.push(["usdc", contractId, usdc]); return { tx: "fund" }; },
     purseBalance: async () => 10,
+    prepareLimits: async ({ limits, destinations }) => { calls.push(["limits", limits.electricity.perTopup, destinations]); return { hash: "cd".repeat(32), entry: "y", validUntil: 1, method: "configure", args: [] }; },
   };
   const purses = createPurseStore(null, { seed: false });
   const families = createFamilies({ purses, signup, config: { ngnPerUsdc: 1470, showMamaCode: true }, verifyMeter: async () => ({ ok: true, ownerName: "NGOZI OKAFOR" }), clock: () => clock });
@@ -92,4 +93,24 @@ test("test USDC: only after set-up, at most three times", async () => {
   for (let i = 0; i < 3; i++) await families.testUsdc({ privyId: GUARDIAN.privyId });
   await assert.rejects(families.testUsdc({ privyId: GUARDIAN.privyId }), /enough test USDC/);
   assert.equal(calls.filter((c) => c[0] === "usdc").length, 3);
+});
+
+test("she can change the plan later (Standard → Light): new caps on-chain first, with her signature", async () => {
+  const { families, purses, calls } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { purseId } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  assert.equal((await families.prepareLimits({ privyId: GUARDIAN.privyId, preset: "standard" })).status, "same");
+
+  const prep = await families.prepareLimits({ privyId: GUARDIAN.privyId, preset: "light" });
+  assert.equal(prep.status, "pending");
+  assert.deepEqual(calls.at(-1)[2], { electricity: "45012345678", airtime: "08031234567", data: "08031234567" }); // same saved payees
+  assert.equal(purses.get(purseId).preset, "standard"); // nothing changes before she signs
+
+  await assert.rejects(families.completeLimits({ privyId: GUARDIAN.privyId, signature: "0xbad" }), /didn’t match/);
+  assert.equal(purses.get(purseId).preset, "standard");
+  const done = await families.completeLimits({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  assert.equal(done.preset, "light");
+  assert.equal(purses.get(purseId).preset, "light");
+  assert.equal(purses.get(purseId).monthlyCap, 50_000);
+  await assert.rejects(families.completeLimits({ privyId: GUARDIAN.privyId, signature: "0xgood" }), /start again/);
 });

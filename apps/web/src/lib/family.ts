@@ -20,6 +20,7 @@ export type Purse = {
   invite: { status: "none" | "waiting" | "joined" | "expired"; expiresAt: string | null; usedAt: string | null };
   spends: Spend[];
   monthNgn?: number;
+  rate?: { ngnPerUsdc: number; asOf: string | null; live: boolean };
   notifications: { at: string; kind: string; text: string }[];
   testUsdcLeft: number;
 };

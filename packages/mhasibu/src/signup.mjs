@@ -129,6 +129,18 @@ export function createSignup({ config, fetchImpl = fetch }) {
     return { ...pending, deployTx: tx };
   }
 
+  // A new plan for an existing purse: `configure` again with the new caps and monthly cap, the
+  // same saved destinations, for her signature. The contract checks the caps again.
+  async function prepareLimits({ contractId, guardianAddress, limits, destinations }) {
+    const purseCap = capBaseUnits(monthlyCap(limits), config.ngnPerUsdc, 100, config.usdc.decimals, config.serviceFeeBps);
+    return prepareGuardianCall({
+      contractId,
+      guardianAddress,
+      method: "configure",
+      args: [capsMap(limits, config), destsMap(destinations, contractId, config), i128(purseCap)],
+    });
+  }
+
   // Test USDC for the demo: sent from the treasury wallet straight into the purse contract.
   async function sendTestUsdc(contractId, usdc) {
     if (!config.treasurySecret) throw new Error("no treasury wallet configured (TREASURY_SECRET)");
@@ -143,5 +155,5 @@ export function createSignup({ config, fetchImpl = fetch }) {
     return Number(raw) / 10 ** config.usdc.decimals;
   }
 
-  return { prepareSetup, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
+  return { prepareSetup, prepareLimits, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
 }

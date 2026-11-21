@@ -54,6 +54,16 @@ function emit(event) {
   for (const [res, purse] of clients) if (purse === e.purse) res.write(line);
 }
 
+// The naira rate comes from the gateway, so both price with the same number (it reads today's
+// USD to NGN rate at start). The two start together: wait up to a minute for it, then keep the setting.
+config.rate = { ngnPerUsdc: config.ngnPerUsdc, source: "NGN_PER_USDC setting", asOf: null, live: false };
+for (let i = 0; i < 30; i++) {
+  const r = await fetch(new URL("/v1/rate", config.gatewayUrl)).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  if (r?.ngnPerUsdc > 0) { config.rate = r; config.ngnPerUsdc = r.ngnPerUsdc; break; }
+  await new Promise((done) => setTimeout(done, 2000));
+}
+console.log(`Rate: ₦${config.ngnPerUsdc} per USDC (${config.rate.source})`);
+
 const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 console.log(config.databaseUrl ? "Purses: Postgres (DATABASE_URL)" : `Purses: ${config.pursesFile} (set DATABASE_URL to keep them across restarts)`);
 const mhasibu = createMhasibu({ purses, log: emit, understander: await openUnderstander(config.llm) });
@@ -107,6 +117,7 @@ const server = http.createServer(async (req, res) => {
         purseContractLink: config.purseContractId ? `${config.explorerUrl}/contract/${config.purseContractId}` : null,
         agent: agentAddress,
         gateway: config.gatewayUrl,
+        rate: config.rate,
         demoMode,
       });
     }
@@ -165,6 +176,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/v1/family/prepare") return send(res, 200, await families.prepare(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/complete") return send(res, 200, await families.complete(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/limits/prepare") return send(res, 200, await families.prepareLimits(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/limits/complete") return send(res, 200, await families.completeLimits(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/test-usdc") return send(res, 200, await families.testUsdc(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/invite") return send(res, 200, await families.sendNewInvite(await readJson(req)));
     // ── Mama's invite and sign-in ───────────────────────────────

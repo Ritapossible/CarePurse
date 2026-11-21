@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import AuthCard from "@/components/AuthCard";
 import TokenCard from "@/components/TokenCard";
-import { PRESETS, type Purse, type Spend, explorer, inviteUrl, naira, useFamilyApi, whatsappUrl } from "@/lib/family";
+import { PRESETS, type Purse, type Spend, explorer, inviteUrl, naira, useFamilyApi, useStellarWallet, whatsappUrl } from "@/lib/family";
 
 const LAGOS = "Africa/Lagos";
 const UTILITY: Record<string, string> = { electricity: "Electricity", airtime: "Airtime", data: "Data" };
@@ -88,7 +88,8 @@ export default function DashboardPage() {
   const [invite, setInvite] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
-  const [sheet, setSheet] = useState<"fund" | "invite" | null>(null);
+  const [sheet, setSheet] = useState<"fund" | "invite" | "plan" | null>(null);
+  const wallet = useStellarWallet();
   const [qr, setQr] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -120,6 +121,25 @@ export default function DashboardPage() {
       const r = await api<{ invite?: string }>("POST", what);
       if (r.invite) setInvite(r.invite);
       await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  // A new plan: the new caps go on-chain with one signature from her wallet, like at setup.
+  async function changePlan(next: "light" | "standard") {
+    setError(null);
+    setBusy(`plan-${next}`);
+    try {
+      const prep = await api<{ status: string; hash?: string }>("POST", "limits-prepare", { preset: next });
+      if (prep.status === "pending" && prep.hash) {
+        const address = wallet.address ?? (await wallet.ensure());
+        const { signature } = await wallet.sign(address, prep.hash);
+        await api("POST", "limits-complete", { signature });
+      }
+      await load();
+      setSheet(null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -160,7 +180,7 @@ export default function DashboardPage() {
   const ACTIONS = [
     { key: "fund", label: "Add money", icon: ICONS.add, onClick: () => setSheet("fund") },
     { key: "invite", label: "Invite Mama", icon: ICONS.invite, onClick: () => setSheet("invite") },
-    { key: "limits", label: "Limits", icon: ICONS.limits, onClick: () => document.getElementById("limits")?.scrollIntoView({ behavior: "smooth" }) },
+    { key: "limits", label: "Limits", icon: ICONS.limits, onClick: () => setSheet("plan") },
     { key: "receipts", label: "Receipts", icon: ICONS.receipts, onClick: () => document.getElementById("activity")?.scrollIntoView({ behavior: "smooth" }) },
   ];
 
@@ -202,6 +222,9 @@ export default function DashboardPage() {
           {purse.paused ? <span className="text-xs text-background">Paused</span> : <span className="inline-flex items-center gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>}
         </div>
         <div className="mt-3 text-[44px] font-medium leading-none tracking-[-0.02em] tabular-nums">{hidden ? "₦ ••••••" : naira(purse.balanceNgn ?? 0)}</div>
+        {purse.rate && !hidden && (
+          <p className="mt-2 text-sm text-background/60 tabular-nums">{purse.balanceUsdc ?? 0} USDC · ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")} per USDC{purse.rate.live ? " (today’s rate)" : ""}</p>
+        )}
         <div className="mt-6">
           <div className="flex justify-between text-sm">
             <span className="text-background/60">Spent this month</span>
@@ -259,7 +282,7 @@ export default function DashboardPage() {
       <section id="limits" className="scroll-mt-24">
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-medium">Limits</h2>
-          <span className="text-sm text-muted">{preset.label} plan</span>
+          <button onClick={() => setSheet("plan")} className="text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">{preset.label} plan · Change</button>
         </div>
         <ul className="mt-3 divide-y divide-line rounded-2xl border border-line">
           {(["electricity", "airtime", "data"] as const).map((u) => (
@@ -289,7 +312,7 @@ export default function DashboardPage() {
 
       {sheet === "fund" && (
         <Sheet title="Add money" onClose={() => setSheet(null)}>
-          <p className="text-sm text-secondary">Send USDC on Stellar to Mama’s purse. It’s ready for her as soon as it lands.</p>
+          <p className="text-sm text-secondary">Send USDC on Stellar to Mama’s purse. It’s ready for her as soon as it lands.{purse.rate ? ` 1 USDC ≈ ₦${purse.rate.ngnPerUsdc.toLocaleString("en-NG")}${purse.rate.live ? " at today’s rate" : ""}.` : ""}</p>
           {qr && <img src={qr} alt="QR code of Mama’s purse address" width={180} height={180} className="mx-auto mt-5 rounded-xl border border-line" />}
           <button onClick={() => copy("address", purse.contractId)} className="mt-5 flex w-full items-center gap-3 rounded-xl bg-surface px-4 py-3 text-left">
             <span className="min-w-0 flex-1 break-all font-mono text-[13px]">{purse.contractId}</span>
@@ -301,6 +324,37 @@ export default function DashboardPage() {
               {busy === "test-usdc" ? "Adding…" : "Add test money"}
             </button>
           </div>
+        </Sheet>
+      )}
+
+      {sheet === "plan" && (
+        <Sheet title="Her plan" onClose={() => setSheet(null)}>
+          <p className="text-sm text-secondary">Switch any time. The new limits are saved on Mama’s purse with one approval from you.</p>
+          <div className="mt-5 space-y-3">
+            {(["light", "standard"] as const).map((k) => {
+              const p = PRESETS[k];
+              const current = purse.preset === k;
+              return (
+                <button
+                  key={k}
+                  disabled={current || Boolean(busy)}
+                  onClick={() => changePlan(k)}
+                  className={`w-full rounded-2xl border p-4 text-left transition-colors duration-150 ${current ? "border-foreground" : "border-line hover:border-foreground"} disabled:cursor-default`}
+                >
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-medium">{p.label}</span>
+                    <span className="text-sm text-muted">{current ? "Current plan" : busy === `plan-${k}` ? "Saving on Stellar…" : `up to ${naira(p.monthly)} a month`}</span>
+                  </div>
+                  <dl className="mt-2 grid grid-cols-[80px_1fr] gap-y-1 text-sm">
+                    <dt className="text-muted">Light</dt><dd>{p.electricity}</dd>
+                    <dt className="text-muted">Airtime</dt><dd>{p.airtime}</dd>
+                    <dt className="text-muted">Data</dt><dd>{p.data}</dd>
+                  </dl>
+                </button>
+              );
+            })}
+          </div>
+          {error && <p className="mt-4 rounded-[10px] bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
         </Sheet>
       )}
 

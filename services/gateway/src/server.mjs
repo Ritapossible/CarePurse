@@ -23,6 +23,7 @@ import { config as defaultConfig, explorer } from "./config.mjs";
 import { UTILITIES, chargedNgn, feeNgn, isTier, isUtility, options, paidRoutes, priceBaseUnits } from "./catalog.mjs";
 import { createStore, openStore, isExpired } from "./store.mjs";
 import { createProvider, NETWORKS, DISCOS } from "./provider.mjs";
+import { liveRate } from "./rate.mjs";
 
 const LABEL = "Live Stellar Testnet payment · sandbox utility fulfilment";
 const PHONE = /^0[789][01]\d{8}$/; // Nigerian mobile: 080…, 081…, 090…, 070…, 091…
@@ -53,6 +54,8 @@ export function createApp({
   const priceOf = (utility, ngn) => priceBaseUnits(ngn, config.ngnPerUsdc, config.usdc.decimals, feeBps);
 
   app.get("/health", (_req, res) => res.json({ ok: true, network: config.network, label: LABEL }));
+  // Public: the naira price of one USDC this process prices every top-up with.
+  app.get("/v1/rate", (_req, res) => res.json({ ngnPerUsdc: config.ngnPerUsdc, source: config.rate?.source ?? "NGN_PER_USDC setting", asOf: config.rate?.asOf ?? null, live: Boolean(config.rate?.live) }));
 
   app.get("/v1/options", async (req, res) => {
     const { utility } = req.query;
@@ -210,6 +213,13 @@ export function createApp({
 
 // Run directly: npm start
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  // Today's US dollar to naira rate, before any route is priced (see rate.mjs). RATE_SOURCE=fixed
+  // keeps NGN_PER_USDC, e.g. for tests that need a known price.
+  if ((process.env.RATE_SOURCE ?? "live") !== "fixed") {
+    defaultConfig.rate = await liveRate({ fallback: defaultConfig.ngnPerUsdc });
+    defaultConfig.ngnPerUsdc = defaultConfig.rate.ngnPerUsdc;
+  }
+  console.log(`Rate: ₦${defaultConfig.ngnPerUsdc} per USDC (${defaultConfig.rate?.source ?? "NGN_PER_USDC setting"})`);
   const store = await openStore({ file: defaultConfig.ordersFile, databaseUrl: defaultConfig.databaseUrl });
   console.log(defaultConfig.databaseUrl ? "Orders: Postgres (DATABASE_URL)" : `Orders: ${defaultConfig.ordersFile} (set DATABASE_URL to keep them across restarts)`);
   const app = createApp({ store });

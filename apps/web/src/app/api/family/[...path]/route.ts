@@ -27,6 +27,10 @@ async function handle(request: Request, path: string[]) {
       }));
     case "POST complete":
       return passThrough(await mhasibuFetch("/v1/family/complete", { method: "POST", body: { privyId, signature: body.signature } }));
+    case "POST limits-prepare":
+      return passThrough(await mhasibuFetch("/v1/family/limits/prepare", { method: "POST", body: { privyId, preset: body.preset } }));
+    case "POST limits-complete":
+      return passThrough(await mhasibuFetch("/v1/family/limits/complete", { method: "POST", body: { privyId, signature: body.signature } }));
     case "POST test-usdc":
       return passThrough(await mhasibuFetch("/v1/family/test-usdc", { method: "POST", body: { privyId } }));
     case "POST invite":

@@ -7,7 +7,7 @@
 // Callers are trusted: the web app's server verifies the daughter's Privy login (privyId) and
 // Mama's session before it reaches this, and Mhasibu's API needs its key.
 import crypto from "node:crypto";
-import { PRESETS, periodStart, spentSince } from "./limits.mjs";
+import { PRESETS, monthlyCap, periodStart, spentSince } from "./limits.mjs";
 import { newPurse } from "./purses.mjs";
 
 const DAY = 86_400_000;
@@ -118,6 +118,38 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     return { purseId: p.id, status: "active", tx: done.hash, invite };
   }
 
+  // Her plan can change any time (Light ↔ Standard). Step 1: the new rules, as one `configure`
+  // call for her signature. Nothing changes until she signs.
+  async function prepareLimits({ privyId, preset }) {
+    const p = mine(privyId);
+    if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
+    if (!PRESETS[preset]) throw new FamilyError(400, "Pick Light or Standard.");
+    if (preset === p.preset) return { status: "same", preset };
+    const pending = await signup.prepareLimits({ contractId: p.contractId, guardianAddress: p.guardian.address, limits: PRESETS[preset], destinations: p.destinations });
+    purses.update(p.id, (x) => { x.limitsChange = { preset, pending, createdAt: iso() }; });
+    await purses.flush?.();
+    return { status: "pending", preset, hash: pending.hash };
+  }
+
+  // Step 2: her signature. On-chain first; Mhasibu's own copy of the limits follows only after.
+  async function completeLimits({ privyId, signature }) {
+    const p = mine(privyId);
+    const change = p.limitsChange;
+    if (!change?.pending) throw new FamilyError(409, "start again");
+    const done = await signup.completeGuardianCall(change.pending, p.guardian.address, signature).catch((err) => {
+      throw new FamilyError(400, /does not match|signature/.test(err.message) ? "That signature didn’t match. Please try again." : `Could not save the new limits on Stellar (${err.message.slice(0, 80)})`);
+    });
+    purses.update(p.id, (x) => {
+      x.preset = change.preset;
+      x.limits = PRESETS[change.preset];
+      x.monthlyCap = monthlyCap(PRESETS[change.preset]);
+      x.limitsChange = null;
+      (x.notifications ??= []).push({ at: iso(), kind: "limits-changed", text: `Plan changed to ${change.preset === "light" ? "Light" : "Standard"} (tx ${done.hash}).` });
+    });
+    await purses.flush?.();
+    return { status: "active", preset: change.preset, tx: done.hash };
+  }
+
   async function testUsdc({ privyId }) {
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
@@ -149,6 +181,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
         invite: { status: inviteStatus(p), expiresAt: p.invite?.expiresAt ?? null, usedAt: p.invite?.usedAt ?? null },
         spends: [...p.spends].reverse().slice(0, 20),
         monthNgn: spentSince(p.spends, periodStart("month", now())),
+        rate: { ngnPerUsdc: config.ngnPerUsdc, asOf: config.rate?.asOf ?? null, live: Boolean(config.rate?.live) },
         notifications: [...(p.notifications ?? [])].reverse().slice(0, 20),
         testUsdcLeft: TEST_USDC_TIMES - (p.testUsdc ?? 0),
       },
@@ -225,5 +258,5 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   // The purse a guardian (Privy user) owns, or null.
   const guardianPurse = (privyId) => byGuardian(privyId)?.id ?? null;
 
-  return { checkMeter, prepare, complete, testUsdc, dashboard, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
+  return { checkMeter, prepare, complete, prepareLimits, completeLimits, testUsdc, dashboard, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
 }
