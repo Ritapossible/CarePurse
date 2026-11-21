@@ -214,3 +214,8 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - A purse configured while the backend priced at the fixed ₦1,470 (no cap margin) refused a ₦500 airtime top-up once the live rate (₦1,352.93) made it cost more USDC than the per-top-up cap. Mhasibu wrongly told Mama "limit reached".
 - Now: an on-chain refusal after Mhasibu's own naira checks passed is reported as "rules out of date": Mama hears she hasn't gone over her limit, the daughter is notified, and the dashboard reads the caps from the chain (`capsBehind`, cached 10 min) and shows "Update rules" (re-save the same plan at today's rate, one signature).
 - Dashboard regrouped: money actions inside the balance card; Mama, sign-in link, pause and plan as one settings list; notices as a toast.
+
+## 2026-11-21: The naira rate refreshes while running
+- The gateway re-reads USD to NGN every 6 hours (`RATE_REFRESH_HOURS`), still within ±25% of `NGN_PER_USDC`; a failed reading keeps the current rate. Mhasibu follows the gateway hourly.
+- x402 price is now per order (dynamic price from the `order` query): an order always pays exactly what it was quoted, so a refresh only affects new orders.
+- The rate is not on-chain. The contract enforces USDC caps saved with a 20% margin; Mhasibu enforces the naira limits exactly; the dashboard's "Update rules" re-saves caps when the rate passes the margin.

@@ -23,7 +23,7 @@ import { config as defaultConfig, explorer } from "./config.mjs";
 import { UTILITIES, chargedNgn, feeNgn, isTier, isUtility, options, paidRoutes, priceBaseUnits } from "./catalog.mjs";
 import { createStore, openStore, isExpired } from "./store.mjs";
 import { createProvider, NETWORKS, DISCOS } from "./provider.mjs";
-import { liveRate } from "./rate.mjs";
+import { liveRate, refreshRate } from "./rate.mjs";
 
 const LABEL = "Live Stellar Testnet payment · sandbox utility fulfilment";
 const PHONE = /^0[789][01]\d{8}$/; // Nigerian mobile: 080…, 081…, 090…, 070…, 091…
@@ -158,8 +158,15 @@ export function createApp({
     .onVerifyFailure(async ({ error }) => log.warn(`  ✗ verify failed: ${error?.message ?? error}`))
     .onSettleFailure(async ({ error }) => log.warn(`  ✗ settle failed: ${error?.message ?? error}`));
 
+  // Each payment asks for exactly the amount quoted on its order (fixed when the order was made),
+  // so the naira rate can refresh while the gateway runs without changing an open order's price.
+  const orderAmount = (ctx, utility, ngn) => {
+    const order = store.get(String(ctx.adapter.getQueryParam?.("order") ?? ""));
+    return order && order.utility === utility && order.ngn === ngn ? order.amount : priceOf(utility, ngn);
+  };
   const routes = paidRoutes({
     feeBps,
+    priceFor: orderAmount,
     ngnPerUsdc: config.ngnPerUsdc,
     decimals: config.usdc.decimals,
     asset: config.usdc.contractId,
@@ -216,8 +223,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   // Today's US dollar to naira rate, before any route is priced (see rate.mjs). RATE_SOURCE=fixed
   // keeps NGN_PER_USDC, e.g. for tests that need a known price.
   if ((process.env.RATE_SOURCE ?? "live") !== "fixed") {
-    defaultConfig.rate = await liveRate({ fallback: defaultConfig.ngnPerUsdc });
+    const base = defaultConfig.ngnPerUsdc; // NGN_PER_USDC: the anchor every reading is checked against
+    defaultConfig.rate = await liveRate({ fallback: base });
     defaultConfig.ngnPerUsdc = defaultConfig.rate.ngnPerUsdc;
+    // Then again every few hours (RATE_REFRESH_HOURS, default 6): new orders use the new rate.
+    refreshRate(defaultConfig, { base, everyMs: Number(process.env.RATE_REFRESH_HOURS ?? 6) * 3_600_000 });
   }
   console.log(`Rate: ₦${defaultConfig.ngnPerUsdc} per USDC (${defaultConfig.rate?.source ?? "NGN_PER_USDC setting"})`);
   const store = await openStore({ file: defaultConfig.ordersFile, databaseUrl: defaultConfig.databaseUrl });

@@ -3,9 +3,9 @@
 // key, updated daily). If the feed can't be reached, NGN_PER_USDC from the settings is used and
 // the source says so.
 //
-// The rate is fixed for the life of the process on purpose: the x402 price of every top-up is
-// set from it when the routes are built, and an order's quoted price must equal its paid price.
-// A redeploy or restart picks up the day's new rate.
+// The rate is read at start and again every few hours (refreshRate). A new rate applies to new
+// orders only: each x402 payment asks for the amount quoted on its order, so an order's quoted
+// price always equals its paid price.
 const FEED = "https://open.er-api.com/v6/latest/USD";
 const MAX_DRIFT = 0.25;
 
@@ -28,4 +28,19 @@ export async function liveRate({ fallback, fetchImpl = fetch, timeoutMs = 8000, 
     log.warn?.(`Exchange rate feed unavailable (${err.message}); using NGN_PER_USDC=${fallback}.`);
     return { ngnPerUsdc: fallback, source: "NGN_PER_USDC setting (feed unavailable)", asOf: new Date().toISOString(), live: false };
   }
+}
+
+// Re-read the rate every `everyMs` and update `config` in place (ngnPerUsdc and rate). A failed or
+// out-of-band reading keeps the current rate rather than falling back to the setting.
+export function refreshRate(config, { base, everyMs, log = console, fetchImpl = fetch } = {}) {
+  if (!(everyMs > 0)) return null;
+  const timer = setInterval(async () => {
+    const r = await liveRate({ fallback: base, fetchImpl, log });
+    if (!r.live) return;
+    if (r.ngnPerUsdc !== config.ngnPerUsdc) log.log?.(`Rate: ₦${config.ngnPerUsdc} → ₦${r.ngnPerUsdc} per USDC`);
+    config.rate = r;
+    config.ngnPerUsdc = r.ngnPerUsdc;
+  }, everyMs);
+  timer.unref?.();
+  return timer;
 }

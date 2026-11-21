@@ -66,6 +66,15 @@ config.rate = { ngnPerUsdc: config.ngnPerUsdc, source: "NGN_PER_USDC setting", a
   }
   console.warn(`Rate: gateway didn't answer; using NGN_PER_USDC=${config.ngnPerUsdc}`);
 })();
+// The gateway re-reads the rate every few hours; follow it hourly. Mama's options and balance use
+// the new rate; each payment still asks for exactly what its order was quoted.
+setInterval(async () => {
+  const r = await fetch(new URL("/v1/rate", config.gatewayUrl)).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  if (!(r?.ngnPerUsdc > 0) || r.ngnPerUsdc === config.ngnPerUsdc) return;
+  console.log(`Rate: ₦${config.ngnPerUsdc} → ₦${r.ngnPerUsdc} per USDC`);
+  config.rate = r;
+  config.ngnPerUsdc = r.ngnPerUsdc;
+}, 60 * 60_000).unref();
 
 const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 console.log(config.databaseUrl ? "Purses: Postgres (DATABASE_URL)" : `Purses: ${config.pursesFile} (set DATABASE_URL to keep them across restarts)`);

@@ -64,6 +64,22 @@ test("the paid route answers 402 with the exact price, network and payee", async
   } finally { await gw.close(); }
 });
 
+test("a rate refresh prices new orders only: an open order still pays what it was quoted", async () => {
+  const live = { ...config };
+  const gw = await startGateway({ config: live });
+  try {
+    const first = (await (await post(`${gw.base}/v1/orders`, { utility: "airtime", ngn: 500, destination: "08011111111" })).json());
+    live.ngnPerUsdc = 1352.93; // refreshRate updated the rate after the order was made
+    const res = await fetch(`${gw.base}${first.payPath}`);
+    assert.equal(decodePaymentRequiredHeader(res.headers.get("payment-required")).accepts[0].amount, first.order.amount);
+    const second = (await (await post(`${gw.base}/v1/orders`, { utility: "airtime", ngn: 500, destination: "08011111111" })).json());
+    assert.equal(second.order.amount, priceBaseUnits(500, 1352.93, 7, config.serviceFeeBps));
+    const res2 = await fetch(`${gw.base}${second.payPath}`);
+    assert.equal(decodePaymentRequiredHeader(res2.headers.get("payment-required")).accepts[0].amount, second.order.amount);
+    assert.notEqual(first.order.amount, second.order.amount);
+  } finally { await gw.close(); }
+});
+
 test("bad orders are refused before any payment is asked for", async () => {
   const gw = await startGateway();
   try {

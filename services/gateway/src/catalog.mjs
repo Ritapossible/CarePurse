@@ -45,14 +45,16 @@ export function options(utility, { ngnPerUsdc, decimals = 7, maxNgn, feeBps = 0 
 export const PAY_WINDOW_SECONDS = 60;
 
 // Every paid route, for the x402 middleware: "GET /topup/electricity/500" → price.
-export function paidRoutes({ ngnPerUsdc, decimals, asset, network, payTo, feeBps = 0 }) {
+// priceFor (optional): the price of one request, e.g. the amount quoted on its order, so a rate
+// refresh never changes what an existing order pays. Without it, the price is fixed at ngnPerUsdc.
+export function paidRoutes({ ngnPerUsdc, decimals, asset, network, payTo, feeBps = 0, priceFor }) {
   const routes = {};
   for (const [utility, { label, tiers }] of Object.entries(UTILITIES)) {
     for (const ngn of tiers) {
       routes[`GET /topup/${utility}/${ngn}`] = {
         // A signed payment stays valid only this long (x402 sets its expiry ledger from it). Signing and
         // the retry take about 10 s; a short window means a payment Mhasibu gave up on can't be settled later.
-        accepts: { scheme: "exact", price: { amount: priceBaseUnits(ngn, ngnPerUsdc, decimals, feeBps), asset }, network, payTo, maxTimeoutSeconds: PAY_WINDOW_SECONDS },
+        accepts: { scheme: "exact", price: priceFor ? (ctx) => ({ amount: priceFor(ctx, utility, ngn), asset }) : { amount: priceBaseUnits(ngn, ngnPerUsdc, decimals, feeBps), asset }, network, payTo, maxTimeoutSeconds: PAY_WINDOW_SECONDS },
         description: `${label} top-up, ₦${ngn.toLocaleString("en-NG")}${feeBps ? ` + ₦${feeNgn(ngn, feeBps).toLocaleString("en-NG")} service fee` : ""} (sandbox fulfilment)`,
         mimeType: "application/json",
       };

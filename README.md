@@ -154,7 +154,7 @@ flowchart LR
 | Close | `commit()` on success; `refund()` puts the USDC back and gives the cap room back | |
 | Withdraw | The daughter can move money out at any time, with her signature | Her wallet |
 
-**Pricing.** Each top-up costs face value plus a **3% service fee** (`SERVICE_FEE_BPS=300`), paid from the purse. Mama always gets the full face value and never sees the fee; the daughter sees it on every receipt (*"−₦2,060, incl. ₦60 fee"*). Naira amounts use **today's US dollar to naira rate** (USDC is a dollar stablecoin), read from a public rate feed when the backend starts.
+**Pricing.** Each top-up costs face value plus a **3% service fee** (`SERVICE_FEE_BPS=300`), paid from the purse. Mama always gets the full face value and never sees the fee; the daughter sees it on every receipt (*"−₦2,060, incl. ₦60 fee"*). Naira amounts use **today's US dollar to naira rate** (USDC is a dollar stablecoin), read from a public rate feed at start and every 6 hours. Each payment asks for exactly the amount quoted on its order, so a rate change never alters an open order. The rate itself is not on-chain: the contract's limits are saved in USDC with a 20% margin, and the dashboard asks the daughter to re-save them (one approval) if the naira moves past it.
 
 <sub>Earlier hand-drawn version: [`docs/money-flow.png`](docs/money-flow.png) (source: [`docs/money-flow.excalidraw`](docs/money-flow.excalidraw))</sub>
 
@@ -279,7 +279,7 @@ CarePurse moves money for an elderly user, so no single mistake, crash or attack
 
 Reviewed by six rounds of external review, each finding checked against the code before changing anything ([`MEMORY.md`](MEMORY.md)).
 
-**Known limits (hackathon):** Mama's sign-in code is shown on screen until SMS is connected (Termii); all purses share one agent wallet (made safe by the global hold above); the naira rate refreshes when the backend restarts; one instance per service.
+**Known limits (hackathon):** Mama's sign-in code is shown on screen until SMS is connected (Termii); all purses share one agent wallet (made safe by the global hold above); one instance per service.
 
 ## Privacy
 
