@@ -320,9 +320,11 @@ docs/                  Diagrams and the ideation deck
 **Working today on Stellar testnet:** sign-up with Privy and a purse contract per family, Mama's invite and sign-in, the chat in English and Pidgin, electricity, airtime and data through x402 and the VTpass sandbox, on-chain limits and refusals, plan changes, pause, withdraw, purchases, accounts, and the live naira rate.
 
 **Next:**
+- **Mhasibu AI on WhatsApp:** Mama chats with the same agent in the app she already uses every day, with no link or website to open
 - SMS through Termii for Mama's sign-in code and her token
 - A native speaker's review of the Pidgin replies
 - Mainnet: real USDC, an off-ramp to refill the naira float, and production VTpass keys
+- **Beyond Nigeria:** other African countries, starting with **Tanzania** (Swahili, Tanzanian shillings, local electricity and mobile networks), then more of East and West Africa
 
 Built for **EmpowerHer: Building the Agent Economy** (Stallion). Stellar **testnet** and the VTpass **sandbox** only.
 

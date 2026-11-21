@@ -28,11 +28,11 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 ## Step by step
 
 ### Step 0: Set up (day 1, 12-13 Nov)
-- [ ] Both: run Koxy's workshop kit end to end (`library.md`, section 5). Get one paid request working on testnet. This proves our machines, wallets and facilitator work.
-- [ ] Create the folders: `apps/web`, `services/gateway` (done), `contracts/purse`.
+- [x] Both: run Koxy's workshop kit end to end (`library.md`, section 5). Get one paid request working on testnet. This proves our machines, wallets and facilitator work.
+- [x] Create the folders: `apps/web`, `services/gateway`, `contracts/purse`.
 - [x] Add `.gitignore` (with `.env`) and `.env.example`.
 - [x] Create the testnet wallets and fund the agent: `npm run setup` then `npm run get-usdc` in `services/gateway`.
-- [ ] Sign up for the VTpass sandbox and note the test meter and phone numbers.
+- [x] Sign up for the VTpass sandbox and note the test meter and phone numbers (meter `1111111111111`, phone `08011111111`).
 - [x] **Check Privy's Stellar support** (16 Nov): `@privy-io/react-auth` 3.51 supports `stellar` wallets (`useCreateWallet`, `useSignRawHash`, Ed25519). We use Privy.
 
 ### Step 1: The paid gateway (14-16 Nov), Must have · **done 13 Nov**
@@ -91,13 +91,13 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [ ] Run the golden path five times in a row without failure.
 - [ ] Record the demo video (live or recorded x402 flow).
 - [ ] Update the pitch deck from the Ideation & MVP slides.
-- [ ] README with setup steps, architecture and the GitHub link.
-- [ ] Deploy for the judges (Render, as in the kit): `render.yaml` Blueprint and `DEPLOY.md` ready (14 Nov); gateway + Mhasibu + web app. Use a small testnet balance and label it testnet.
+- [x] README with setup steps, architecture and the GitHub link (rewritten 21 Nov, Mermaid diagrams).
+- [x] Deploy for the judges: web on Vercel (care-purse.vercel.app), gateway + Mhasibu on Pxxl, Postgres on Neon, UptimeRobot (see `DEPLOY.md`). Testnet only, labelled.
 - [x] Move orders, purses, purchases, tokens and chat to Postgres (`DATABASE_URL`), tested with a restart: the token comes back. 14 Nov. Hosted database: Neon (see `DEPLOY.md`).
 
 ### Step 7: Submit (27-28 Nov)
 - [ ] Submission checklist: working prototype, live or recorded x402 flow, architecture docs, GitHub repo.
-- [ ] Final check: no `.env` or secrets in the repo.
+- [x] Final check: no `.env` or secrets in the repo (21 Nov: only `.env.example` templates are tracked). Check again before submitting.
 
 ## Demo script (3 minutes)
 
@@ -117,3 +117,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 ## VTpass sandbox: done (14 Nov)
 
 Electricity, airtime and data all pass in the VTpass sandbox (GitHub Actions workflow "VTpass sandbox"). Still to do: the "full" mode run (needs the `AGENT_SECRET_KEY` secret), and a friendly reply for VTpass's duplicate guard (`019`). See `MEMORY.md`.
+
+### After the hackathon
+- [ ] Mhasibu AI on WhatsApp (WhatsApp Business API): Mama chats where she already is.
+- [ ] Expand beyond Nigeria, starting with Tanzania (Swahili, shillings, local electricity and mobile networks).
