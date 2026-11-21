@@ -177,6 +177,9 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
         contractId: p.contractId,
         balanceUsdc,
         balanceNgn: balanceUsdc == null ? null : Math.floor(balanceUsdc * config.ngnPerUsdc),
+        // What Mama is told she has: face value after the daughter's service fee (as in Mhasibu's balance reply).
+        spendableNgn: balanceUsdc == null ? null : Math.floor((balanceUsdc * config.ngnPerUsdc * 10_000) / (10_000 + (config.serviceFeeBps ?? 0))),
+        feeBps: config.serviceFeeBps ?? 0,
         paused: p.paused,
         invite: { status: inviteStatus(p), expiresAt: p.invite?.expiresAt ?? null, usedAt: p.invite?.usedAt ?? null },
         spends: [...p.spends].reverse().slice(0, 20),

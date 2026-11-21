@@ -222,8 +222,11 @@ export default function DashboardPage() {
           {purse.paused ? <span className="text-xs text-background">Paused</span> : <span className="inline-flex items-center gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>}
         </div>
         <div className="mt-3 text-[44px] font-medium leading-none tracking-[-0.02em] tabular-nums">{hidden ? "₦ ••••••" : naira(purse.balanceNgn ?? 0)}</div>
+        {!hidden && purse.spendableNgn != null && purse.feeBps ? (
+          <p className="mt-2 text-sm text-background/80 tabular-nums">Mama can spend {naira(purse.spendableNgn)} (after your {purse.feeBps / 100}% fee)</p>
+        ) : null}
         {purse.rate && !hidden && (
-          <p className="mt-2 text-sm text-background/60 tabular-nums">{purse.balanceUsdc ?? 0} USDC · ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")} per USDC{purse.rate.live ? " (today’s rate)" : ""}</p>
+          <p className="mt-1 text-sm text-background/60 tabular-nums">{purse.balanceUsdc ?? 0} USDC · ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")} per USDC{purse.rate.live ? " (today’s rate)" : ""}</p>
         )}
         <div className="mt-6">
           <div className="flex justify-between text-sm">
