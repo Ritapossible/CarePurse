@@ -9,7 +9,8 @@
 import crypto from "node:crypto";
 import { PRESETS, monthlyCap, periodStart, spentSince } from "./limits.mjs";
 import { newPurse } from "./purses.mjs";
-import { sealAgentKey } from "./agent-keys.mjs";
+import { Keypair } from "@stellar/stellar-sdk";
+import { openAgentKey, sealAgentKey } from "./agent-keys.mjs";
 
 const DAY = 86_400_000;
 const INVITE_DAYS = 7;
@@ -35,7 +36,6 @@ export function normalisePhone(raw) {
 
 const PENDING_SETUP_MS = 9 * 60_000; // the guardian signature request is valid ~10 minutes (120 ledgers)
 const MAX_SETUPS_PER_DAY = 5; // each one deploys a contract, paid by the agent
-export const AGENT_MOVE_MS = 9 * 60_000; // while a move to her own wallet awaits her approval, no top-up starts
 const SESSION_DAYS = 30; // Mama stays signed in on her phone this long
 
 export function createFamilies({ purses, signup, config, verifyMeter, clock = () => Date.now() }) {
@@ -75,8 +75,40 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   }
 
   // D1 to D4, step 1: create the family's purse and its contract, and return the hash to sign.
-  async function prepare({ guardian, mama, meter, disco = "ikeja-electric", network = "mtn", preset = "standard" }) {
-    if (!guardian?.privyId || !guardian?.address) throw new FamilyError(401, "sign in first");
+  // One sign-up or wallet move at a time per daughter: a double click or a looping client can't run
+  // two (each one spends the operator's XLM).
+  const busy = new Set();
+  async function once(privyId, fn) {
+    if (busy.has(privyId)) throw new FamilyError(409, "This is already being prepared. One moment, then try again.");
+    busy.add(privyId);
+    try { return await fn(); } finally { busy.delete(privyId); }
+  }
+
+  // The family's own agent wallet, made at most once and never lost. The key is created and saved
+  // (sealed) before the network is asked to create the account; if that step fails or times out,
+  // the next try finishes it with the same key (createAgentWallet is idempotent). `field` is
+  // "agent" at sign-up, "nextAgent" for an older purse moving to its own wallet.
+  async function ensureAgentWallet(purseId, field) {
+    if (!purses.get(purseId)[field]) {
+      const kp = Keypair.random();
+      purses.update(purseId, (x) => { x[field] = { address: kp.publicKey(), sealed: sealAgentKey(kp.secret(), config.agentSecret), ready: false }; });
+      await purses.flush?.();
+    }
+    const rec = purses.get(purseId)[field];
+    if (!rec.ready) {
+      await signup.createAgentWallet({ secret: openAgentKey(rec.sealed, config.agentSecret) });
+      purses.update(purseId, (x) => { x[field].ready = true; });
+      await purses.flush?.();
+    }
+    return purses.get(purseId)[field];
+  }
+
+  async function prepare(input) {
+    if (!input?.guardian?.privyId || !input?.guardian?.address) throw new FamilyError(401, "sign in first");
+    return once(input.guardian.privyId, () => prepareOnce(input));
+  }
+
+  async function prepareOnce({ guardian, mama, meter, disco = "ikeja-electric", network = "mtn", preset = "standard" }) {
     const existing = byGuardian(guardian.privyId);
     if (existing?.setup?.status === "active") return { purseId: existing.id, status: "active" };
     const phone = normalisePhone(mama?.phone);
@@ -102,9 +134,10 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     if (today.length >= MAX_SETUPS_PER_DAY) throw new FamilyError(429, "Too many set-up attempts today. Please try again tomorrow.");
 
     // A sign-up that wasn't finished (closed the tab, signature expired): start it again with a
-    // new purse contract, so the rules always come from one signature.
+    // new purse contract, so the rules always come from one signature. The record is saved and
+    // the attempt counted BEFORE anything costs XLM, so failures count against the daily cap too.
+    // An agent wallet from an earlier attempt is kept and reused (its contract was never set up).
     const id = existing?.id ?? `p_${crypto.randomBytes(6).toString("hex")}`;
-    const { pending, agent } = await signup.prepareSetup({ guardianAddress: guardian.address, limits, destinations });
     const purse = newPurse({
       id,
       mama: { name, phone, language },
@@ -112,14 +145,18 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
       destinations,
       providers: { disco, network },
       preset,
-      contractId: pending.contractId,
+      contractId: null,
     });
-    purse.setup = { status: "pending", createdAt: iso(), pending };
-    // Her family's own agent wallet (the contract's agent): the key is sealed before it is stored.
-    purse.agent = { address: agent.address, sealed: sealAgentKey(agent.secret, config.agentSecret) };
+    purse.setup = { status: "pending", createdAt: iso(), pending: null };
     purse.setupAttempts = [...today, iso()];
     purse.testUsdc = 0;
+    if (existing?.agent) purse.agent = existing.agent;
     purses.put(purse);
+    await purses.flush?.();
+
+    const agent = await ensureAgentWallet(id, "agent");
+    const pending = await signup.prepareSetup({ guardianAddress: guardian.address, limits, destinations, agentAddress: agent.address });
+    purses.update(id, (x) => { x.contractId = pending.contractId; x.setup = { status: "pending", createdAt: iso(), pending }; });
     await purses.flush?.();
     return { purseId: id, status: "pending", contractId: pending.contractId, hash: pending.hash };
   }
@@ -223,18 +260,28 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   }
 
   async function prepareAgentMove({ privyId }) {
+    return once(privyId, () => prepareAgentMoveOnce({ privyId }));
+  }
+
+  async function prepareAgentMoveOnce({ privyId }) {
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
     if (p.agent) throw new FamilyError(409, "Mama’s purse already has its own wallet.");
     const blocked = moveBlocked(p);
     if (blocked) throw new FamilyError(409, blocked);
-    // A move she started a moment ago is offered again, not a second new wallet.
-    if (p.action?.kind === "agent" && now() - Date.parse(p.action.createdAt) < AGENT_MOVE_MS) {
-      return { status: "pending", kind: "agent", hash: p.action.pending.hash };
+    // A move she started whose approval is still valid on-chain is offered again as it is.
+    if (p.action?.kind === "agent") {
+      const ledger = await signup.latestLedger().catch(() => null);
+      if (ledger == null) throw new FamilyError(503, "Stellar didn’t answer. Please try again.");
+      if (ledger <= p.action.pending.validUntil) return { status: "pending", kind: "agent", hash: p.action.pending.hash };
     }
-    const agent = await signup.createAgentWallet();
-    const pending = await signup.prepareSetAgent({ contractId: p.contractId, guardianAddress: p.guardian.address, agentAddress: agent.address });
-    purses.update(p.id, (x) => { x.action = { kind: "agent", pending, agent: { address: agent.address, sealed: sealAgentKey(agent.secret, config.agentSecret) }, createdAt: iso() }; });
+    // The same new wallet on every try (made once, kept if a later step fails).
+    const next = await ensureAgentWallet(p.id, "nextAgent");
+    // The contract itself refuses while an order is open (Error #15, from contract v6): say so plainly.
+    const pending = await signup.prepareSetAgent({ contractId: p.contractId, guardianAddress: p.guardian.address, agentAddress: next.address }).catch((err) => {
+      throw /Error\(Contract, #15\)/.test(err.message) ? new FamilyError(409, "A top-up is still being settled. Try again in a few minutes.") : err;
+    });
+    purses.update(p.id, (x) => { x.action = { kind: "agent", pending, createdAt: iso() }; });
     await purses.flush?.();
     return { status: "pending", kind: "agent", hash: pending.hash };
   }
@@ -260,7 +307,8 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     purses.update(p.id, (x) => {
       x.action = null;
       if (a.kind === "agent") {
-        x.agent = a.agent;
+        x.agent = x.nextAgent;
+        delete x.nextAgent;
         (x.notifications ??= []).push({ at: iso(), kind: "agent", text: `Mama’s purse now has its own Mhasibu AI wallet (tx ${done.hash}).` });
         return;
       }

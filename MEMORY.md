@@ -230,3 +230,9 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - Hourly XLM top-up of family wallets below 2 XLM. Never rotate `AGENT_SECRET_KEY` (family keys are sealed with it).
 - The web relay confirms the guardian address against Privy's server API (`GET api.privy.io/v1/users/{id}`, `PRIVY_APP_SECRET`); sign-up is closed (503) without the secret.
 - Tested live on testnet (throwaway keys): family wallet created, purse deployed with it as agent, `set_agent` moved it, a wrong signature refused.
+
+## 2026-11-21: Review fixes for per-family wallets
+- Contract v6 (wasm `869db7a5…`): `set_agent` returns `OrderOpen` (#15) while the latest order is open, the same check as `buy`. New purses only; live purses are not upgraded in place.
+- Older purses: no top-up starts while an Upgrade approval exists, until it lands or the ledger passes its `validUntil` (unknown ledger: keep waiting). Replaces the 9-minute timer, which ended before the signature did.
+- Cost: the family wallet key is generated and saved (sealed) before the account is created; `createAgentWallet` is idempotent; the same next wallet is reused for every Upgrade retry; sign-up attempts are counted before anything is spent; one sign-up or Upgrade at a time per daughter.
+- Tested live on testnet: with an order open, `set_agent` was refused (Error #15), then succeeded after the refund. A first run stopped before its clean-up and left 0.95 test USDC in a throwaway purse; the rerun returned all its USDC.

@@ -19,7 +19,6 @@ import { parseDay } from "./days.mjs";
 import { parseAmount } from "./amount.mjs";
 import { ContractRefused, orderRef } from "./purse-contract.mjs";
 import { openAgentKey } from "./agent-keys.mjs";
-import { AGENT_MOVE_MS } from "./families.mjs";
 
 const MINUTE = 60_000;
 // After this long, a signed x402 authorisation has expired, so a "fulfilling" order can no longer settle.
@@ -126,8 +125,20 @@ export function createMhasibu({
     for (const other of sharing) {
       if (other.id !== purse.id && other.openOrder && agentOf(other) === mine) await settleOpenOrder(other).catch(() => {});
     }
-    // While a move to her own wallet awaits the guardian's approval, start nothing on the old one.
-    const moving = purse.action?.kind === "agent" && clock() - Date.parse(purse.action.createdAt) < AGENT_MOVE_MS;
+    // While a move to her own wallet awaits the guardian's approval, start nothing on the old one:
+    // until the approval has landed, or the ledger has passed its `validUntil` (it can no longer
+    // land). If the ledger can't be read, wait (never guess from the clock).
+    let moving = false;
+    const move = purses.get(purse.id).action;
+    if (move?.kind === "agent") {
+      const until = move.pending?.validUntil;
+      if (until) {
+        const ledger = await walletOf(purse).latestLedger?.().catch(() => null);
+        moving = !(ledger != null && ledger > until);
+      } else {
+        moving = clock() - Date.parse(move.createdAt) < 15 * 60_000; // every real approval has validUntil
+      }
+    }
     const holds = (purses.all ? sharing.map((p) => purses.get(p.id)) : [purses.get(purse.id)]).map((p) => {
       if (p.id === purse.id && moving) return Infinity;
       // A hold remembers the wallet it was signed from, so it still guards that wallet after a move.

@@ -825,14 +825,22 @@ test("while a move to her own wallet awaits approval, no top-up starts on the ol
   const purses = createPurseStore(null, { seed: false });
   purses.put(newPurse({ ...DEMO_PURSE, id: "f", contractId: "CF" }));
   const releases = [];
-  const walletFor = (purse) => ({ ...fakeWallet(), release: async () => { releases.push(purse.id); return { tx: "rel" }; }, commitRef: async () => ({ tx: "c" }) });
-  let clock = MONDAY_10AM;
+  let ledger = 500;
+  let rpcUp = true;
+  const walletFor = (purse) => ({ ...fakeWallet(), release: async () => { releases.push(purse.id); return { tx: "rel" }; }, commitRef: async () => ({ tx: "c" }), latestLedger: async () => { if (!rpcUp) throw new Error("rpc down"); return ledger; } });
+  const clock = MONDAY_10AM;
   const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => clock, wait: async () => {} });
-  purses.update("f", (p) => { p.action = { kind: "agent", createdAt: new Date(clock).toISOString() }; });
+  purses.update("f", (p) => { p.action = { kind: "agent", pending: { validUntil: 620 }, createdAt: new Date(clock).toISOString() }; });
+  await mhasibu.handle("f", "my light is finished");
+  assert.match(await mhasibu.handle("f", "1"), /minute/i);
+  ledger = 620; // the approval can still land on this very ledger
+  await mhasibu.handle("f", "my light is finished");
+  assert.match(await mhasibu.handle("f", "1"), /minute/i);
+  ledger = 621; rpcUp = false; // expired, but we can't see the ledger: keep waiting
   await mhasibu.handle("f", "my light is finished");
   assert.match(await mhasibu.handle("f", "1"), /minute/i);
   assert.deepEqual(releases, []);
-  clock += 10 * 60_000; // the approval request expired without her signature: carry on as before
+  rpcUp = true; // the ledger has passed validUntil: the approval can never land, carry on
   await mhasibu.handle("f", "my light is finished");
   await mhasibu.handle("f", "1");
   assert.deepEqual(releases, ["f"]);

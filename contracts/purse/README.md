@@ -22,7 +22,8 @@ x402 stays standard: the facilitator still sees a plain USDC `transfer` signed b
 | `set_caps(utility, Caps)` | guardian | `per_topup`, `per_day`, `per_week`, `per_month` in USDC base units (0 = no limit for that period) |
 | `set_purse_cap(per_month)` | guardian | Whole-purse limit per calendar month |
 | `set_destination(utility, sha256(number))` | guardian | The saved meter or phone, stored as a hash so the ledger doesn't show where Mama lives |
-| `set_agent`, `pause`, `unpause`, `withdraw` | guardian | |
+| `set_agent` | guardian | Refused with `OrderOpen` (#15) while the latest order is neither committed nor refunded (v6, 21 Nov): only the agent holding the released USDC can settle it |
+| `pause`, `unpause`, `withdraw` | guardian | |
 | `buy(utility, dest_hash, amount, order_ref)` | agent | Checks the rules, records the spend, releases exactly `amount` |
 | `refund(order_ref)` | agent | The x402 payment failed: returns that order's USDC from the agent to the purse and takes its spend off the caps (periods still current). Only the open (latest) order, never a committed one |
 | `commit(order_ref)` | agent | The x402 payment succeeded: closes the open order as final, so the next `buy` can run |

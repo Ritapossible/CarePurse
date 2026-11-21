@@ -55,13 +55,17 @@ export function createSignup({ config, fetchImpl = fetch }) {
     }
   }
 
-  // Each family gets its own agent wallet: Mhasibu's key for that purse only. The operator creates
-  // the account and its USDC trustline in one transaction (the operator pays; the new key signs its
-  // own trustline), with a little XLM for that family's network fees. No Friendbot: this works the
-  // same on any network. Returns the new key; the caller seals it before storing it.
+  // Each family gets its own agent wallet: Mhasibu's key for that purse only. The caller makes the
+  // key and saves it (sealed) BEFORE calling this, so a timeout or crash never loses a funded
+  // wallet: calling again with the same key finishes the job or finds it done (idempotent). The
+  // operator creates the account and its USDC trustline in one transaction (the operator pays; the
+  // new key signs its own trustline), with a little XLM for that family's network fees. No
+  // Friendbot: this works the same on any network.
   const AGENT_START_XLM = String(config.agentStartXlm ?? "5");
-  async function createAgentWallet() {
-    const kp = Keypair.random();
+  async function createAgentWallet({ secret }) {
+    const kp = Keypair.fromSecret(secret);
+    const exists = await server.getAccount(kp.publicKey()).then(() => true, () => false);
+    if (exists) return { address: kp.publicKey(), created: false }; // created on an earlier try (one transaction: trustline included)
     const operator = await server.getAccount(agent.publicKey());
     const tx = new TransactionBuilder(operator, { fee: String(Number(BASE_FEE) * 2), networkPassphrase: passphrase })
       .addOperation(Operation.createAccount({ destination: kp.publicKey(), startingBalance: AGENT_START_XLM }))
@@ -70,8 +74,11 @@ export function createSignup({ config, fetchImpl = fetch }) {
       .build();
     tx.sign(agent, kp);
     await soroban.submit(tx);
-    return { address: kp.publicKey(), secret: kp.secret() };
+    return { address: kp.publicKey(), created: true };
   }
+
+  // The current ledger: a guardian signature request is valid up to its `validUntil` ledger.
+  const latestLedger = async () => (await server.getLatestLedger()).sequence;
 
   // Keep a family's agent wallet able to pay its network fees: below `min` XLM, the operator sends
   // it back up to the starting amount. Returns the XLM sent (0 if none was needed).
@@ -157,11 +164,12 @@ export function createSignup({ config, fetchImpl = fetch }) {
   }
 
   // Sign-up step 1: deploy her family's purse and prepare `configure` for her signature.
-  async function prepareSetup({ guardianAddress, limits, destinations }) {
+  // `agentAddress`: the family's own agent wallet, already created (createAgentWallet).
+  async function prepareSetup({ guardianAddress, limits, destinations, agentAddress }) {
     if (!/^G[A-Z2-7]{55}$/.test(guardianAddress ?? "")) throw new Error("not a Stellar address");
+    if (!/^G[A-Z2-7]{55}$/.test(agentAddress ?? "")) throw new Error("the family's agent wallet is missing");
     await ensureAccount(guardianAddress);
-    const familyAgent = await createAgentWallet();
-    const { contractId, tx } = await deployPurse(guardianAddress, familyAgent.address);
+    const { contractId, tx } = await deployPurse(guardianAddress, agentAddress);
     const purseCap = capBaseUnits(monthlyCap(limits), capRate(config), 100, config.usdc.decimals, config.serviceFeeBps);
     const pending = await prepareGuardianCall({
       contractId,
@@ -169,8 +177,7 @@ export function createSignup({ config, fetchImpl = fetch }) {
       method: "configure",
       args: [capsMap(limits, config), destsMap(destinations, contractId, config), i128(purseCap)],
     });
-    // `agent` goes to the caller only, to be sealed and stored; it is not part of `pending`.
-    return { pending: { ...pending, deployTx: tx }, agent: familyAgent };
+    return { ...pending, deployTx: tx };
   }
 
   // A new plan for an existing purse: `configure` again with the new caps and monthly cap, the
@@ -254,5 +261,5 @@ export function createSignup({ config, fetchImpl = fetch }) {
     return BigInt(purseCap ?? 0) < capBaseUnits(monthlyCap(limits), config.ngnPerUsdc, 100, d, fee);
   }
 
-  return { capsBehind, createAgentWallet, prepareSetAgent, topUpAgentXlm, prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
+  return { capsBehind, createAgentWallet, latestLedger, prepareSetAgent, topUpAgentXlm, prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
 }

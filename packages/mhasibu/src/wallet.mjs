@@ -22,6 +22,9 @@ export function createWallet(config = defaultConfig) {
   const json = async (res) => { const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`); return body; };
 
   return {
+    // The current ledger (a pending guardian approval is valid up to a known ledger).
+    latestLedger: async () => (await createSoroban({ rpcUrl: config.rpcUrl }).server.getLatestLedger()).sequence,
+
     expected: { host: config.allowedHost, payTo: config.gatewayRecipient, asset: config.usdc.contractId, network: config.network },
 
     // The purse balance in naira at the demo rate. Phase 2: the purse contract's USDC, plus the USDC

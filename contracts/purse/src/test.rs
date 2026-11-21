@@ -347,3 +347,23 @@ fn configure_refuses_bad_caps_and_anyone_but_the_guardian() {
         .try_configure(&caps, &dests, &0);
     assert!(r.is_err());
 }
+
+#[test]
+fn set_agent_waits_for_the_open_order() {
+    let t = setup();
+    let e = Symbol::new(&t.env, "electricity");
+    let new_agent = Address::generate(&t.env);
+    t.purse.buy(&e, &t.meter, &3_401_361, &order(&t.env, 1));
+    // The released USDC is on the old agent wallet: only it can refund or commit, so no switch yet.
+    assert_eq!(t.purse.try_set_agent(&new_agent), Err(Ok(Error::OrderOpen)));
+    assert_eq!(t.purse.agent(), t.agent);
+    t.purse.refund(&order(&t.env, 1));
+    t.purse.set_agent(&new_agent);
+    assert_eq!(t.purse.agent(), new_agent);
+    // The new agent's orders work as before, and a committed order doesn't block a later switch.
+    t.purse.buy(&e, &t.meter, &3_401_361, &order(&t.env, 2));
+    assert_eq!(t.token.balance(&new_agent), 3_401_361);
+    t.purse.commit(&order(&t.env, 2));
+    t.purse.set_agent(&t.agent);
+    assert_eq!(t.purse.agent(), t.agent);
+}

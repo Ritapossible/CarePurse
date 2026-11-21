@@ -10,17 +10,23 @@ const GUARDIAN = { privyId: "did:privy:adaeze", address: "GADAEZE", name: "Adaez
 const SIGNUP = { mama: { name: "Ngozi", phone: "+234 803 123 4567", language: "pcm" }, meter: "45012345678" };
 
 const OPERATOR = Keypair.random().secret();
-const FAMILY_AGENT = Keypair.random();
-const MOVED_AGENT = Keypair.random();
+
+let failDeploy = false;
+let failWallet = false;
+let ledger = 1000;
 
 function setup() {
+  failDeploy = false;
+  failWallet = false;
+  ledger = 1000;
   let clock = NOW;
   const calls = [];
   const trusted = new Set();
   const signup = {
-    prepareSetup: async ({ guardianAddress, destinations }) => { calls.push(["prepare", guardianAddress, destinations]); return { pending: { contractId: "CPURSE", hash: "ab".repeat(32), entry: "x", validUntil: 1, method: "configure", args: [] }, agent: { address: "GFAMILYAGENT", secret: FAMILY_AGENT.secret() } }; },
-    createAgentWallet: async () => { calls.push(["agent-wallet"]); return { address: MOVED_AGENT.publicKey(), secret: MOVED_AGENT.secret() }; },
-    prepareSetAgent: async ({ agentAddress }) => { calls.push(["set-agent", agentAddress]); return { hash: "dd".repeat(32), method: "set_agent" }; },
+    prepareSetup: async ({ guardianAddress, destinations, agentAddress }) => { if (failDeploy) throw new Error("deploy failed"); calls.push(["prepare", guardianAddress, destinations, agentAddress]); return { contractId: "CPURSE", hash: "ab".repeat(32), entry: "x", validUntil: 1, method: "configure", args: [] }; },
+    createAgentWallet: async ({ secret }) => { const address = Keypair.fromSecret(secret).publicKey(); calls.push(["agent-wallet", address]); if (failWallet) throw new Error("timeout"); return { address }; },
+    latestLedger: async () => ledger,
+    prepareSetAgent: async ({ agentAddress }) => { calls.push(["set-agent", agentAddress]); return { hash: `${agentAddress.slice(1, 3)}${ledger}`.padEnd(64, "d"), validUntil: ledger + 120, method: "set_agent" }; },
     completeGuardianCall: async (pending, address, sig) => { if (sig !== "0xgood") throw new Error("signature doesn't match payload"); calls.push(["complete", address]); return { hash: "txhash" }; },
     sendTestUsdc: async (contractId, usdc) => { calls.push(["usdc", contractId, usdc]); return { tx: "fund" }; },
     purseBalance: async () => 10,
@@ -48,7 +54,7 @@ test("sign-up: one signature activates the purse; a wrong one doesn't", async ()
   await assert.rejects(families.prepare({ ...SIGNUP, guardian: null }), /sign in first/);
   const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
   assert.equal(prep.status, "pending");
-  assert.deepEqual(calls[0][2], { electricity: "45012345678", airtime: "08031234567", data: "08031234567" });
+  assert.deepEqual(calls.find((c) => c[0] === "prepare")[2], { electricity: "45012345678", airtime: "08031234567", data: "08031234567" });
   await assert.rejects(families.complete({ privyId: GUARDIAN.privyId, signature: "0xbad" }), /didn’t match/);
   const done = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
   assert.equal(done.status, "active");
@@ -261,19 +267,51 @@ test("account: delete waits until a signed payment's hold has ended", async () =
 
 test("own agent wallet: sign-up stores only a sealed key, never shown to anyone", async () => {
   const { openAgentKey } = await import("../src/agent-keys.mjs");
-  const { families, purses } = setup();
+  const { families, purses, calls } = setup();
   const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
   await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
   const p = purses.get(prep.purseId);
-  assert.equal(p.agent.address, "GFAMILYAGENT");
-  assert.equal(p.agent.secret, undefined);
-  assert.ok(!JSON.stringify(p).includes(FAMILY_AGENT.secret())); // not in the stored record, not in setup.pending
-  assert.equal(openAgentKey(p.agent.sealed, OPERATOR), FAMILY_AGENT.secret());
+  const secret = openAgentKey(p.agent.sealed, OPERATOR);
+  assert.equal(Keypair.fromSecret(secret).publicKey(), p.agent.address);
+  assert.equal(calls.find((c) => c[0] === "prepare")[3], p.agent.address); // the purse is deployed with it as agent
+  assert.ok(!JSON.stringify(p).includes(secret)); // only sealed, nowhere else in the record
   assert.throws(() => openAgentKey(p.agent.sealed, Keypair.random().secret())); // useless without the operator's key
   const { purse } = await families.dashboard({ privyId: GUARDIAN.privyId });
   assert.equal(purse.ownWallet, true);
   const shown = JSON.stringify([purse, families.profile({ privyId: GUARDIAN.privyId })]);
-  assert.ok(!shown.includes(p.agent.sealed) && !shown.includes(FAMILY_AGENT.secret()));
+  assert.ok(!shown.includes(p.agent.sealed) && !shown.includes(secret));
+});
+
+test("own agent wallet: a failed sign-up keeps its wallet and counts the attempt; no parallel runs", async () => {
+  const { families, purses, calls } = setup();
+  // The account creation times out: the key was saved first, so the retry uses the same one.
+  failWallet = true;
+  await assert.rejects(families.prepare({ ...SIGNUP, guardian: GUARDIAN }), /timeout/);
+  const saved = purses.all().find((p) => p.guardian.privyId === GUARDIAN.privyId);
+  assert.equal(saved.agent.ready, false);
+  assert.equal(saved.setupAttempts.length, 1); // counted before anything was spent
+  failWallet = false;
+  // The deploy fails next: the wallet (now created) is kept.
+  failDeploy = true;
+  await assert.rejects(families.prepare({ ...SIGNUP, guardian: GUARDIAN }), /deploy failed/);
+  failDeploy = false;
+  const ok = await families.prepare({ ...SIGNUP, guardian: GUARDIAN });
+  assert.equal(ok.status, "pending");
+  const wallets = new Set(calls.filter((c) => c[0] === "agent-wallet").map((c) => c[1]));
+  assert.deepEqual([...wallets], [saved.agent.address]); // one wallet for all three tries
+  assert.equal(purses.get(ok.purseId).agent.ready, true);
+  assert.equal(purses.get(ok.purseId).setupAttempts.length, 3);
+  // Two more failures reach the daily cap of 5, then sign-up stops spending.
+  failDeploy = true;
+  await assert.rejects(families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "light" }), /deploy failed/);
+  await assert.rejects(families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "light" }), /deploy failed/);
+  await assert.rejects(families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "light" }), /Too many set-up attempts/);
+  failDeploy = false;
+  // A second request while one is running is refused.
+  const { families: f2 } = setup();
+  const first = f2.prepare({ ...SIGNUP, guardian: { ...GUARDIAN, privyId: "did:privy:two" } });
+  await assert.rejects(f2.prepare({ ...SIGNUP, guardian: { ...GUARDIAN, privyId: "did:privy:two" } }), /already being prepared/);
+  assert.equal((await first).status, "pending");
 });
 
 test("own agent wallet: an older purse moves with one approval, never mid top-up", async () => {
@@ -283,6 +321,7 @@ test("own agent wallet: an older purse moves with one approval, never mid top-up
   await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
   purses.update(prep.purseId, (p) => { delete p.agent; }); // made before per-family wallets
   assert.equal((await families.dashboard({ privyId: GUARDIAN.privyId })).purse.ownWallet, false);
+  const walletsBefore = calls.filter((c) => c[0] === "agent-wallet").length;
 
   purses.update(prep.purseId, (p) => { p.openOrder = { orderId: "o1", paid: false }; });
   await assert.rejects(families.prepareAgentMove({ privyId: GUARDIAN.privyId }), /still being settled/);
@@ -290,10 +329,17 @@ test("own agent wallet: an older purse moves with one approval, never mid top-up
 
   const r = await families.prepareAgentMove({ privyId: GUARDIAN.privyId });
   assert.deepEqual([r.status, r.kind], ["pending", "agent"]);
-  assert.deepEqual(calls.filter((c) => c[0] === "set-agent"), [["set-agent", MOVED_AGENT.publicKey()]]);
-  // Asking again a moment later offers the same approval, not a second new wallet.
+  const next = purses.get(prep.purseId).nextAgent;
+  // Still valid on-chain: the same approval is offered again.
+  ledger += 100;
   assert.equal((await families.prepareAgentMove({ privyId: GUARDIAN.privyId })).hash, r.hash);
-  assert.equal(calls.filter((c) => c[0] === "agent-wallet").length, 1);
+  // Expired on-chain: a new approval, but the SAME new wallet (no second 5 XLM account).
+  ledger += 50;
+  const r2 = await families.prepareAgentMove({ privyId: GUARDIAN.privyId });
+  assert.notEqual(r2.hash, r.hash);
+  assert.equal(purses.get(prep.purseId).nextAgent.address, next.address);
+  assert.equal(calls.filter((c) => c[0] === "agent-wallet").length - walletsBefore, 1);
+  assert.deepEqual(calls.filter((c) => c[0] === "set-agent").map((c) => c[1]), [next.address, next.address]);
 
   // A top-up opened before she approves: the move waits for it.
   purses.update(prep.purseId, (p) => { p.openOrder = { orderId: "o2", paid: false }; });
@@ -304,8 +350,9 @@ test("own agent wallet: an older purse moves with one approval, never mid top-up
   const done = await families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" });
   assert.equal(done.kind, "agent");
   const p = purses.get(prep.purseId);
-  assert.equal(p.agent.address, MOVED_AGENT.publicKey());
-  assert.equal(openAgentKey(p.agent.sealed, OPERATOR), MOVED_AGENT.secret());
+  assert.equal(p.agent.address, next.address);
+  assert.equal(p.nextAgent, undefined);
+  assert.equal(Keypair.fromSecret(openAgentKey(p.agent.sealed, OPERATOR)).publicKey(), next.address);
   assert.equal(p.notifications.at(-1).kind, "agent");
   await assert.rejects(families.prepareAgentMove({ privyId: GUARDIAN.privyId }), /already has its own wallet/);
 });

@@ -152,6 +152,12 @@ fn check_caps(env: &Env, caps: &Caps) {
     }
 }
 
+// The latest order was released and is neither committed nor refunded.
+fn last_order_open(env: &Env) -> bool {
+    let Some(last) = env.storage().instance().get::<Key, BytesN<32>>(&Key::LastOrder) else { return false };
+    env.storage().persistent().get::<Key, OrderRec>(&Key::Order(last)).map_or(false, |o| !o.refunded && !o.committed)
+}
+
 fn guardian(env: &Env) -> Address {
     env.storage().instance().get(&Key::Guardian).unwrap()
 }
@@ -245,9 +251,15 @@ impl Purse {
         bump(&env);
     }
 
-    pub fn set_agent(env: Env, agent: Address) {
+    // A new agent only while no order is open: `refund` and `commit` must be signed by the agent that
+    // holds the released USDC, so the open order is settled (or closed by the guardian) first.
+    pub fn set_agent(env: Env, agent: Address) -> Result<(), Error> {
         guardian(&env).require_auth();
+        if last_order_open(&env) {
+            return Err(Error::OrderOpen);
+        }
         env.storage().instance().set(&Key::Agent, &agent);
+        Ok(())
     }
 
     pub fn pause(env: Env) {
@@ -283,12 +295,8 @@ impl Purse {
         }
         // One open release at a time: the previous order must be committed (paid) or refunded
         // first. Otherwise a crash or a second tap could make the earlier release unrefundable.
-        if let Some(last) = s.get::<Key, BytesN<32>>(&Key::LastOrder) {
-            if let Some(prev) = env.storage().persistent().get::<Key, OrderRec>(&Key::Order(last)) {
-                if !prev.refunded && !prev.committed {
-                    return Err(Error::OrderOpen);
-                }
-            }
+        if last_order_open(&env) {
+            return Err(Error::OrderOpen);
         }
         if amount <= 0 {
             return Err(Error::BadAmount);
