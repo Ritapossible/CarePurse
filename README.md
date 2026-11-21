@@ -236,7 +236,7 @@ The same flow runs on demand in GitHub Actions (**VTpass sandbox** workflow). On
 **Requirements:** Node.js 22+. Rust and `stellar-cli` only to rebuild the contract.
 
 ```bash
-git clone https://github.com/Ritapossible/carepurse.git && cd carepurse
+git clone https://github.com/Ritapossible/CarePurse.git && cd CarePurse
 
 # 1. Gateway (x402 seller)
 cd services/gateway && npm install
