@@ -30,7 +30,7 @@ function ErrorLine({ error }: { error: string | null }) {
 
 export default function StartPage() {
   const router = useRouter();
-  const { ready, authenticated, login, logout, user } = usePrivy();
+  const { ready, authenticated, login, user } = usePrivy();
   const api = useFamilyApi();
   const wallet = useStellarWallet();
   const [step, setStep] = useState<Step>("signin");
@@ -130,12 +130,6 @@ export default function StartPage() {
   if (!ready) return <p className="text-muted">Loading…</p>;
   return (
     <div className="mx-auto max-w-xl">
-      {authenticated && step !== "signin" && (
-        <div className="mb-8 flex items-center justify-between gap-4 border-b border-line pb-4 text-sm">
-          <span className="min-w-0 truncate text-muted">Signed in as <span className="text-foreground">{user?.email?.address ?? user?.google?.email ?? "your account"}</span></span>
-          <button className="shrink-0 text-muted underline transition-colors duration-150 hover:text-foreground" disabled={Boolean(busy && busy !== "meter" && busy !== "usdc")} onClick={() => logout().then(() => router.push("/"))}>Sign out</button>
-        </div>
-      )}
       {body()}
     </div>
   );

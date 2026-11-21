@@ -93,9 +93,9 @@ const send = (res, status, body) => {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
 };
-const readJson = (req) => new Promise((resolve, reject) => {
+const readJson = (req, max = 10_000) => new Promise((resolve, reject) => {
   let data = "";
-  req.on("data", (c) => { data += c; if (data.length > 10_000) req.destroy(); });
+  req.on("data", (c) => { data += c; if (data.length > max) req.destroy(); });
   req.on("end", () => { try { resolve(JSON.parse(data || "{}")); } catch { reject(new Error("bad json")); } });
 });
 
@@ -181,6 +181,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/v1/family/complete") return send(res, 200, await families.complete(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/limits/prepare") return send(res, 200, await families.prepareLimits(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/limits/complete") return send(res, 200, await families.completeLimits(await readJson(req)));
+    if (req.method === "GET" && url.pathname === "/v1/family/profile") return send(res, 200, families.profile({ privyId: url.searchParams.get("privyId") }));
+    if (req.method === "POST" && url.pathname === "/v1/family/profile") return send(res, 200, await families.updateProfile(await readJson(req, 100_000))); // a small photo
+    if (req.method === "POST" && url.pathname === "/v1/family/delete") return send(res, 200, await families.deleteAccount(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/pause") return send(res, 200, await families.preparePause(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/withdraw") return send(res, 200, await families.prepareWithdraw(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/action/complete") return send(res, 200, await families.completeAction(await readJson(req)));

@@ -15,6 +15,12 @@ async function handle(request: Request, path: string[]) {
   switch (route) {
     case "GET purse":
       return passThrough(await mhasibuFetch(`/v1/family?privyId=${encodeURIComponent(privyId)}`));
+    case "GET profile":
+      return passThrough(await mhasibuFetch(`/v1/family/profile?privyId=${encodeURIComponent(privyId)}`));
+    case "POST profile":
+      return passThrough(await mhasibuFetch("/v1/family/profile", { method: "POST", body: { privyId, name: body.name, avatar: body.avatar } }));
+    case "POST delete":
+      return passThrough(await mhasibuFetch("/v1/family/delete", { method: "POST", body: { privyId } }));
     case "POST meter":
       return passThrough(await mhasibuFetch("/v1/meters/verify", { method: "POST", body: { meter: body.meter, disco: body.disco } }));
     case "POST prepare":

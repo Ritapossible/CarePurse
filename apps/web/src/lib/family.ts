@@ -28,6 +28,8 @@ export type Purse = {
   testUsdcLeft: number;
 };
 
+export type Profile = { name: string; avatar: string | null; address: string; email: string | null; purseStatus: string; contractId: string };
+
 export const PRESETS = {
   light: { label: "Light", electricity: "₦2,000 a time, ₦5,000 a week", airtime: "₦200 a time, ₦500 a day", data: "₦200 a time, ₦500 a day", monthly: 50_000 },
   standard: { label: "Standard", electricity: "₦5,000 a time, ₦15,000 a week", airtime: "₦500 a time, ₦1,000 a day", data: "₦500 a time, ₦1,000 a day", monthly: 120_000 },
@@ -41,7 +43,7 @@ export const DISCOS = [
 export const NETWORKS = [["mtn", "MTN"], ["airtel", "Airtel"], ["glo", "Glo"], ["etisalat", "9mobile"]] as const;
 
 export const naira = (n: number) => `₦${Math.round(n).toLocaleString("en-NG")}`;
-export const explorer = (kind: "contract" | "tx", id: string) => `https://stellar.expert/explorer/testnet/${kind}/${id}`;
+export const explorer = (kind: "contract" | "tx" | "account", id: string) => `https://stellar.expert/explorer/testnet/${kind}/${id}`;
 export const inviteUrl = (token: string) => `${window.location.origin}/i/${token}`;
 export const whatsappUrl = (mamaName: string, token: string) =>
   `https://wa.me/?text=${encodeURIComponent(`Mama ${mamaName}, I’ve set up CarePurse for you. Tap here to start: ${inviteUrl(token)}`)}`;

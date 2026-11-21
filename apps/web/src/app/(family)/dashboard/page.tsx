@@ -83,7 +83,7 @@ function ActivityRow({ s }: { s: Spend }) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { ready, authenticated, login, logout, user } = usePrivy();
+  const { ready, authenticated, login } = usePrivy();
   const api = useFamilyApi();
   const [purse, setPurse] = useState<Purse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +100,6 @@ export default function DashboardPage() {
   const wallet = useStellarWallet();
   const [qr, setQr] = useState<string | null>(null);
   const [all, setAll] = useState(false);
-  const [menu, setMenu] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -236,7 +235,6 @@ export default function DashboardPage() {
   const preset = PRESETS[purse.preset];
   const month = purse.monthNgn ?? 0;
   const used = Math.min(100, Math.round((month / purse.monthlyCap) * 100));
-  const you = purse.guardian.name || user?.email?.address?.split("@")[0] || "there";
   const spends = all ? purse.spends : purse.spends.slice(0, 5);
   const ACTIONS = [
     { key: "fund", label: "Add money", icon: ICONS.add, onClick: () => setSheet("fund") },
@@ -247,25 +245,11 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
-      {/* Page title and account menu */}
+      {/* Page title (the account menu is in the header) */}
       <header className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted">Dashboard</p>
           <h1 className="text-2xl font-medium">Mama {purse.mama.name}’s purse</h1>
-        </div>
-        <div className="relative">
-          <button onClick={() => setMenu((m) => !m)} aria-label="Account" className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-lg font-medium text-background">
-            {you.slice(0, 1).toUpperCase()}
-          </button>
-          {menu && (
-            <div className="absolute right-0 top-13 z-20 w-56 rounded-2xl border border-line bg-white p-2 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
-              <div className="px-3 py-2">
-                <p className="text-sm font-medium">{you}</p>
-                <p className="truncate text-sm text-muted">{user?.email?.address ?? user?.google?.email}</p>
-              </div>
-              <button onClick={() => logout().then(() => router.push("/"))} className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-surface">Sign out</button>
-            </div>
-          )}
         </div>
       </header>
 

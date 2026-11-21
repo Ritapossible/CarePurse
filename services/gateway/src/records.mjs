@@ -84,6 +84,12 @@ export async function openRecords(databaseUrl, kinds, { log = console, encryptio
            on conflict (kind, id) do update set doc = excluded.doc, updated_at = now()`, [kind, id, json]))
         .catch((err) => { failure = err; log.error?.(`database write failed (${kind} ${id}): ${err.message}`); });
     },
+    // Deleted for good (an account the daughter closed): the row goes, not just its contents.
+    remove(kind, id) {
+      chain = chain
+        .then(() => pool.query(`delete from ${TABLE} where kind = $1 and id = $2`, [kind, id]))
+        .catch((err) => { failure = err; log.error?.(`database delete failed (${kind} ${id}): ${err.message}`); });
+    },
     async flush() {
       await chain;
       if (failure) { const err = failure; failure = null; throw err; }

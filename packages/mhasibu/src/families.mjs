@@ -230,6 +230,53 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     return { status: "done", kind: a.kind, tx: done.hash };
   }
 
+  // ── Her account ───────────────────────────────────────────
+  // Profile lives on her purse record (name, a small photo). The photo is a data URL the browser
+  // has already shrunk; only small JPEG, PNG or WebP images are kept.
+  const AVATAR = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+  const MAX_AVATAR_CHARS = 80_000; // ~60 KB
+
+  function profile({ privyId }) {
+    const p = byGuardian(privyId);
+    if (!p) return { profile: null };
+    return { profile: { name: p.guardian.name, avatar: p.guardian.avatar ?? null, address: p.guardian.address, email: p.guardian.email ?? null, purseStatus: p.setup?.status ?? "active", contractId: p.contractId } };
+  }
+
+  async function updateProfile({ privyId, name, avatar }) {
+    const p = mine(privyId);
+    const next = {};
+    if (name !== undefined) {
+      const n = String(name ?? "").trim().slice(0, 40);
+      if (!n) throw new FamilyError(400, "Add your name.");
+      next.name = n;
+    }
+    if (avatar !== undefined) {
+      if (avatar === null) next.avatar = null;
+      else if (typeof avatar !== "string" || !AVATAR.test(avatar)) throw new FamilyError(400, "Use a JPEG, PNG or WebP photo.");
+      else if (avatar.length > MAX_AVATAR_CHARS) throw new FamilyError(413, "That photo is too large.");
+      else next.avatar = avatar;
+    }
+    purses.update(p.id, (x) => { x.guardian = { ...x.guardian, ...next }; });
+    await purses.flush?.();
+    return profile({ privyId });
+  }
+
+  // Close her account: CarePurse forgets the family (purse record, Mama's invite and sign-ins).
+  // Money first: the purse must be empty and nothing in flight, so no USDC is ever stranded.
+  // The contract stays on Stellar (nothing can delete it); with no record it is never used again.
+  async function deleteAccount({ privyId }) {
+    const p = byGuardian(privyId);
+    if (!p) return { deleted: true };
+    if (p.openOrder) throw new FamilyError(409, "A top-up is still being settled. Try again in a few minutes.");
+    if (p.setup?.status === "active") {
+      const balance = await signup.purseBalance(p.contractId);
+      if (balance > 0) throw new FamilyError(409, `Mama’s purse still holds ${balance} USDC. Withdraw it first, then delete your account.`);
+    }
+    purses.remove(p.id);
+    await purses.flush?.();
+    return { deleted: true };
+  }
+
   async function testUsdc({ privyId }) {
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
@@ -342,5 +389,5 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   // The purse a guardian (Privy user) owns, or null.
   const guardianPurse = (privyId) => byGuardian(privyId)?.id ?? null;
 
-  return { checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, testUsdc, dashboard, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
+  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, testUsdc, dashboard, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
 }

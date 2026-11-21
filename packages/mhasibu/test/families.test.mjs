@@ -180,3 +180,36 @@ test("Mama's sessions end after 30 days, and a new invite signs her out everywhe
   await families.sendNewInvite({ privyId: GUARDIAN.privyId });
   assert.equal(families.sessionPurse(session), null);
 });
+
+test("account: profile name and photo, and deleting only once the purse is empty", async () => {
+  const { families, purses } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { purseId } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const photo = "data:image/jpeg;base64," + "A".repeat(100);
+  const r = await families.updateProfile({ privyId: GUARDIAN.privyId, name: "  Rita ", avatar: photo });
+  assert.equal(r.profile.name, "Rita");
+  assert.equal(r.profile.avatar, photo);
+  await assert.rejects(families.updateProfile({ privyId: GUARDIAN.privyId, avatar: "data:text/html;base64,AAAA" }), /JPEG, PNG or WebP/);
+  await assert.rejects(families.updateProfile({ privyId: GUARDIAN.privyId, avatar: "data:image/png;base64," + "A".repeat(90_000) }), /too large/);
+  assert.equal((await families.updateProfile({ privyId: GUARDIAN.privyId, avatar: null })).profile.avatar, null);
+
+  await assert.rejects(families.deleteAccount({ privyId: GUARDIAN.privyId }), /still holds 10 USDC/); // fake balance: 10
+  assert.ok(purses.get(purseId));
+});
+
+test("account: an empty purse is deleted for good, with Mama's access", async () => {
+  const { families, purses } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { purseId, invite } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const sent = await families.sendCode(invite, "08031234567");
+  const { session } = await families.verifyCode(invite, "08031234567", sent.code);
+  purses.update(purseId, () => {});
+  const signup = { purseBalance: async () => 0 };
+  // same families, balance 0
+  const { createFamilies } = await import("../src/families.mjs");
+  const f2 = createFamilies({ purses, signup, config: { ngnPerUsdc: 1470 }, verifyMeter: async () => ({ ok: true }) });
+  assert.deepEqual(await f2.deleteAccount({ privyId: GUARDIAN.privyId }), { deleted: true });
+  assert.equal(purses.get(purseId), null);
+  assert.equal(f2.sessionPurse(session), null);
+  assert.equal(families.profile({ privyId: GUARDIAN.privyId }).profile, null);
+});

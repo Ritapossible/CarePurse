@@ -55,6 +55,7 @@ export function createPurseStore(file, { seed = true, records = null } = {}) {
     all: () => Object.values(state.purses),
     put(purse) { state.purses[purse.id] = purse; records?.save("purse", purse.id, purse); save(); return purse; },
     update(id, fn) { const purse = state.purses[id]; fn(purse); records?.save("purse", id, purse); save(); return purse; },
+    remove(id) { delete state.purses[id]; records?.remove("purse", id); save(); },
     // Wait until every change so far is stored.
     flush: async () => { await records?.flush(); },
     close: async () => { await records?.close(); },
