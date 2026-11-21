@@ -72,7 +72,7 @@ const families = createFamilies({
     const res = await fetch(u, { headers: gatewayAuth });
     const body = await res.json().catch(() => ({}));
     // The VTpass code (never a key) travels back so a failed check can be told apart from a wrong meter.
-    return { ok: Boolean(body.ok), ownerName: body.ownerName ?? null, address: body.address ?? null, disco: body.disco ?? disco ?? null, reason: body.reason ?? null, unavailable: Boolean(body.unavailable), vtpass: body.vtpass?.code ? { code: body.vtpass.code, message: body.vtpass.message ?? null } : null };
+    return { ok: Boolean(body.ok), ownerName: body.ownerName ?? null, address: body.address ?? null, disco: body.disco ?? disco ?? null, reason: body.reason ?? null, unavailable: Boolean(body.unavailable), vtpass: body.vtpass?.code ? { code: body.vtpass.code, message: body.vtpass.message ?? null, ...(body.vtpass.keys ? { keys: body.vtpass.keys } : {}) } : null };
   },
 });
 

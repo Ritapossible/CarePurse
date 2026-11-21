@@ -52,6 +52,10 @@ const cleanToken = (t) => String(t ?? "").replace(/^\s*token\s*:\s*/i, "").trim(
 
 export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, contactPhone, fetchImpl = fetch, clock = Date.now, wait = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
   if (!apiKey || !secretKey || !publicKey) throw new Error("UTILITY_PROVIDER=vtpass needs VTPASS_API_KEY, VTPASS_SECRET_KEY and VTPASS_PUBLIC_KEY (sandbox keys).");
+  // The shape of each key, never its value: shown only when VTpass rejects the credentials, so a
+  // swapped, quoted or truncated key can be spotted without anyone reading the key.
+  const shape = (k, prefix) => ({ length: k.length, ...(prefix ? { [`startsWith${prefix}`]: k.startsWith(prefix) } : {}), quoted: /^["'].*["']$/.test(k) });
+  const keyShapes = { apiKey: shape(apiKey), publicKey: shape(publicKey, "PK_"), secretKey: shape(secretKey, "SK_") };
   const base = baseUrl.replace(/\/$/, "");
 
   async function call(method, path, body) {
@@ -122,7 +126,7 @@ export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, co
       // VTpass answered "000" but the meter is wrong: that is the meter. Any other code (087 bad
       // credentials, 010/0xx service errors, no answer) is our problem, not the daughter's number.
       if (json?.code === "000" && (c.WrongBillersCode || c.error)) return { ok: false, reason: c.error ?? "The electricity company did not recognise this meter.", vtpass: vtpassSays(json) };
-      if (json?.code !== "000") return { ok: false, unavailable: true, reason: "We couldn’t reach the electricity company to check this meter. Please try again in a minute.", vtpass: vtpassSays(json) };
+      if (json?.code !== "000") return { ok: false, unavailable: true, reason: "We couldn’t reach the electricity company to check this meter. Please try again in a minute.", vtpass: { ...vtpassSays(json), ...(json?.code === "087" ? { keys: keyShapes } : {}) } };
       return { ok: true, meter, ownerName: c.Customer_Name, address: c.Address, disco, canVend: c.Can_Vend ?? null };
     },
 

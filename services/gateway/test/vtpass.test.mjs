@@ -99,5 +99,6 @@ test("meter check: a wrong meter is the meter; a VTpass error (087) is 'unavaila
   assert.equal(c.ok, false);
   assert.equal(c.unavailable, true);
   assert.match(c.reason, /couldn’t reach the electricity company/);
-  assert.deepEqual(c.vtpass, { code: "087", message: "INVALID CREDENTIALS" });
+  assert.equal(c.vtpass.code, "087");
+  assert.deepEqual(c.vtpass.keys, { apiKey: { length: 1, quoted: false }, publicKey: { length: 1, startsWithPK_: false, quoted: false }, secretKey: { length: 1, startsWithSK_: false, quoted: false } });
 });
