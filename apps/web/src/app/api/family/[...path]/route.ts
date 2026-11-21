@@ -1,6 +1,6 @@
 // The daughter's sign-up and dashboard. Every call needs her Privy login: we verify the access
 // token here and pass Mhasibu the Privy user id from the token, never one from the browser.
-import { privyConfigured, privyUser } from "@/lib/server/privy";
+import { privyConfigured, privyStellarWallets, privyUser, privyWalletCheckConfigured } from "@/lib/server/privy";
 import { mhasibuFetch, passThrough } from "@/lib/server/mhasibu";
 
 type Ctx = { params: Promise<{ path: string[] }> };
@@ -29,7 +29,13 @@ async function handle(request: Request, path: string[]) {
       return passThrough(await mhasibuFetch("/v1/family/delete", { method: "POST", body: { privyId } }));
     case "POST meter":
       return passThrough(await mhasibuFetch("/v1/meters/verify", { method: "POST", body: { meter: body.meter, disco: body.disco } }));
-    case "POST prepare":
+    case "POST prepare": {
+      // The guardian must be her own Privy Stellar wallet, confirmed with Privy on our server, not
+      // whatever address the browser sends. Without the check configured, sign-up stays closed.
+      if (!privyWalletCheckConfigured()) return Response.json({ error: "Sign-up is paused: the server can’t confirm your wallet yet (PRIVY_APP_SECRET)." }, { status: 503 });
+      const wallets = await privyStellarWallets(privyId).catch(() => null);
+      if (!wallets) return Response.json({ error: "We couldn’t confirm your wallet with Privy. Please try again." }, { status: 502 });
+      if (!wallets.includes(String(body.guardian?.address ?? ""))) return Response.json({ error: "That wallet isn’t the CarePurse wallet on your account. Please reload and try again." }, { status: 403 });
       return passThrough(await mhasibuFetch("/v1/family/prepare", {
         method: "POST",
         body: {
@@ -37,6 +43,7 @@ async function handle(request: Request, path: string[]) {
           mama: body.mama, meter: body.meter, disco: body.disco, network: body.network, preset: body.preset,
         },
       }));
+    }
     case "POST complete":
       return passThrough(await mhasibuFetch("/v1/family/complete", { method: "POST", body: { privyId, signature: body.signature } }));
     case "POST limits-prepare":
@@ -47,6 +54,8 @@ async function handle(request: Request, path: string[]) {
       return passThrough(await mhasibuFetch("/v1/family/pause", { method: "POST", body: { privyId, paused: Boolean(body.paused) } }));
     case "POST withdraw":
       return passThrough(await mhasibuFetch("/v1/family/withdraw", { method: "POST", body: { privyId, usdc: body.usdc, to: body.to } }));
+    case "POST agent-move":
+      return passThrough(await mhasibuFetch("/v1/family/agent", { method: "POST", body: { privyId } }));
     case "POST action-complete":
       return passThrough(await mhasibuFetch("/v1/family/action/complete", { method: "POST", body: { privyId, signature: body.signature } }));
     case "POST test-usdc":

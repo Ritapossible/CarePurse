@@ -112,6 +112,7 @@ export default function DashboardPage() {
     unpause: "Approve resuming the purse",
     trustline: "Approve 1 of 2: let your wallet receive USDC",
     withdraw: "Approve the withdrawal",
+    agent: "Approve Mama’s own wallet",
   };
   async function approveSteps(first: { status: string; kind?: string; hash?: string }) {
     let r = first;
@@ -131,6 +132,21 @@ export default function DashboardPage() {
     try {
       await approveSteps(await api("POST", "pause", { paused: !purse.paused }));
       setNotice(purse.paused ? "Purse resumed. Mhasibu AI can buy again." : "Purse paused. Mhasibu AI won’t buy anything until you resume.");
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+      setStep(null);
+    }
+  }
+  // Older purses: one approval gives Mama's purse its own Mhasibu AI wallet (`set_agent`).
+  async function ownWallet() {
+    setError(null);
+    setBusy("agent");
+    try {
+      await approveSteps(await api("POST", "agent-move"));
+      setNotice("Mama’s purse now has its own Mhasibu AI wallet.");
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -239,6 +255,18 @@ export default function DashboardPage() {
           </div>
           <button disabled={Boolean(busy)} onClick={() => changePlan(purse.preset as "light" | "standard")} className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] bg-foreground px-4 text-sm font-medium text-background disabled:opacity-40">
             {busy === `plan-${purse.preset}` ? "Saving on Stellar…" : "Update rules"}
+          </button>
+        </section>
+      )}
+
+      {purse.ownWallet === false && (
+        <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">Give Mama’s purse its own wallet</p>
+            <p className="mt-0.5 text-sm text-secondary">{busy === "agent" && step ? step : "Mhasibu AI will pay for Mama’s top-ups from a wallet used by her purse alone. One approval, free."}</p>
+          </div>
+          <button disabled={Boolean(busy)} onClick={ownWallet} className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] bg-foreground px-4 text-sm font-medium text-background disabled:opacity-40">
+            {busy === "agent" ? "Approving…" : "Upgrade"}
           </button>
         </section>
       )}

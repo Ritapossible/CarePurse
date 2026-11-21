@@ -84,9 +84,10 @@ const agentAddress = Keypair.fromSecret(config.agentSecret).publicKey();
 // Sign-up, invites and Mama's sign-in. The web app's server checks who is calling (the daughter's
 // Privy login, Mama's session) before it reaches these routes; they all need Mhasibu's key.
 const gatewayAuth = config.gatewayApiKey ? { authorization: `Bearer ${config.gatewayApiKey}` } : {};
+const signup = createSignup({ config });
 const families = createFamilies({
   purses,
-  signup: createSignup({ config }),
+  signup,
   config,
   verifyMeter: async (meter, disco) => {
     const u = new URL(`/v1/meters/${meter}`, config.gatewayUrl);
@@ -97,6 +98,16 @@ const families = createFamilies({
     return { ok: Boolean(body.ok), ownerName: body.ownerName ?? null, address: body.address ?? null, disco: body.disco ?? disco ?? null, reason: body.reason ?? null, unavailable: Boolean(body.unavailable), vtpass: body.vtpass?.code ? { code: body.vtpass.code, message: body.vtpass.message ?? null, ...(body.vtpass.keys ? { keys: body.vtpass.keys } : {}) } : null };
   },
 });
+
+// Each family's own agent wallet pays its network fees: check hourly, top up from the operator
+// below 2 XLM. One failure is logged and retried next hour.
+setInterval(async () => {
+  for (const p of purses.all?.() ?? []) {
+    if (!p.agent?.address) continue;
+    const sent = await signup.topUpAgentXlm(p.agent.address).catch((err) => { console.warn(`XLM top-up for ${p.id} failed: ${err.message}`); return 0; });
+    if (sent) console.log(`XLM top-up: ${sent} XLM to ${p.id}'s agent wallet`);
+  }
+}, 60 * 60_000).unref();
 
 const send = (res, status, body) => {
   res.writeHead(status, { "content-type": "application/json" });
@@ -199,6 +210,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/v1/family/delete") return send(res, 200, await families.deleteAccount(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/pause") return send(res, 200, await families.preparePause(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/withdraw") return send(res, 200, await families.prepareWithdraw(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/agent") return send(res, 200, await families.prepareAgentMove(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/action/complete") return send(res, 200, await families.completeAction(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/test-usdc") return send(res, 200, await families.testUsdc(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/invite") return send(res, 200, await families.sendNewInvite(await readJson(req)));

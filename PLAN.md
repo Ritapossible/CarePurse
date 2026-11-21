@@ -123,8 +123,8 @@ Electricity, airtime and data all pass in the VTpass sandbox (GitHub Actions wor
 Before mainnet (we are on Stellar testnet and the VTpass sandbox for now):
 - [ ] SMS through Termii for Mama's sign-in code and her token (no code on screen).
 - [ ] A native speaker reviews the Pidgin replies.
-- [ ] One agent wallet per family, instead of the shared wallet and global hold.
-- [ ] Pin the guardian to her Privy wallet on the server (Privy server key).
+- [x] One agent wallet per family (21 Nov); older purses move with one approval.
+- [x] Guardian confirmed as her own Privy wallet on the server (21 Nov, `PRIVY_APP_SECRET`).
 - [ ] Mainnet: Circle USDC on Stellar mainnet, an off-ramp to refill the naira float, production VTpass keys.
 - [ ] More than one instance per service (rate and payment holds shared through the database).
 

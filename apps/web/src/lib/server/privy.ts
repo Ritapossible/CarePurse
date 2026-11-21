@@ -1,6 +1,6 @@
 // Checks the daughter's Privy login on our server. Privy access tokens are ES256 JWTs
 // (issuer "privy.io", audience = our App ID), verified with Privy's public keys for our app.
-// No Privy secret is needed.
+// Her Stellar wallet is confirmed with Privy's server API (PRIVY_APP_SECRET, server-only).
 import "server-only";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
@@ -20,4 +20,23 @@ export async function privyUser(request: Request): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+// The Stellar wallets Privy has linked to this user, read from Privy's server API with our app
+// secret (never sent to the browser). The address the browser sends at sign-up must be one of
+// these, so the purse's guardian is always her own Privy wallet. Null when the secret isn't set.
+const APP_SECRET = process.env.PRIVY_APP_SECRET ?? "";
+export const privyWalletCheckConfigured = () => Boolean(APP_ID && APP_SECRET);
+
+type LinkedAccount = { type?: string; chain_type?: string; address?: string };
+export async function privyStellarWallets(userId: string): Promise<string[] | null> {
+  if (!privyWalletCheckConfigured()) return null;
+  const res = await fetch(`https://api.privy.io/v1/users/${encodeURIComponent(userId)}`, {
+    headers: { authorization: `Basic ${Buffer.from(`${APP_ID}:${APP_SECRET}`).toString("base64")}`, "privy-app-id": APP_ID },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`Privy answered ${res.status}`);
+  const user = (await res.json()) as { linked_accounts?: LinkedAccount[] };
+  return (user.linked_accounts ?? []).filter((a) => a.type === "wallet" && a.chain_type === "stellar" && a.address).map((a) => a.address!);
 }

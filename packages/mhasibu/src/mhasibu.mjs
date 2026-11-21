@@ -18,6 +18,8 @@ import { detectLanguage } from "./language.mjs";
 import { parseDay } from "./days.mjs";
 import { parseAmount } from "./amount.mjs";
 import { ContractRefused, orderRef } from "./purse-contract.mjs";
+import { openAgentKey } from "./agent-keys.mjs";
+import { AGENT_MOVE_MS } from "./families.mjs";
 
 const MINUTE = 60_000;
 // After this long, a signed x402 authorisation has expired, so a "fulfilling" order can no longer settle.
@@ -30,20 +32,24 @@ export function createMhasibu({
   purses = createPurseStore(config.pursesFile),
   wallet = createWallet(config),
   // One purse contract per family: the same wallet code, pointed at that purse's contract.
-  walletFor = (contractId) => createWallet({ ...config, purseContractId: contractId }),
+  // A purse with its own agent wallet signs with that wallet's key (unsealed only here, in memory).
+  walletFor = (purse) => createWallet({ ...config, purseContractId: purse.contractId, ...(purse.agent ? { agentSecret: openAgentKey(purse.agent.sealed, config.agentSecret) } : {}) }),
   understander = createUnderstander(config.llm),
   clock = () => Date.now(),
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log = () => {},
 } = {}) {
-  // The wallet for a purse: its own contract if it has one (families who signed up), otherwise
-  // the default one (the demo purse, PURSE_CONTRACT_ID).
+  // The wallet for a purse: its own contract (families who signed up) and, once it has one, its own
+  // agent wallet; otherwise the default (the demo purse, PURSE_CONTRACT_ID, on the shared wallet).
   const wallets = new Map();
   const walletOf = (purse) => {
-    if (!purse?.contractId || purse.contractId === config.purseContractId) return wallet;
-    if (!wallets.has(purse.contractId)) wallets.set(purse.contractId, walletFor(purse.contractId));
-    return wallets.get(purse.contractId);
+    if (!purse?.contractId || (purse.contractId === config.purseContractId && !purse.agent)) return wallet;
+    const key = `${purse.contractId}:${agentOf(purse)}`; // a new key after a move to her own wallet
+    if (!wallets.has(key)) wallets.set(key, walletFor(purse));
+    return wallets.get(key);
   };
+  // Which agent wallet a purse pays from: its own, or the one shared by older purses.
+  const agentOf = (purse) => purse?.agent?.address ?? "shared";
   // CarePurse's service fee (basis points). Mama never sees it; Adaeze's receipts do.
   const feeBps = config.serviceFeeBps ?? 0;
   const notifyGuardian = (purse, kind, text) => {
@@ -111,15 +117,21 @@ export function createMhasibu({
     // release, so even a crash or a timeout right after it leaves a trace to settle.
     let release = null;
     // A payment we signed and then gave up on stays valid until its window ends. Release no new money
-    // to the agent wallet before then, so that old signature can never take it. Every purse shares
-    // the one agent wallet, so this holds across families: while ANY purse has money released but not
-    // settled, or a hold still running, no purse releases (one family's coins never meet another's).
-    // Settle other families' leftover orders first (refund or commit), so one stuck order doesn't
-    // block everyone until that Mama writes again.
-    for (const other of purses.all?.() ?? []) {
-      if (other.id !== purse.id && other.openOrder) await settleOpenOrder(other).catch(() => {});
+    // to that agent wallet before then, so the old signature can never take it. Holds apply between
+    // purses that pay from the same wallet: a family with its own wallet is held only by its own
+    // orders; older purses on the shared wallet hold each other (one family's coins never meet
+    // another's). Their leftover orders are settled first, so one stuck order doesn't block the rest.
+    const mine = agentOf(purse);
+    const sharing = (purses.all?.() ?? [purses.get(purse.id)]).filter((p) => agentOf(p) === mine || (p.payHoldAgent ?? "shared") === mine);
+    for (const other of sharing) {
+      if (other.id !== purse.id && other.openOrder && agentOf(other) === mine) await settleOpenOrder(other).catch(() => {});
     }
-    const holds = (purses.all?.() ?? [purses.get(purse.id)]).map((p) => {
+    // While a move to her own wallet awaits the guardian's approval, start nothing on the old one.
+    const moving = purse.action?.kind === "agent" && clock() - Date.parse(purse.action.createdAt) < AGENT_MOVE_MS;
+    const holds = (purses.all ? sharing.map((p) => purses.get(p.id)) : [purses.get(purse.id)]).map((p) => {
+      if (p.id === purse.id && moving) return Infinity;
+      // A hold remembers the wallet it was signed from, so it still guards that wallet after a move.
+      if (agentOf(p) !== mine) return Date.parse(p.payHoldUntil ?? "") || 0;
       // Any unpaid open order holds, not only one marked released: a release that timed out stays
       // `released: false` until the chain answers, and it may already have landed on the agent wallet.
       if (p.openOrder && !p.openOrder.paid) return Infinity; // settled on that purse's next message
@@ -180,7 +192,7 @@ export function createMhasibu({
       return say.delivered(lang, { utility, ngn, token: result.token, units: result.units });
     } catch (err) {
       log({ type: "payment-failed", message: err.message });
-      purses.update(purse.id, (p) => { p.payHoldUntil = signedUntil; });
+      purses.update(purse.id, (p) => { p.payHoldUntil = signedUntil; p.payHoldAgent = agentOf(purse); });
       if (!release) return err.retryLater ? say.tryLater(lang) : say.failed(lang);
       // The contract released the money to Mhasibu's wallet. Settle it from the facts: if the
       // provider issued a token anyway, Mama keeps it and the gateway is paid; otherwise refund.

@@ -55,13 +55,55 @@ export function createSignup({ config, fetchImpl = fetch }) {
     }
   }
 
-  async function deployPurse(guardianAddress) {
+  // Each family gets its own agent wallet: Mhasibu's key for that purse only. The operator creates
+  // the account and its USDC trustline in one transaction (the operator pays; the new key signs its
+  // own trustline), with a little XLM for that family's network fees. No Friendbot: this works the
+  // same on any network. Returns the new key; the caller seals it before storing it.
+  const AGENT_START_XLM = String(config.agentStartXlm ?? "5");
+  async function createAgentWallet() {
+    const kp = Keypair.random();
+    const operator = await server.getAccount(agent.publicKey());
+    const tx = new TransactionBuilder(operator, { fee: String(Number(BASE_FEE) * 2), networkPassphrase: passphrase })
+      .addOperation(Operation.createAccount({ destination: kp.publicKey(), startingBalance: AGENT_START_XLM }))
+      .addOperation(Operation.changeTrust({ asset: new Asset("USDC", config.usdc.issuer), source: kp.publicKey() }))
+      .setTimeout(120)
+      .build();
+    tx.sign(agent, kp);
+    await soroban.submit(tx);
+    return { address: kp.publicKey(), secret: kp.secret() };
+  }
+
+  // Keep a family's agent wallet able to pay its network fees: below `min` XLM, the operator sends
+  // it back up to the starting amount. Returns the XLM sent (0 if none was needed).
+  async function topUpAgentXlm(address, { min = 2 } = {}) {
+    const res = await fetchImpl(`${config.horizonUrl}/accounts/${address}`);
+    if (!res.ok) return 0;
+    const xlm = Number((await res.json()).balances?.find((b) => b.asset_type === "native")?.balance ?? 0);
+    if (xlm >= min) return 0;
+    const amount = (Number(AGENT_START_XLM) - xlm).toFixed(7);
+    if (!(Number(amount) > 0)) return 0;
+    const operator = await server.getAccount(agent.publicKey());
+    const tx = new TransactionBuilder(operator, { fee: BASE_FEE, networkPassphrase: passphrase })
+      .addOperation(Operation.payment({ destination: address, asset: Asset.native(), amount }))
+      .setTimeout(120)
+      .build();
+    tx.sign(agent);
+    await soroban.submit(tx);
+    return Number(amount);
+  }
+
+  // Move an existing purse to its own agent wallet: `set_agent`, which only the guardian can call.
+  async function prepareSetAgent({ contractId, guardianAddress, agentAddress }) {
+    return prepareGuardianCall({ contractId, guardianAddress, method: "set_agent", args: [addressVal(agentAddress)] });
+  }
+
+  async function deployPurse(guardianAddress, agentAddress = agent.publicKey()) {
     if (!config.purseWasmHash) throw new Error("PURSE_WASM_HASH is not set: run npm run install-wasm");
     const created = await soroban.send(agent, Operation.createCustomContract({
       address: Address.fromString(agent.publicKey()),
       wasmHash: Buffer.from(config.purseWasmHash, "hex"),
       salt: crypto.randomBytes(32),
-      constructorArgs: [addressVal(guardianAddress), addressVal(agent.publicKey()), addressVal(config.usdc.contractId)],
+      constructorArgs: [addressVal(guardianAddress), addressVal(agentAddress), addressVal(config.usdc.contractId)],
     }));
     return { contractId: created.returnValue, tx: created.hash };
   }
@@ -118,7 +160,8 @@ export function createSignup({ config, fetchImpl = fetch }) {
   async function prepareSetup({ guardianAddress, limits, destinations }) {
     if (!/^G[A-Z2-7]{55}$/.test(guardianAddress ?? "")) throw new Error("not a Stellar address");
     await ensureAccount(guardianAddress);
-    const { contractId, tx } = await deployPurse(guardianAddress);
+    const familyAgent = await createAgentWallet();
+    const { contractId, tx } = await deployPurse(guardianAddress, familyAgent.address);
     const purseCap = capBaseUnits(monthlyCap(limits), capRate(config), 100, config.usdc.decimals, config.serviceFeeBps);
     const pending = await prepareGuardianCall({
       contractId,
@@ -126,7 +169,8 @@ export function createSignup({ config, fetchImpl = fetch }) {
       method: "configure",
       args: [capsMap(limits, config), destsMap(destinations, contractId, config), i128(purseCap)],
     });
-    return { ...pending, deployTx: tx };
+    // `agent` goes to the caller only, to be sealed and stored; it is not part of `pending`.
+    return { pending: { ...pending, deployTx: tx }, agent: familyAgent };
   }
 
   // A new plan for an existing purse: `configure` again with the new caps and monthly cap, the
@@ -210,5 +254,5 @@ export function createSignup({ config, fetchImpl = fetch }) {
     return BigInt(purseCap ?? 0) < capBaseUnits(monthlyCap(limits), config.ngnPerUsdc, 100, d, fee);
   }
 
-  return { capsBehind, prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
+  return { capsBehind, createAgentWallet, prepareSetAgent, topUpAgentXlm, prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
 }

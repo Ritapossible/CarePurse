@@ -223,3 +223,10 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 ## 2026-11-21: Review fixes (delete and the shared-wallet hold)
 - `deleteAccount` now refuses until the purse's `payHoldUntil` has passed: the record carries the hold that keeps every family's money off the shared agent wallet while an abandoned signed payment is still valid.
 - The cross-family hold now counts any unpaid open order, including a release that timed out (`released: false` until the chain answers), not only orders marked released.
+
+## 2026-11-21: One agent wallet per family; guardian confirmed with Privy
+- Sign-up creates the family's own agent wallet (operator-funded account, 5 XLM, USDC trustline, one transaction) and deploys the purse with it as `agent`. The key is sealed (AES-256-GCM, key derived from `AGENT_SECRET_KEY`) on the encrypted purse record; never returned by any route. Older purses move with one approval (`set_agent`, dashboard Upgrade), blocked while a top-up is open or a pay hold runs, and no top-up starts while the approval is pending.
+- Holds are per wallet: own-wallet families never wait on each other; shared-wallet purses still hold each other; `payHoldAgent` keeps a hold on the wallet it was signed from after a move.
+- Hourly XLM top-up of family wallets below 2 XLM. Never rotate `AGENT_SECRET_KEY` (family keys are sealed with it).
+- The web relay confirms the guardian address against Privy's server API (`GET api.privy.io/v1/users/{id}`, `PRIVY_APP_SECRET`); sign-up is closed (503) without the secret.
+- Tested live on testnet (throwaway keys): family wallet created, purse deployed with it as agent, `set_agent` moved it, a wrong signature refused.

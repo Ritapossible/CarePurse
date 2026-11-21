@@ -1,6 +1,7 @@
 // Sign-up, invites and Mama's sign-in, offline: a fake signer stands in for Stellar.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { Keypair } from "@stellar/stellar-sdk";
 import { createPurseStore } from "../src/purses.mjs";
 import { createFamilies, normalisePhone } from "../src/families.mjs";
 
@@ -8,12 +9,18 @@ const NOW = Date.parse("2026-11-16T09:00:00Z");
 const GUARDIAN = { privyId: "did:privy:adaeze", address: "GADAEZE", name: "Adaeze", email: "a@example.com" };
 const SIGNUP = { mama: { name: "Ngozi", phone: "+234 803 123 4567", language: "pcm" }, meter: "45012345678" };
 
+const OPERATOR = Keypair.random().secret();
+const FAMILY_AGENT = Keypair.random();
+const MOVED_AGENT = Keypair.random();
+
 function setup() {
   let clock = NOW;
   const calls = [];
   const trusted = new Set();
   const signup = {
-    prepareSetup: async ({ guardianAddress, destinations }) => { calls.push(["prepare", guardianAddress, destinations]); return { contractId: "CPURSE", hash: "ab".repeat(32), entry: "x", validUntil: 1, method: "configure", args: [] }; },
+    prepareSetup: async ({ guardianAddress, destinations }) => { calls.push(["prepare", guardianAddress, destinations]); return { pending: { contractId: "CPURSE", hash: "ab".repeat(32), entry: "x", validUntil: 1, method: "configure", args: [] }, agent: { address: "GFAMILYAGENT", secret: FAMILY_AGENT.secret() } }; },
+    createAgentWallet: async () => { calls.push(["agent-wallet"]); return { address: MOVED_AGENT.publicKey(), secret: MOVED_AGENT.secret() }; },
+    prepareSetAgent: async ({ agentAddress }) => { calls.push(["set-agent", agentAddress]); return { hash: "dd".repeat(32), method: "set_agent" }; },
     completeGuardianCall: async (pending, address, sig) => { if (sig !== "0xgood") throw new Error("signature doesn't match payload"); calls.push(["complete", address]); return { hash: "txhash" }; },
     sendTestUsdc: async (contractId, usdc) => { calls.push(["usdc", contractId, usdc]); return { tx: "fund" }; },
     purseBalance: async () => 10,
@@ -25,7 +32,7 @@ function setup() {
     prepareLimits: async ({ limits, destinations }) => { calls.push(["limits", limits.electricity.perTopup, destinations]); return { hash: "cd".repeat(32), entry: "y", validUntil: 1, method: "configure", args: [] }; },
   };
   const purses = createPurseStore(null, { seed: false });
-  const families = createFamilies({ purses, signup, config: { ngnPerUsdc: 1470, showMamaCode: true }, verifyMeter: async () => ({ ok: true, ownerName: "NGOZI OKAFOR" }), clock: () => clock });
+  const families = createFamilies({ purses, signup, config: { ngnPerUsdc: 1470, showMamaCode: true, agentSecret: OPERATOR }, verifyMeter: async () => ({ ok: true, ownerName: "NGOZI OKAFOR" }), clock: () => clock });
   return { families, purses, calls, tick: (ms) => { clock += ms; } };
 }
 
@@ -250,4 +257,55 @@ test("account: delete waits until a signed payment's hold has ended", async () =
   clock += 91_000;
   assert.deepEqual(await f2.deleteAccount({ privyId: GUARDIAN.privyId }), { deleted: true });
   void tick;
+});
+
+test("own agent wallet: sign-up stores only a sealed key, never shown to anyone", async () => {
+  const { openAgentKey } = await import("../src/agent-keys.mjs");
+  const { families, purses } = setup();
+  const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const p = purses.get(prep.purseId);
+  assert.equal(p.agent.address, "GFAMILYAGENT");
+  assert.equal(p.agent.secret, undefined);
+  assert.ok(!JSON.stringify(p).includes(FAMILY_AGENT.secret())); // not in the stored record, not in setup.pending
+  assert.equal(openAgentKey(p.agent.sealed, OPERATOR), FAMILY_AGENT.secret());
+  assert.throws(() => openAgentKey(p.agent.sealed, Keypair.random().secret())); // useless without the operator's key
+  const { purse } = await families.dashboard({ privyId: GUARDIAN.privyId });
+  assert.equal(purse.ownWallet, true);
+  const shown = JSON.stringify([purse, families.profile({ privyId: GUARDIAN.privyId })]);
+  assert.ok(!shown.includes(p.agent.sealed) && !shown.includes(FAMILY_AGENT.secret()));
+});
+
+test("own agent wallet: an older purse moves with one approval, never mid top-up", async () => {
+  const { openAgentKey } = await import("../src/agent-keys.mjs");
+  const { families, purses, calls } = setup();
+  const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  purses.update(prep.purseId, (p) => { delete p.agent; }); // made before per-family wallets
+  assert.equal((await families.dashboard({ privyId: GUARDIAN.privyId })).purse.ownWallet, false);
+
+  purses.update(prep.purseId, (p) => { p.openOrder = { orderId: "o1", paid: false }; });
+  await assert.rejects(families.prepareAgentMove({ privyId: GUARDIAN.privyId }), /still being settled/);
+  purses.update(prep.purseId, (p) => { p.openOrder = null; });
+
+  const r = await families.prepareAgentMove({ privyId: GUARDIAN.privyId });
+  assert.deepEqual([r.status, r.kind], ["pending", "agent"]);
+  assert.deepEqual(calls.filter((c) => c[0] === "set-agent"), [["set-agent", MOVED_AGENT.publicKey()]]);
+  // Asking again a moment later offers the same approval, not a second new wallet.
+  assert.equal((await families.prepareAgentMove({ privyId: GUARDIAN.privyId })).hash, r.hash);
+  assert.equal(calls.filter((c) => c[0] === "agent-wallet").length, 1);
+
+  // A top-up opened before she approves: the move waits for it.
+  purses.update(prep.purseId, (p) => { p.openOrder = { orderId: "o2", paid: false }; });
+  await assert.rejects(families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" }), /still being settled/);
+  assert.equal(purses.get(prep.purseId).agent, undefined);
+  purses.update(prep.purseId, (p) => { p.openOrder = null; });
+
+  const done = await families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  assert.equal(done.kind, "agent");
+  const p = purses.get(prep.purseId);
+  assert.equal(p.agent.address, MOVED_AGENT.publicKey());
+  assert.equal(openAgentKey(p.agent.sealed, OPERATOR), MOVED_AGENT.secret());
+  assert.equal(p.notifications.at(-1).kind, "agent");
+  await assert.rejects(families.prepareAgentMove({ privyId: GUARDIAN.privyId }), /already has its own wallet/);
 });

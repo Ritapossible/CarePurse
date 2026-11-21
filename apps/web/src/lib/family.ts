@@ -23,6 +23,7 @@ export type Purse = {
   spendableNgn?: number | null;
   feeBps?: number;
   withdrawals?: { at: string; usdc: number; to: string; tx: string }[];
+  ownWallet?: boolean; // false: an older purse on the shared agent wallet (one approval moves it)
   rulesBehind?: boolean; // the on-chain caps are behind today’s naira rate: re-save the plan
   rate?: { ngnPerUsdc: number; asOf: string | null; live: boolean };
   notifications: { at: string; kind: string; text: string }[];

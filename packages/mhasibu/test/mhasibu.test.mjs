@@ -595,7 +595,7 @@ test("a NEAR model that NEAR marks not private is never sent Mama's words", asyn
 
 test("each family's purse pays from its own contract", async () => {
   const byContract = {};
-  const walletFor = (contractId) => (byContract[contractId] ??= phase2Wallet());
+  const walletFor = (purse) => (byContract[purse.contractId] ??= phase2Wallet());
   const purses = createPurseStore(null, { seed: false });
   purses.put(newPurse({ ...DEMO_PURSE, id: "okafor", contractId: "CONTRACT_OKAFOR" }));
   purses.put(newPurse({ ...DEMO_PURSE, id: "bello", contractId: "CONTRACT_BELLO" }));
@@ -774,4 +774,66 @@ test("a release still unknown on another family holds every purse until the chai
   await mhasibu.handle("b", "1");
   assert.equal(purses.get("a").openOrder, null);
   assert.equal(releases.length, 1);
+});
+
+test("own agent wallets: one family's hold never blocks another's; the shared wallet still holds its purses", async () => {
+  const purses = createPurseStore(null, { seed: false });
+  purses.put({ ...newPurse({ ...DEMO_PURSE, id: "a", contractId: "CA" }), agent: { address: "GA_AGENT", sealed: "x" } });
+  purses.put({ ...newPurse({ ...DEMO_PURSE, id: "b", contractId: "CB" }), agent: { address: "GB_AGENT", sealed: "x" } });
+  purses.put(newPurse({ ...DEMO_PURSE, id: "old1", contractId: "CO1" }));
+  purses.put(newPurse({ ...DEMO_PURSE, id: "old2", contractId: "CO2" }));
+  const releases = [];
+  const walletFor = (purse) => ({ ...fakeWallet(), release: async () => { releases.push(purse.id); return { tx: "rel" }; }, commitRef: async () => ({ tx: "c" }), openOrderRef: async () => { throw new Error("rpc timeout"); } });
+  const clock = MONDAY_10AM;
+  const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => clock, wait: async () => {} });
+  // A: a failed payment's signature is still valid, and an unknown release is still open
+  purses.update("a", (p) => { p.payHoldUntil = new Date(clock + 90_000).toISOString(); p.payHoldAgent = "GA_AGENT"; });
+  // old1 (shared wallet): a hold of its own
+  purses.update("old1", (p) => { p.payHoldUntil = new Date(clock + 90_000).toISOString(); });
+
+  await mhasibu.handle("b", "my light is finished");
+  await mhasibu.handle("b", "1");
+  assert.deepEqual(releases, ["b"]); // B has its own wallet: A's hold doesn't touch it
+
+  await mhasibu.handle("a", "my light is finished");
+  assert.match(await mhasibu.handle("a", "1"), /minute/i); // A waits for its own hold
+
+  await mhasibu.handle("old2", "my light is finished");
+  assert.match(await mhasibu.handle("old2", "1"), /minute/i); // shared wallet: old1's hold still holds old2
+  assert.deepEqual(releases, ["b"]);
+});
+
+test("after a move, a hold signed from the shared wallet still guards the purses left on it", async () => {
+  const purses = createPurseStore(null, { seed: false });
+  // "moved" now has its own wallet, but its last failed payment was signed from the shared one
+  purses.put({ ...newPurse({ ...DEMO_PURSE, id: "moved", contractId: "CM" }), agent: { address: "GM_AGENT", sealed: "x" } });
+  purses.put(newPurse({ ...DEMO_PURSE, id: "old", contractId: "CO" }));
+  const releases = [];
+  const walletFor = (purse) => ({ ...fakeWallet(), release: async () => { releases.push(purse.id); return { tx: "rel" }; }, commitRef: async () => ({ tx: "c" }) });
+  let clock = MONDAY_10AM;
+  const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => clock, wait: async () => {} });
+  purses.update("moved", (p) => { p.payHoldUntil = new Date(clock + 90_000).toISOString(); p.payHoldAgent = "shared"; });
+  await mhasibu.handle("old", "my light is finished");
+  assert.match(await mhasibu.handle("old", "1"), /minute/i);
+  clock += 120_000;
+  await mhasibu.handle("old", "my light is finished");
+  await mhasibu.handle("old", "1");
+  assert.deepEqual(releases, ["old"]);
+});
+
+test("while a move to her own wallet awaits approval, no top-up starts on the old one", async () => {
+  const purses = createPurseStore(null, { seed: false });
+  purses.put(newPurse({ ...DEMO_PURSE, id: "f", contractId: "CF" }));
+  const releases = [];
+  const walletFor = (purse) => ({ ...fakeWallet(), release: async () => { releases.push(purse.id); return { tx: "rel" }; }, commitRef: async () => ({ tx: "c" }) });
+  let clock = MONDAY_10AM;
+  const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => clock, wait: async () => {} });
+  purses.update("f", (p) => { p.action = { kind: "agent", createdAt: new Date(clock).toISOString() }; });
+  await mhasibu.handle("f", "my light is finished");
+  assert.match(await mhasibu.handle("f", "1"), /minute/i);
+  assert.deepEqual(releases, []);
+  clock += 10 * 60_000; // the approval request expired without her signature: carry on as before
+  await mhasibu.handle("f", "my light is finished");
+  await mhasibu.handle("f", "1");
+  assert.deepEqual(releases, ["f"]);
 });

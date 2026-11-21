@@ -86,7 +86,7 @@ The live log is a stream (Server-Sent Events). On Vercel a function runs for at 
 1. **dashboard.privy.io** → Create app (CarePurse).
 2. **Login methods:** Email and Google on.
 3. **Allowed domains:** your Vercel address (e.g. `https://care-purse.vercel.app`) and `http://localhost:3000`.
-4. Copy the **App ID** (public) into Vercel as `NEXT_PUBLIC_PRIVY_APP_ID`, then redeploy. No Privy secret is needed: our server checks logins with Privy's public keys.
+4. Copy the **App ID** (public) into Vercel as `NEXT_PUBLIC_PRIVY_APP_ID`, and the **App secret** as `PRIVY_APP_SECRET` (server only, never `NEXT_PUBLIC_`), then redeploy. Logins are checked with Privy's public keys; the secret is used only to confirm at sign-up that the guardian address is her own Privy wallet. Without it, sign-up stays closed.
 5. On Render (carepurse-mhasibu): `PURSE_WASM_HASH` is already in `render.yaml`. Set `TREASURY_SECRET` to the testnet wallet that hands out test USDC (the demo guardian's secret works). The agent wallet needs test XLM: it pays the fee to create each family's purse.
 
 Try it: open `/start`, sign in, fill in Mama, check the meter (VTpass sandbox: `1111111111111`), choose Standard, approve once in Privy, get test USDC, copy Mama's link and open it on a phone.
@@ -98,7 +98,7 @@ Add three HTTP(s) monitors, every 5 minutes: the gateway's `/health`, Mhasibu's 
 ## Things to know
 
 - **Free plan sleeps** after 15 minutes idle; the first request takes about a minute. Open all three URLs a few minutes before a demo.
-- **Privacy keys are automatic:** `GATEWAY_API_KEY` is generated on the gateway and shared with Mhasibu (only Mhasibu can read orders), and `DATA_ENCRYPTION_KEY` on each service. The meter/phone fingerprints on-chain are keyed from `AGENT_SECRET_KEY`, so use the same agent key as in `.env`, or run `npm run sync-purse` after changing it.
+- **Privacy keys are automatic:** `GATEWAY_API_KEY` is generated on the gateway and shared with Mhasibu (only Mhasibu can read orders), and `DATA_ENCRYPTION_KEY` on each service. The meter/phone fingerprints on-chain are keyed from `AGENT_SECRET_KEY`, and **each family's agent wallet key is sealed with it**: never change `AGENT_SECRET_KEY` on a running deployment, or Mhasibu can no longer sign for those families. The operator (this key's wallet) pays 5 XLM to create each family's agent wallet, and tops them up, so keep it funded with test XLM.
 - **Set `DATABASE_URL`** on the gateway and on Mhasibu (the same database is fine). Render's free plan wipes files on every restart; with the database, orders, purchases, Mama's tokens and her chat survive. Without it they'd reset after each restart.
 - **Mhasibu is not public.** Every route except `/v1/status` needs `MHASIBU_API_KEY`; only the web app's server holds it. Mama's chat and tokens are reachable only through the web app (and its access code, if set).
 - **No secrets in `render.yaml`.** The gateway only needs its public address; only Mhasibu holds a secret key.

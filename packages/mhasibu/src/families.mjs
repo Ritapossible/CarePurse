@@ -9,6 +9,7 @@
 import crypto from "node:crypto";
 import { PRESETS, monthlyCap, periodStart, spentSince } from "./limits.mjs";
 import { newPurse } from "./purses.mjs";
+import { sealAgentKey } from "./agent-keys.mjs";
 
 const DAY = 86_400_000;
 const INVITE_DAYS = 7;
@@ -34,6 +35,7 @@ export function normalisePhone(raw) {
 
 const PENDING_SETUP_MS = 9 * 60_000; // the guardian signature request is valid ~10 minutes (120 ledgers)
 const MAX_SETUPS_PER_DAY = 5; // each one deploys a contract, paid by the agent
+export const AGENT_MOVE_MS = 9 * 60_000; // while a move to her own wallet awaits her approval, no top-up starts
 const SESSION_DAYS = 30; // Mama stays signed in on her phone this long
 
 export function createFamilies({ purses, signup, config, verifyMeter, clock = () => Date.now() }) {
@@ -102,7 +104,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     // A sign-up that wasn't finished (closed the tab, signature expired): start it again with a
     // new purse contract, so the rules always come from one signature.
     const id = existing?.id ?? `p_${crypto.randomBytes(6).toString("hex")}`;
-    const pending = await signup.prepareSetup({ guardianAddress: guardian.address, limits, destinations });
+    const { pending, agent } = await signup.prepareSetup({ guardianAddress: guardian.address, limits, destinations });
     const purse = newPurse({
       id,
       mama: { name, phone, language },
@@ -113,6 +115,8 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
       contractId: pending.contractId,
     });
     purse.setup = { status: "pending", createdAt: iso(), pending };
+    // Her family's own agent wallet (the contract's agent): the key is sealed before it is stored.
+    purse.agent = { address: agent.address, sealed: sealAgentKey(agent.secret, config.agentSecret) };
     purse.setupAttempts = [...today, iso()];
     purse.testUsdc = 0;
     purses.put(purse);
@@ -207,6 +211,34 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     return { status: "pending", kind: "withdraw", hash: pending.hash, usdc: amount, to: dest };
   }
 
+  // ── Her family's own agent wallet ───────────────────────────
+  // Purses made before per-family wallets use the shared one. One approval (`set_agent`) moves the
+  // purse to a wallet of its own. Not while a top-up is open or a signed payment may still settle:
+  // the old wallet must finish its order first (refunds and commits come from the wallet that holds
+  // the money).
+  function moveBlocked(p) {
+    if (p.openOrder) return "A top-up is still being settled. Try again in a few minutes.";
+    if (now() < (Date.parse(p.payHoldUntil ?? "") || 0)) return "A recent top-up is still being closed safely. Try again in 2 minutes.";
+    return null;
+  }
+
+  async function prepareAgentMove({ privyId }) {
+    const p = mine(privyId);
+    if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
+    if (p.agent) throw new FamilyError(409, "Mama’s purse already has its own wallet.");
+    const blocked = moveBlocked(p);
+    if (blocked) throw new FamilyError(409, blocked);
+    // A move she started a moment ago is offered again, not a second new wallet.
+    if (p.action?.kind === "agent" && now() - Date.parse(p.action.createdAt) < AGENT_MOVE_MS) {
+      return { status: "pending", kind: "agent", hash: p.action.pending.hash };
+    }
+    const agent = await signup.createAgentWallet();
+    const pending = await signup.prepareSetAgent({ contractId: p.contractId, guardianAddress: p.guardian.address, agentAddress: agent.address });
+    purses.update(p.id, (x) => { x.action = { kind: "agent", pending, agent: { address: agent.address, sealed: sealAgentKey(agent.secret, config.agentSecret) }, createdAt: iso() }; });
+    await purses.flush?.();
+    return { status: "pending", kind: "agent", hash: pending.hash };
+  }
+
   async function completeAction({ privyId, signature }) {
     const p = mine(privyId);
     const a = p.action;
@@ -220,9 +252,18 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
       // Opted in: now the withdrawal itself, for her second approval.
       return prepareWithdraw({ privyId, usdc: a.then.usdc, to: a.then.to });
     }
+    if (a.kind === "agent") {
+      const blocked = moveBlocked(p);
+      if (blocked) throw new FamilyError(409, blocked);
+    }
     const done = await signup.completeGuardianCall(a.pending, p.guardian.address, signature).catch(fail);
     purses.update(p.id, (x) => {
       x.action = null;
+      if (a.kind === "agent") {
+        x.agent = a.agent;
+        (x.notifications ??= []).push({ at: iso(), kind: "agent", text: `Mama’s purse now has its own Mhasibu AI wallet (tx ${done.hash}).` });
+        return;
+      }
       if (a.kind === "pause" || a.kind === "unpause") x.paused = a.kind === "pause";
       if (a.kind === "withdraw") (x.withdrawals ??= []).push({ at: iso(), usdc: a.usdc, to: a.to, tx: done.hash });
       (x.notifications ??= []).push({ at: iso(), kind: a.kind, text: a.kind === "withdraw" ? `Withdrew ${a.usdc} USDC to ${a.to.slice(0, 6)}…${a.to.slice(-4)} (tx ${done.hash}).` : `Purse ${a.kind === "pause" ? "paused" : "resumed"} (tx ${done.hash}).` });
@@ -340,6 +381,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
         testUsdcLeft: TEST_USDC_TIMES - (p.testUsdc ?? 0),
         withdrawals: [...(p.withdrawals ?? [])].reverse().slice(0, 10),
         rulesBehind: behind,
+        ownWallet: Boolean(p.agent),
       },
     };
   }
@@ -436,5 +478,5 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   // The purse a guardian (Privy user) owns, or null.
   const guardianPurse = (privyId) => byGuardian(privyId)?.id ?? null;
 
-  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, testUsdc, dashboard, activity, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
+  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, prepareAgentMove, testUsdc, dashboard, activity, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
 }
