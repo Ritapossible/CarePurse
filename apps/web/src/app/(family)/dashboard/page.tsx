@@ -200,12 +200,18 @@ export default function DashboardPage() {
       }
       await load();
       setSheet(null);
+      setNotice(next === purse?.preset ? "Rules updated to today’s rate." : `Switched to the ${PRESETS[next].label} plan.`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(null);
     }
   }
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
   const copy = (key: string, text: string) => navigator.clipboard?.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(null), 1500); });
 
   if (!ready) return <p className="text-muted">Loading…</p>;
@@ -236,133 +242,152 @@ export default function DashboardPage() {
   const month = purse.monthNgn ?? 0;
   const used = Math.min(100, Math.round((month / purse.monthlyCap) * 100));
   const spends = all ? purse.spends : purse.spends.slice(0, 5);
-  const ACTIONS = [
-    { key: "fund", label: "Add money", icon: ICONS.add, onClick: () => setSheet("fund") },
-    { key: "withdraw", label: "Withdraw", icon: ICONS.withdraw, onClick: () => { setError(null); setSheet("withdraw"); } },
-    { key: "invite", label: "Invite Mama", icon: ICONS.invite, onClick: () => setSheet("invite") },
-    { key: "limits", label: "Limits", icon: ICONS.limits, onClick: () => setSheet("plan") },
-  ];
+  const rowIcon = "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface";
+  const rowButton = "h-9 shrink-0 rounded-[10px] border border-line px-3.5 text-sm font-medium transition-colors duration-150 hover:border-foreground disabled:opacity-40";
+  const joined = purse.invite.status === "joined";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      {/* Page title (the account menu is in the header) */}
-      <header className="flex items-center justify-between">
+    <div className="mx-auto max-w-5xl space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm text-muted">Dashboard</p>
-          <h1 className="text-2xl font-medium">Mama {purse.mama.name}’s purse</h1>
+          <h1 className="mt-1 text-2xl font-medium tracking-[-0.01em]">Mama {purse.mama.name}’s purse</h1>
         </div>
+        {purse.paused ? (
+          <span className="inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-muted" />Paused</span>
+        ) : (
+          <span className="inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>
+        )}
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-      <div className="space-y-8">
-      {/* Balance card */}
-      <section className="rounded-[24px] bg-foreground p-6 text-background">
-        <div className="flex items-center justify-between text-sm text-background/60">
-          <span className="inline-flex items-center gap-2">
-            Balance
-            <button onClick={() => setHidden((h) => !h)} aria-label={hidden ? "Show balance" : "Hide balance"} className="text-background/60 hover:text-background">
-              <Icon d={hidden ? ICONS.eyeOff : ICONS.eye} className="h-4 w-4" />
-            </button>
-          </span>
-          {purse.paused ? <span className="text-xs text-background">Paused</span> : <span className="inline-flex items-center gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>}
-        </div>
-        <div className="mt-3 text-[44px] font-medium leading-none tracking-[-0.02em] tabular-nums">{hidden ? "₦ ••••••" : naira(purse.balanceNgn ?? 0)}</div>
-        {!hidden && purse.spendableNgn != null && purse.feeBps ? (
-          <p className="mt-2 text-sm text-background/80 tabular-nums">Mama can spend {naira(purse.spendableNgn)} (after your {purse.feeBps / 100}% fee)</p>
-        ) : null}
-        {purse.rate && !hidden && (
-          <p className="mt-1 text-sm text-background/60 tabular-nums">{purse.balanceUsdc ?? 0} USDC · ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")} per USDC{purse.rate.live ? " (today’s rate)" : ""}</p>
-        )}
-        <div className="mt-6">
-          <div className="flex justify-between text-sm">
-            <span className="text-background/60">Spent this month</span>
-            <span className="tabular-nums">{hidden ? "••••" : naira(month)} <span className="text-background/50">of {naira(purse.monthlyCap)}</span></span>
+      {purse.rulesBehind && (
+        <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">Update Mama’s rules to today’s rate</p>
+            <p className="mt-0.5 text-sm text-secondary">The naira moved since her plan was saved, so some top-ups within her limits could be refused. One approval fixes it.</p>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/15">
-            <div className="h-full rounded-full bg-background" style={{ width: `${used}%` }} />
-          </div>
-        </div>
-      </section>
-
-      {/* Quick actions */}
-      <section className="grid grid-cols-4 gap-3">
-        {ACTIONS.map((a) => (
-          <button key={a.key} onClick={a.onClick} className="group flex flex-col items-center gap-2">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-line bg-white transition-colors duration-150 group-hover:border-foreground"><Icon d={a.icon} /></span>
-            <span className="text-[13px] font-medium">{a.label}</span>
+          <button disabled={Boolean(busy)} onClick={() => changePlan(purse.preset as "light" | "standard")} className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] bg-foreground px-4 text-sm font-medium text-background disabled:opacity-40">
+            {busy === `plan-${purse.preset}` ? "Saving on Stellar…" : "Update rules"}
           </button>
-        ))}
-      </section>
+        </section>
+      )}
 
-      {/* Mama */}
-      <section className="flex items-center gap-4 rounded-2xl border border-line p-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface text-lg font-medium">{purse.mama.name.slice(0, 1).toUpperCase()}</span>
-        <div className="min-w-0 flex-1">
-          <div className="font-medium">Mama {purse.mama.name}</div>
-          <div className="text-sm text-muted">{maskPhone(purse.mama.phone)} · Meter •••{purse.destinations.electricity.slice(-4)}</div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-8">
+        <div className="space-y-6">
+          {/* Balance, with the two money actions */}
+          <section className="rounded-[24px] bg-foreground p-6 text-background">
+            <div className="flex items-center gap-2 text-sm text-background/60">
+              Balance
+              <button onClick={() => setHidden((h) => !h)} aria-label={hidden ? "Show balance" : "Hide balance"} className="text-background/60 hover:text-background">
+                <Icon d={hidden ? ICONS.eyeOff : ICONS.eye} className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-3 text-[40px] font-medium leading-none tracking-[-0.02em] tabular-nums sm:text-[44px]">{hidden ? "₦ ••••••" : naira(purse.balanceNgn ?? 0)}</div>
+            {!hidden && purse.spendableNgn != null && purse.feeBps ? (
+              <p className="mt-2 text-sm text-background/80 tabular-nums">Mama can spend {naira(purse.spendableNgn)} after your {purse.feeBps / 100}% fee</p>
+            ) : null}
+            {purse.rate && !hidden && (
+              <p className="mt-1 text-[13px] text-background/50 tabular-nums">{Number(purse.balanceUsdc ?? 0).toFixed(2)} USDC · ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")} per USDC{purse.rate.live ? " today" : ""}</p>
+            )}
+            <div className="mt-6">
+              <div className="flex justify-between text-sm">
+                <span className="text-background/60">Spent this month</span>
+                <span className="tabular-nums">{hidden ? "••••" : naira(month)} <span className="text-background/50">of {naira(purse.monthlyCap)}</span></span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/15">
+                <div className="h-full rounded-full bg-background" style={{ width: `${Math.max(used, month > 0 ? 2 : 0)}%` }} />
+              </div>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button onClick={() => setSheet("fund")} className="inline-flex h-11 items-center justify-center gap-2 rounded-[12px] bg-background text-sm font-medium text-foreground transition-opacity duration-150 hover:opacity-90">
+                <Icon d={ICONS.add} className="h-4 w-4" />Add money
+              </button>
+              <button onClick={() => { setError(null); setSheet("withdraw"); }} className="inline-flex h-11 items-center justify-center gap-2 rounded-[12px] bg-background/10 text-sm font-medium text-background transition-colors duration-150 hover:bg-background/20">
+                <Icon d={ICONS.withdraw} className="h-4 w-4" />Withdraw
+              </button>
+            </div>
+          </section>
+
+          {/* Mama and the purse's controls, as one list */}
+          <section className="divide-y divide-line rounded-2xl border border-line bg-white">
+            <div className="flex items-center gap-4 p-4">
+              <span className={`${rowIcon} text-base font-medium`}>{purse.mama.name.slice(0, 1).toUpperCase()}</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">Mama {purse.mama.name}</div>
+                <div className="truncate text-sm text-muted">{maskPhone(purse.mama.phone)} · Meter •••{purse.destinations.electricity.slice(-4)}</div>
+              </div>
+              <span className="shrink-0 text-sm text-secondary">{INVITE[purse.invite.status]}</span>
+            </div>
+            <div className="flex items-center gap-4 p-4">
+              <span className={rowIcon}><Icon d={ICONS.invite} className="h-[18px] w-[18px]" /></span>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">Sign-in link</div>
+                <div className="text-sm text-muted">{joined ? "A new link signs her out elsewhere" : "Works once, for 7 days"}</div>
+              </div>
+              <button onClick={() => setSheet("invite")} className={rowButton}>{joined ? "New link" : purse.invite.status === "waiting" ? "Resend" : "Invite"}</button>
+            </div>
+            <div className="flex items-center gap-4 p-4">
+              <span className={rowIcon}><Icon d={purse.paused ? ICONS.play : ICONS.pause} className="h-[18px] w-[18px]" /></span>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">Top-ups</div>
+                <div className="text-sm text-muted">{busy === "pause" && step ? step : purse.paused ? "Paused until you resume" : "Mhasibu AI can buy for her"}</div>
+              </div>
+              <button onClick={togglePause} disabled={Boolean(busy)} className={purse.paused ? `${rowButton} border-foreground bg-foreground text-background` : rowButton}>
+                {busy === "pause" ? "Approving…" : purse.paused ? "Resume" : "Pause"}
+              </button>
+            </div>
+            <div className="flex items-center gap-4 p-4">
+              <span className={rowIcon}><Icon d={ICONS.limits} className="h-[18px] w-[18px]" /></span>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">{preset.label} plan</div>
+                <div className="text-sm text-muted">Up to {naira(purse.monthlyCap)} a month</div>
+              </div>
+              <button onClick={() => setSheet("plan")} className={rowButton}>Change</button>
+            </div>
+          </section>
         </div>
-        {purse.invite.status === "joined" ? (
-          <span className="inline-flex items-center gap-1.5 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />{INVITE.joined}</span>
-        ) : (
-          <button onClick={() => setSheet("invite")} className="h-9 rounded-[10px] border border-foreground px-3 text-sm font-medium">{purse.invite.status === "waiting" ? "Resend" : "Invite"}</button>
-        )}
-      </section>
 
-      {/* Pause */}
-      <section className="flex items-center gap-4 rounded-2xl border border-line p-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface"><Icon d={purse.paused ? ICONS.play : ICONS.pause} /></span>
-        <div className="min-w-0 flex-1">
-          <div className="font-medium">{purse.paused ? "Purse is paused" : "Pause the purse"}</div>
-          <div className="text-sm text-muted">{busy === "pause" && step ? step : purse.paused ? "Mhasibu AI won’t buy anything until you resume" : "Stop all top-ups until you resume"}</div>
+        <div className="space-y-6">
+          {/* Activity */}
+          <section id="activity" className="scroll-mt-24">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-lg font-medium">Recent activity</h2>
+              {purse.spends.length > 5 && <button onClick={() => setAll((a) => !a)} className="text-sm text-muted hover:text-foreground">{all ? "Show less" : "View all"}</button>}
+            </div>
+            {purse.spends.length === 0 ? (
+              <div className="mt-3 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+                <p className="font-medium">No top-ups yet</p>
+                <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu AI for light, airtime or data, it shows here</p>
+              </div>
+            ) : (
+              <ul className="mt-3 space-y-3">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
+            )}
+          </section>
+
+          {/* Limits */}
+          <section id="limits" className="scroll-mt-24">
+            <h2 className="text-lg font-medium">Limits</h2>
+            <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-white">
+              {(["electricity", "airtime", "data"] as const).map((u) => (
+                <li key={u} className="flex items-center gap-3 px-4 py-3.5">
+                  <Icon d={ICONS[u]} className="h-[18px] w-[18px] shrink-0 text-muted" />
+                  <span className="w-24 shrink-0 font-medium">{UTILITY[u]}</span>
+                  <span className="min-w-0 flex-1 text-right text-sm text-secondary">{preset[u]}</span>
+                </li>
+              ))}
+              <li className="flex items-center justify-between px-4 py-3.5">
+                <span className="font-medium">Monthly total</span>
+                <span className="text-sm text-secondary">up to {naira(purse.monthlyCap)}</span>
+              </li>
+            </ul>
+            <p className="mt-3 text-sm text-muted">Saved on Mama’s purse on Stellar. Only your approval can change them.</p>
+          </section>
         </div>
-        <button onClick={togglePause} disabled={Boolean(busy)} className={`h-9 shrink-0 rounded-[10px] px-3 text-sm font-medium disabled:opacity-40 ${purse.paused ? "bg-foreground text-background" : "border border-foreground"}`}>
-          {busy === "pause" ? "Approving…" : purse.paused ? "Resume" : "Pause"}
-        </button>
-      </section>
-      {notice && <p className="rounded-[10px] bg-surface px-4 py-3 text-sm">{notice}</p>}
-
       </div>
-      <div className="space-y-8">
-      {/* Activity */}
-      <section id="activity" className="scroll-mt-24">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-medium">Recent activity</h2>
-          {purse.spends.length > 5 && <button onClick={() => setAll((a) => !a)} className="text-sm text-muted hover:text-foreground">{all ? "Show less" : "View all"}</button>}
-        </div>
-        {purse.spends.length === 0 ? (
-          <div className="mt-3 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-            <p className="font-medium">No top-ups yet</p>
-            <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu AI for light, airtime or data, it shows here</p>
-          </div>
-        ) : (
-          <ul className="mt-3 space-y-3">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
-        )}
-      </section>
 
-      {/* Limits */}
-      <section id="limits" className="scroll-mt-24">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-medium">Limits</h2>
-          <button onClick={() => setSheet("plan")} className="text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">{preset.label} plan · Change</button>
-        </div>
-        <ul className="mt-3 divide-y divide-line rounded-2xl border border-line">
-          {(["electricity", "airtime", "data"] as const).map((u) => (
-            <li key={u} className="flex items-center gap-4 px-4 py-4">
-              <Icon d={ICONS[u]} className="h-5 w-5 text-muted" />
-              <span className="flex-1 font-medium">{UTILITY[u]}</span>
-              <span className="text-sm text-secondary">{preset[u]}</span>
-            </li>
-          ))}
-          <li className="flex items-center justify-between px-4 py-4">
-            <span className="font-medium">Monthly total</span>
-            <span className="text-sm text-secondary">up to {naira(purse.monthlyCap)}</span>
-          </li>
-        </ul>
-        <p className="mt-3 text-sm text-muted">Kept on Mama’s purse itself. Only your signature can change them.</p>
-      </section>
-
-      </div>
-      </div>
+      {notice && (
+        <div role="status" className="fixed inset-x-4 bottom-6 z-40 mx-auto max-w-sm rounded-2xl bg-foreground px-4 py-3 text-center text-sm text-background shadow-[0_8px_24px_rgba(0,0,0,0.18)]">{notice}</div>
+      )}
 
       {error && <p className="rounded-[10px] bg-danger-soft px-4 py-3 text-danger">{error}</p>}
 

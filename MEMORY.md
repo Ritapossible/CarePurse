@@ -209,3 +209,8 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - **`SERVICE_FEE_BPS=0` stopped the gateway from starting: true** (it was read with the "positive number" helper). Both services now read it as a whole number from 0 to 1000; 0 switches the fee off. Regression test added (gateway 16 tests).
 - **Set `WEB_ACCESS_CODE` before going public: right**, so it's now enforced: in production the web app's relay keeps Mama's chat closed (503) unless a code is set. Checked on a production build: no code configured → 503; code set → no or wrong code 401, right code 200.
 
+
+## 2026-11-21: On-chain caps can fall behind the naira rate
+- A purse configured while the backend priced at the fixed ₦1,470 (no cap margin) refused a ₦500 airtime top-up once the live rate (₦1,352.93) made it cost more USDC than the per-top-up cap. Mhasibu wrongly told Mama "limit reached".
+- Now: an on-chain refusal after Mhasibu's own naira checks passed is reported as "rules out of date": Mama hears she hasn't gone over her limit, the daughter is notified, and the dashboard reads the caps from the chain (`capsBehind`, cached 10 min) and shows "Update rules" (re-save the same plan at today's rate, one signature).
+- Dashboard regrouped: money actions inside the balance card; Mama, sign-in link, pause and plan as one settings list; notices as a toast.

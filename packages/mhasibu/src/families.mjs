@@ -163,6 +163,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
       x.limitsChange = null;
       (x.notifications ??= []).push({ at: iso(), kind: "limits-changed", text: `Plan changed to ${change.preset === "light" ? "Light" : "Standard"} (tx ${done.hash}).` });
     });
+    for (const k of behindCache.keys()) if (k.startsWith(`${p.contractId}:`)) behindCache.delete(k);
     await purses.flush?.();
     return { status: "active", preset: change.preset, tx: done.hash };
   }
@@ -287,10 +288,25 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     return { ...sent, usdc: TEST_USDC };
   }
 
+  // Whether the purse's on-chain caps have fallen behind today's naira rate (cached 10 minutes).
+  const behindCache = new Map();
+  async function rulesBehind(p) {
+    if (p.setup?.status !== "active" || !signup.capsBehind) return false;
+    const key = `${p.contractId}:${config.ngnPerUsdc}:${p.preset}`;
+    const hit = behindCache.get(key);
+    if (hit && clock() - hit.at < 10 * 60_000) return hit.value;
+    const value = await signup.capsBehind({ contractId: p.contractId, limits: p.limits }).catch(() => false);
+    behindCache.set(key, { at: clock(), value });
+    return value;
+  }
+
   async function dashboard({ privyId }) {
     const p = byGuardian(privyId);
     if (!p) return { purse: null };
-    const balanceUsdc = p.setup?.status === "active" ? await signup.purseBalance(p.contractId).catch(() => null) : null;
+    const [balanceUsdc, behind] = await Promise.all([
+      p.setup?.status === "active" ? signup.purseBalance(p.contractId).catch(() => null) : null,
+      rulesBehind(p),
+    ]);
     return {
       purse: {
         id: p.id,
@@ -315,6 +331,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
         notifications: [...(p.notifications ?? [])].reverse().slice(0, 20),
         testUsdcLeft: TEST_USDC_TIMES - (p.testUsdc ?? 0),
         withdrawals: [...(p.withdrawals ?? [])].reverse().slice(0, 10),
+        rulesBehind: behind,
       },
     };
   }

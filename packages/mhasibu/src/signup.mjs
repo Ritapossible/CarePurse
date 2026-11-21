@@ -191,5 +191,24 @@ export function createSignup({ config, fetchImpl = fetch }) {
     return Number(raw) / 10 ** config.usdc.decimals;
   }
 
-  return { prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
+  // Are the purse's on-chain caps below what her plan costs at today's rate? Caps are saved in USDC
+  // with a margin (capRate); if the naira strengthens past it, a top-up her plan allows would be
+  // refused by the contract. The dashboard then asks her to re-save the plan (one signature).
+  async function capsBehind({ contractId, limits }) {
+    const d = config.usdc.decimals;
+    const fee = config.serviceFeeBps;
+    const keys = { per_topup: "perTopup", per_day: "perDay", per_week: "perWeek", per_month: "perMonth" };
+    for (const u of UTILITIES.filter((x) => limits[x])) {
+      const onChain = await soroban.read(contractId, "caps", [symbol(u)], agent.publicKey());
+      if (!onChain) return true;
+      for (const [k, field] of Object.entries(keys)) {
+        const ngn = limits[u][field];
+        if (ngn && BigInt(onChain[k] ?? 0) < capBaseUnits(ngn, config.ngnPerUsdc, MIN_TOPUP[u], d, fee)) return true;
+      }
+    }
+    const purseCap = await soroban.read(contractId, "purse_cap", [], agent.publicKey());
+    return BigInt(purseCap ?? 0) < capBaseUnits(monthlyCap(limits), config.ngnPerUsdc, 100, d, fee);
+  }
+
+  return { capsBehind, prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
 }

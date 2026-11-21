@@ -37,6 +37,11 @@ export const say = {
     return lang === "pcm" ? `Done! ${naira(ngn)} ${utility} don enter your line.` : `Done! ${naira(ngn)} of ${utility} has been sent to your line.`;
   },
 
+  rulesOutdated(lang, { guardian }) {
+    if (lang === "pcm") return `I no fit buy am now, but no be say you don pass your limit. ${guardian} need update your purse first. I don tell ${guardian}, try again after.`;
+    return `I couldn't buy that one just now, but you haven't gone over your limit. ${guardian} needs to update your purse first. I've let ${guardian} know; please try again after.`;
+  },
+
   capReached(lang, { utility, guardian, period }) {
     const when = period ? WHEN[lang][period] : null;
     const u = LABEL[lang][utility];

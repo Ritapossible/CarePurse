@@ -340,6 +340,13 @@ export function createMhasibu({
       notifyGuardian(purse, "blocked", `${verdict.onChain ? "The purse contract" : "Mhasibu"} refused a payment (${verdict.rule}: ${verdict.reason}).`);
       return say.refused(lang);
     }
+    if (verdict.onChain) {
+      // Mhasibu's own checks (the same limits, in naira) had already passed, so the contract's caps,
+      // saved in USDC, are behind today's naira rate (or a period boundary differs). Mama isn't over
+      // her limit: say so honestly and ask the daughter to re-save the plan.
+      notifyGuardian(purse, "rules-outdated", `Mama's ${utility} top-up was within her plan, but her purse's rules on Stellar were saved at an older naira rate, so the purse refused it (${verdict.rule}). Open your dashboard and tap "Update rules" to re-save them at today's rate.`);
+      return say.rulesOutdated(lang, { guardian: purse.guardian.name });
+    }
     notifyGuardian(purse, "limit-reached", `A ${utility} top-up was refused: ${verdict.reason}.`);
     return say.capReached(lang, { utility, guardian: purse.guardian.name, period: verdict.period });
   }

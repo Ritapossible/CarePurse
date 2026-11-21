@@ -198,9 +198,12 @@ test("when the purse contract refuses, nothing is paid and the guardian hears ab
   await mhasibu.handle("demo", "my light is finished");
   const reply = await mhasibu.handle("demo", "1");
   assert.equal(wallet.paid.length, 0);
-  assert.match(reply, /limit Adaeze set has been reached/);
+  // Mhasibu's own checks passed, so this is the chain's caps lagging the rate: Mama isn't told she
+  // is over her limit, and Adaeze is asked to update the purse's rules.
+  assert.match(reply, /haven't gone over your limit/);
+  assert.doesNotMatch(reply, /reached/);
   assert.equal(purses.get("demo").spends.length, 0);
-  assert.equal(purses.get("demo").notifications.at(-1).kind, "limit-reached");
+  assert.equal(purses.get("demo").notifications.at(-1).kind, "rules-outdated");
 });
 
 test("on-chain caps never round stricter than the gateway's prices", () => {
