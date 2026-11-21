@@ -63,7 +63,7 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] Chat screen: messages, numbered options, the token shown clearly, and a link to the transaction (`apps/web`, `/chat`). 14 Nov.
 - [x] The token never disappears: pinned "Last light token" card, "send my token again" in any words, menu 5, kept on the order and purchase record, in Adaeze's receipt. 14 Nov.
 - [ ] SMS the token to Mama's phone (production; needs an SMS provider).
-- [ ] English and Pidgin replies.
+- [x] English and Pidgin replies (language read from her messages, 20 Nov).
 - [x] Footer label: "Live Stellar Testnet payment · sandbox utility fulfilment".
 - [x] **Agent & x402 Log** panel beside the chat (`/demo`), 14 Nov: each step live, from Mama's message, the contract check and the 402 challenge to the signed payment and the Stellar Testnet settlement link. Mama's own chat stays simple.
 
@@ -77,8 +77,8 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 - [x] Invite status on the dashboard (`/dashboard`), and **[Send a new invite]** that cancels the old link.
 - [x] Receipts: every top-up with its Stellar transaction link and the fee.
 
-- [ ] Pause and custom limits from the dashboard (each needs her Privy signature; the backend's prepare/complete already supports any guardian call).
-- [ ] Still to do for sign-up: set the Privy App ID (`NEXT_PUBLIC_PRIVY_APP_ID`) and try `/start` live.
+- [x] Pause/resume, change plan (Light ↔ Standard, or re-save at today's rate) and withdraw from the dashboard, each with her Privy signature. Withdraw opts her wallet in to USDC first if needed. 21 Nov.
+- [x] Privy App ID set on Vercel; `/start` tried live (purse created, funded, Mama joined). 21 Nov.
 
 ### Step 5: Limits on-chain (20-24 Nov), Must have (one cap check) · Should have (the rest)
 - [x] Decide: our own purse contract (per-utility caps and saved destinations, which an allowance can't do).
@@ -109,10 +109,10 @@ Fill in the names. Agree on the API between the parts (`ARCHITECTURE.md`) early,
 
 ## Definition of done for the Must have
 
-- [ ] One electricity top-up works end to end on Stellar testnet, from Mama's chat message to the token.
-- [ ] Airtime and data work through the same flow.
-- [ ] Every payment has a transaction link anyone can open.
-- [ ] No step is simulated except the utility provider (sandbox), and the UI says so.
+- [x] One electricity top-up works end to end on Stellar testnet, from Mama's chat message to the token.
+- [x] Airtime and data work through the same flow.
+- [x] Every payment has a transaction link anyone can open.
+- [x] No step is simulated except the utility provider (sandbox), and the UI says so.
 
 ## VTpass sandbox: done (14 Nov)
 

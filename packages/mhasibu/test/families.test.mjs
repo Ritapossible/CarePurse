@@ -11,11 +11,17 @@ const SIGNUP = { mama: { name: "Ngozi", phone: "+234 803 123 4567", language: "p
 function setup() {
   let clock = NOW;
   const calls = [];
+  const trusted = new Set();
   const signup = {
     prepareSetup: async ({ guardianAddress, destinations }) => { calls.push(["prepare", guardianAddress, destinations]); return { contractId: "CPURSE", hash: "ab".repeat(32), entry: "x", validUntil: 1, method: "configure", args: [] }; },
     completeGuardianCall: async (pending, address, sig) => { if (sig !== "0xgood") throw new Error("signature doesn't match payload"); calls.push(["complete", address]); return { hash: "txhash" }; },
     sendTestUsdc: async (contractId, usdc) => { calls.push(["usdc", contractId, usdc]); return { tx: "fund" }; },
     purseBalance: async () => 10,
+    prepareGuardianCall: async ({ method, args }) => { calls.push(["call", method, args.length]); return { hash: "ef".repeat(32), method }; },
+    prepareWithdraw: async ({ to, usdc }) => { calls.push(["withdraw", to, usdc]); return { hash: "aa".repeat(32), method: "withdraw" }; },
+    hasUsdcTrustline: async (address) => trusted.has(address),
+    prepareTrustline: async (address) => { calls.push(["trustline", address]); return { kind: "trustline", hash: "bb".repeat(32), xdr: "x" }; },
+    completeTrustline: async (pending, address, sig) => { if (sig !== "0xgood") throw new Error("signature does not match"); trusted.add(address); return { hash: "trusttx" }; },
     prepareLimits: async ({ limits, destinations }) => { calls.push(["limits", limits.electricity.perTopup, destinations]); return { hash: "cd".repeat(32), entry: "y", validUntil: 1, method: "configure", args: [] }; },
   };
   const purses = createPurseStore(null, { seed: false });
@@ -113,4 +119,41 @@ test("she can change the plan later (Standard → Light): new caps on-chain firs
   assert.equal(purses.get(purseId).preset, "light");
   assert.equal(purses.get(purseId).monthlyCap, 50_000);
   await assert.rejects(families.completeLimits({ privyId: GUARDIAN.privyId, signature: "0xgood" }), /start again/);
+});
+
+test("pause and resume the purse, each with her signature", async () => {
+  const { families, purses, calls } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { purseId } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const prep = await families.preparePause({ privyId: GUARDIAN.privyId, paused: true });
+  assert.equal(prep.kind, "pause");
+  assert.deepEqual(calls.at(-1), ["call", "pause", 0]);
+  assert.equal(purses.get(purseId).paused, false); // not before she signs
+  await families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  assert.equal(purses.get(purseId).paused, true);
+  await families.preparePause({ privyId: GUARDIAN.privyId, paused: false });
+  await families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  assert.equal(purses.get(purseId).paused, false);
+});
+
+test("withdraw: to her own wallet (one-time USDC opt-in first), checked against the balance", async () => {
+  const { families, purses, calls } = setup();
+  await families.prepare({ ...SIGNUP, guardian: { ...GUARDIAN, address: "GADAEZE".padEnd(56, "A") }, preset: "standard" });
+  const { purseId } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const me = "GADAEZE".padEnd(56, "A");
+  await assert.rejects(families.prepareWithdraw({ privyId: GUARDIAN.privyId, usdc: 50 }), /The purse has 10 USDC/);
+  await assert.rejects(families.prepareWithdraw({ privyId: GUARDIAN.privyId, usdc: 1, to: "not-an-address" }), /isn’t a Stellar address/);
+  await assert.rejects(families.prepareWithdraw({ privyId: GUARDIAN.privyId, usdc: 1, to: "GOTHER".padEnd(56, "B") }), /can’t receive USDC yet/);
+
+  const first = await families.prepareWithdraw({ privyId: GUARDIAN.privyId, usdc: 4 });
+  assert.equal(first.kind, "trustline"); // her wallet opts in to USDC first
+  const second = await families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  assert.equal(second.kind, "withdraw"); // then the withdrawal, for her second approval
+  assert.deepEqual(calls.at(-1), ["withdraw", me, 4]);
+  const done = await families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  assert.equal(done.kind, "withdraw");
+  assert.deepEqual(purses.get(purseId).withdrawals.map((w) => [w.usdc, w.to]), [[4, me]]);
+
+  // Next time her wallet already holds USDC: one approval only
+  assert.equal((await families.prepareWithdraw({ privyId: GUARDIAN.privyId, usdc: 1 })).kind, "withdraw");
 });

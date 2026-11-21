@@ -10,7 +10,7 @@
 // She never needs XLM or USDC to sign up, and never sees a seed phrase. Only her signature can
 // change the purse's rules afterwards (the contract enforces it).
 import crypto from "node:crypto";
-import { Address, Contract, Keypair, Networks, Operation, TransactionBuilder, BASE_FEE, authorizeEntry, rpc, xdr } from "@stellar/stellar-sdk";
+import { Address, Asset, Contract, Keypair, Networks, Operation, TransactionBuilder, BASE_FEE, authorizeEntry, rpc, xdr } from "@stellar/stellar-sdk";
 import { MIN_TOPUP, monthlyCap } from "./limits.mjs";
 import { addressVal, bytes32, capBaseUnits, capRate, createSoroban, destHash, i128, symbol } from "./purse-contract.mjs";
 
@@ -150,10 +150,46 @@ export function createSignup({ config, fetchImpl = fetch }) {
     return { tx: hash, amount: String(amount) };
   }
 
+  // A Stellar wallet must opt in to USDC once (a trustline) before it can receive it. Her Privy
+  // wallet hasn't, so the first withdrawal to it asks for one extra signature: a classic
+  // changeTrust transaction from her own account (testnet XLM from Friendbot pays its tiny fee).
+  async function hasUsdcTrustline(address) {
+    const res = await fetchImpl(`${config.horizonUrl}/accounts/${address}`);
+    if (res.status === 404) return false;
+    const account = await res.json();
+    return (account.balances ?? []).some((b) => b.asset_code === "USDC" && b.asset_issuer === config.usdc.issuer);
+  }
+
+  async function prepareTrustline(address) {
+    await ensureAccount(address);
+    const account = await server.getAccount(address);
+    const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase })
+      .addOperation(Operation.changeTrust({ asset: new Asset("USDC", config.usdc.issuer) }))
+      .setTimeout(600)
+      .build();
+    return { kind: "trustline", hash: tx.hash().toString("hex"), xdr: tx.toXDR() };
+  }
+
+  async function completeTrustline(pending, address, signatureHex) {
+    const signature = Buffer.from(String(signatureHex).replace(/^0x/, ""), "hex");
+    if (signature.length !== 64) throw new Error("the signature must be 64 bytes");
+    const tx = TransactionBuilder.fromXDR(pending.xdr, passphrase);
+    if (tx.hash().toString("hex") !== pending.hash) throw new Error("the signed request does not match");
+    if (!Keypair.fromPublicKey(address).verify(tx.hash(), signature)) throw new Error("signature does not match");
+    tx.addSignature(address, signature.toString("base64"));
+    return soroban.submit(tx);
+  }
+
+  // The purse sends USDC back out (guardian only, her signature).
+  async function prepareWithdraw({ contractId, guardianAddress, to, usdc }) {
+    const amount = BigInt(Math.round(usdc * 10 ** config.usdc.decimals));
+    return prepareGuardianCall({ contractId, guardianAddress, method: "withdraw", args: [addressVal(to), i128(amount)] });
+  }
+
   async function purseBalance(contractId) {
     const raw = await soroban.read(config.usdc.contractId, "balance", [addressVal(contractId)], agent.publicKey());
     return Number(raw) / 10 ** config.usdc.decimals;
   }
 
-  return { prepareSetup, prepareLimits, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
+  return { prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
 }

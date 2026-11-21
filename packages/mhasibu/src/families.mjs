@@ -150,6 +150,69 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     return { status: "active", preset: change.preset, tx: done.hash };
   }
 
+  // ── Pause and withdraw: one signature each, like the plan ───────────────────
+  // One pending approval at a time (p.action). completeAction finishes whichever it is.
+  const STELLAR_ADDRESS = /^[GC][A-Z2-7]{55}$/;
+
+  async function preparePause({ privyId, paused }) {
+    const p = mine(privyId);
+    if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
+    const method = paused ? "pause" : "unpause";
+    const pending = await signup.prepareGuardianCall({ contractId: p.contractId, guardianAddress: p.guardian.address, method, args: [] });
+    purses.update(p.id, (x) => { x.action = { kind: method, pending, createdAt: iso() }; });
+    await purses.flush?.();
+    return { status: "pending", kind: method, hash: pending.hash };
+  }
+
+  // Withdraw to her own wallet (the default) or any Stellar address. If her wallet can't hold USDC
+  // yet, the first approval is the one-time opt-in; she then confirms the withdrawal itself.
+  async function prepareWithdraw({ privyId, usdc, to }) {
+    const p = mine(privyId);
+    if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
+    const dest = String(to || p.guardian.address).trim();
+    if (!STELLAR_ADDRESS.test(dest)) throw new FamilyError(400, "That isn’t a Stellar address (it starts with G or C and has 56 characters).");
+    if (dest === p.contractId) throw new FamilyError(400, "That’s Mama’s purse itself.");
+    const amount = Math.floor(Number(usdc) * 1e7) / 1e7;
+    if (!(amount > 0)) throw new FamilyError(400, "Enter an amount above 0.");
+    const balance = await signup.purseBalance(p.contractId);
+    if (amount > balance) throw new FamilyError(400, `The purse has ${balance} USDC.`);
+    if (dest.startsWith("G") && !(await signup.hasUsdcTrustline(dest))) {
+      if (dest !== p.guardian.address) throw new FamilyError(400, "That wallet can’t receive USDC yet. Send to your CarePurse wallet, or ask its owner to add USDC first.");
+      const pending = await signup.prepareTrustline(dest);
+      purses.update(p.id, (x) => { x.action = { kind: "trustline", pending, then: { usdc: amount, to: dest }, createdAt: iso() }; });
+      await purses.flush?.();
+      return { status: "pending", kind: "trustline", hash: pending.hash };
+    }
+    const pending = await signup.prepareWithdraw({ contractId: p.contractId, guardianAddress: p.guardian.address, to: dest, usdc: amount });
+    purses.update(p.id, (x) => { x.action = { kind: "withdraw", pending, usdc: amount, to: dest, createdAt: iso() }; });
+    await purses.flush?.();
+    return { status: "pending", kind: "withdraw", hash: pending.hash, usdc: amount, to: dest };
+  }
+
+  async function completeAction({ privyId, signature }) {
+    const p = mine(privyId);
+    const a = p.action;
+    if (!a?.pending) throw new FamilyError(409, "start again");
+    const fail = (err) => {
+      throw new FamilyError(400, /does not match|signature/.test(err.message) ? "That signature didn’t match. Please try again." : `Could not finish on Stellar (${err.message.slice(0, 80)})`);
+    };
+    if (a.kind === "trustline") {
+      await signup.completeTrustline(a.pending, p.guardian.address, signature).catch(fail);
+      purses.update(p.id, (x) => { x.action = null; });
+      // Opted in: now the withdrawal itself, for her second approval.
+      return prepareWithdraw({ privyId, usdc: a.then.usdc, to: a.then.to });
+    }
+    const done = await signup.completeGuardianCall(a.pending, p.guardian.address, signature).catch(fail);
+    purses.update(p.id, (x) => {
+      x.action = null;
+      if (a.kind === "pause" || a.kind === "unpause") x.paused = a.kind === "pause";
+      if (a.kind === "withdraw") (x.withdrawals ??= []).push({ at: iso(), usdc: a.usdc, to: a.to, tx: done.hash });
+      (x.notifications ??= []).push({ at: iso(), kind: a.kind, text: a.kind === "withdraw" ? `Withdrew ${a.usdc} USDC to ${a.to.slice(0, 6)}…${a.to.slice(-4)} (tx ${done.hash}).` : `Purse ${a.kind === "pause" ? "paused" : "resumed"} (tx ${done.hash}).` });
+    });
+    await purses.flush?.();
+    return { status: "done", kind: a.kind, tx: done.hash };
+  }
+
   async function testUsdc({ privyId }) {
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
@@ -187,6 +250,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
         rate: { ngnPerUsdc: config.ngnPerUsdc, asOf: config.rate?.asOf ?? null, live: Boolean(config.rate?.live) },
         notifications: [...(p.notifications ?? [])].reverse().slice(0, 20),
         testUsdcLeft: TEST_USDC_TIMES - (p.testUsdc ?? 0),
+        withdrawals: [...(p.withdrawals ?? [])].reverse().slice(0, 10),
       },
     };
   }
@@ -261,5 +325,5 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   // The purse a guardian (Privy user) owns, or null.
   const guardianPurse = (privyId) => byGuardian(privyId)?.id ?? null;
 
-  return { checkMeter, prepare, complete, prepareLimits, completeLimits, testUsdc, dashboard, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
+  return { checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, testUsdc, dashboard, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
 }

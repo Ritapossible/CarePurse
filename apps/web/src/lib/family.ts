@@ -22,6 +22,7 @@ export type Purse = {
   monthNgn?: number;
   spendableNgn?: number | null;
   feeBps?: number;
+  withdrawals?: { at: string; usdc: number; to: string; tx: string }[];
   rate?: { ngnPerUsdc: number; asOf: string | null; live: boolean };
   notifications: { at: string; kind: string; text: string }[];
   testUsdcLeft: number;

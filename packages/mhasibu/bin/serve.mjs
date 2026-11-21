@@ -181,6 +181,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/v1/family/complete") return send(res, 200, await families.complete(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/limits/prepare") return send(res, 200, await families.prepareLimits(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/limits/complete") return send(res, 200, await families.completeLimits(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/pause") return send(res, 200, await families.preparePause(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/withdraw") return send(res, 200, await families.prepareWithdraw(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/action/complete") return send(res, 200, await families.completeAction(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/test-usdc") return send(res, 200, await families.testUsdc(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/invite") return send(res, 200, await families.sendNewInvite(await readJson(req)));
     // ── Mama's invite and sign-in ───────────────────────────────

@@ -19,6 +19,9 @@ const ICONS = {
   airtime: "M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2",
   data: "M2 9a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0M12 19.5h.01",
   add: "M12 5v14M5 12h14",
+  withdraw: "M12 3v12M7 10l5 5 5-5M5 21h14",
+  pause: "M9 5v14M15 5v14",
+  play: "M7 5l12 7-12 7z",
   invite: "M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13",
   limits: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4",
   receipts: "M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4",
@@ -88,7 +91,12 @@ export default function DashboardPage() {
   const [invite, setInvite] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
-  const [sheet, setSheet] = useState<"fund" | "invite" | "plan" | null>(null);
+  const [sheet, setSheet] = useState<"fund" | "invite" | "plan" | "withdraw" | null>(null);
+  const [wAmount, setWAmount] = useState("");
+  const [wTo, setWTo] = useState<"me" | "other">("me");
+  const [wAddress, setWAddress] = useState("");
+  const [step, setStep] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const wallet = useStellarWallet();
   const [qr, setQr] = useState<string | null>(null);
   const [all, setAll] = useState(false);
@@ -127,6 +135,59 @@ export default function DashboardPage() {
       setBusy(null);
     }
   }
+  // Pause, resume and withdraw: the backend prepares each step, her wallet signs it. A first
+  // withdrawal to her own wallet has two steps (the wallet opts in to USDC, then the withdrawal).
+  const STEP_LABEL: Record<string, string> = {
+    pause: "Approve pausing the purse",
+    unpause: "Approve resuming the purse",
+    trustline: "Approve 1 of 2: let your wallet receive USDC",
+    withdraw: "Approve the withdrawal",
+  };
+  async function approveSteps(first: { status: string; kind?: string; hash?: string }) {
+    let r = first;
+    const address = wallet.address ?? (await wallet.ensure());
+    while (r.status === "pending" && r.hash) {
+      setStep(STEP_LABEL[r.kind ?? ""] ?? "Approve in your wallet");
+      const { signature } = await wallet.sign(address, r.hash);
+      setStep("Saving on Stellar…");
+      r = await api<{ status: string; kind?: string; hash?: string }>("POST", "action-complete", { signature });
+    }
+    return r;
+  }
+  async function togglePause() {
+    if (!purse) return;
+    setError(null);
+    setBusy("pause");
+    try {
+      await approveSteps(await api("POST", "pause", { paused: !purse.paused }));
+      setNotice(purse.paused ? "Purse resumed. Mhasibu AI can buy again." : "Purse paused. Mhasibu AI won’t buy anything until you resume.");
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+      setStep(null);
+    }
+  }
+  async function withdraw() {
+    setError(null);
+    setBusy("withdraw");
+    try {
+      const r = await approveSteps(await api("POST", "withdraw", { usdc: Number(wAmount), to: wTo === "other" ? wAddress.trim() : undefined }));
+      if (r.status === "done") {
+        setNotice(`Withdrew ${Number(wAmount)} USDC.`);
+        setWAmount("");
+        setSheet(null);
+      }
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+      setStep(null);
+    }
+  }
+
   // A new plan: the new caps go on-chain with one signature from her wallet, like at setup.
   async function changePlan(next: "light" | "standard") {
     setError(null);
@@ -179,9 +240,9 @@ export default function DashboardPage() {
   const spends = all ? purse.spends : purse.spends.slice(0, 5);
   const ACTIONS = [
     { key: "fund", label: "Add money", icon: ICONS.add, onClick: () => setSheet("fund") },
+    { key: "withdraw", label: "Withdraw", icon: ICONS.withdraw, onClick: () => { setError(null); setSheet("withdraw"); } },
     { key: "invite", label: "Invite Mama", icon: ICONS.invite, onClick: () => setSheet("invite") },
     { key: "limits", label: "Limits", icon: ICONS.limits, onClick: () => setSheet("plan") },
-    { key: "receipts", label: "Receipts", icon: ICONS.receipts, onClick: () => document.getElementById("activity")?.scrollIntoView({ behavior: "smooth" }) },
   ];
 
   return (
@@ -263,6 +324,19 @@ export default function DashboardPage() {
         )}
       </section>
 
+      {/* Pause */}
+      <section className="flex items-center gap-4 rounded-2xl border border-line p-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface"><Icon d={purse.paused ? ICONS.play : ICONS.pause} /></span>
+        <div className="min-w-0 flex-1">
+          <div className="font-medium">{purse.paused ? "Purse is paused" : "Pause the purse"}</div>
+          <div className="text-sm text-muted">{busy === "pause" && step ? step : purse.paused ? "Mhasibu AI won’t buy anything until you resume" : "Stop all top-ups until you resume"}</div>
+        </div>
+        <button onClick={togglePause} disabled={Boolean(busy)} className={`h-9 shrink-0 rounded-[10px] px-3 text-sm font-medium disabled:opacity-40 ${purse.paused ? "bg-foreground text-background" : "border border-foreground"}`}>
+          {busy === "pause" ? "Approving…" : purse.paused ? "Resume" : "Pause"}
+        </button>
+      </section>
+      {notice && <p className="rounded-[10px] bg-surface px-4 py-3 text-sm">{notice}</p>}
+
       </div>
       <div className="space-y-8">
       {/* Activity */}
@@ -327,6 +401,55 @@ export default function DashboardPage() {
               {busy === "test-usdc" ? "Adding…" : "Add test money"}
             </button>
           </div>
+        </Sheet>
+      )}
+
+      {sheet === "withdraw" && (
+        <Sheet title="Withdraw" onClose={() => setSheet(null)}>
+          <p className="text-sm text-secondary">Move money out of Mama’s purse. Only you can do this, with your approval.</p>
+          <label className="mt-5 block text-sm text-secondary">
+            Amount in USDC
+            <div className="mt-2 flex gap-2">
+              <input value={wAmount} onChange={(e) => setWAmount(e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" placeholder="0.00" className="h-12 min-w-0 flex-1 rounded-[10px] border border-line px-4 text-[17px] tabular-nums outline-none focus:border-foreground" />
+              <button type="button" onClick={() => setWAmount(String(purse.balanceUsdc ?? 0))} className="h-12 shrink-0 rounded-[10px] border border-line px-4 text-sm font-medium hover:border-foreground">Max</button>
+            </div>
+          </label>
+          <p className="mt-2 text-sm text-muted tabular-nums">
+            {Number(wAmount) > 0 && purse.rate ? `≈ ${naira(Number(wAmount) * purse.rate.ngnPerUsdc)} · ` : ""}In the purse: {purse.balanceUsdc ?? 0} USDC
+          </p>
+          <fieldset className="mt-5 space-y-2">
+            <legend className="text-sm text-secondary">Send to</legend>
+            {([["me", "My CarePurse wallet", `${purse.guardian.address.slice(0, 6)}…${purse.guardian.address.slice(-4)}`], ["other", "Another Stellar address", "It must already accept USDC"]] as const).map(([v, l, d]) => (
+              <button key={v} type="button" onClick={() => setWTo(v)} className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${wTo === v ? "border-foreground" : "border-line hover:border-foreground"}`}>
+                <span className="font-medium">{l}</span>
+                <span className={`text-xs text-muted ${v === "me" ? "font-mono" : ""}`}>{d}</span>
+              </button>
+            ))}
+            {wTo === "other" && (
+              <input value={wAddress} onChange={(e) => setWAddress(e.target.value.trim().toUpperCase())} placeholder="G… or C… address" aria-label="Stellar address" className="h-12 w-full rounded-[10px] border border-line px-4 font-mono text-sm outline-none focus:border-foreground" />
+            )}
+          </fieldset>
+          {error && <p className="mt-4 rounded-[10px] bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
+          <button
+            disabled={Boolean(busy) || !(Number(wAmount) > 0) || (wTo === "other" && wAddress.length !== 56)}
+            onClick={withdraw}
+            className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-foreground font-medium text-background disabled:opacity-40"
+          >
+            {busy === "withdraw" ? step ?? "Preparing…" : "Withdraw"}
+          </button>
+          {(purse.withdrawals?.length ?? 0) > 0 && (
+            <div className="mt-6 border-t border-line pt-4">
+              <p className="text-sm text-muted">Recent withdrawals</p>
+              <ul className="mt-2 space-y-2 text-sm">
+                {purse.withdrawals!.slice(0, 3).map((w) => (
+                  <li key={w.tx} className="flex justify-between gap-3">
+                    <span className="tabular-nums">{w.usdc} USDC · {when(w.at)}</span>
+                    <a href={explorer("tx", w.tx)} target="_blank" rel="noreferrer" className="text-muted underline-offset-4 hover:underline">Receipt</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Sheet>
       )}
 
