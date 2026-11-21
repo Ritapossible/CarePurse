@@ -16,19 +16,45 @@ const QUICK = ["Light don almost finish", "Buy airtime", "Buy data", "How much i
 const time = (at?: string) => (at ? new Date(at).toLocaleTimeString("en-NG", { timeZone: LAGOS, hour: "numeric", minute: "2-digit" }) : "");
 
 // Her latest electricity token, pinned under the header so it never scrolls away.
-function LastToken({ record }: { record: TokenRecord }) {
+// Once she copies it, the pinned token steps aside (remembered on this phone, per purchase, so the
+// next new token shows again). Every token stays on her Purchases page.
+const COPIED_KEY = "carepurse:copied-token";
+const tokenId = (r: TokenRecord) => `${r.at}|${r.token}`;
+function wasCopied(r: TokenRecord) {
+  try {
+    return localStorage.getItem(COPIED_KEY) === tokenId(r);
+  } catch {
+    return false;
+  }
+}
+
+function LastToken({ record, onDone }: { record: TokenRecord; onDone: () => void }) {
   const [copied, setCopied] = useState(false);
   const when = new Date(record.at).toLocaleString("en-NG", { timeZone: LAGOS, day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  function copy() {
+    navigator.clipboard
+      ?.writeText(record.token.replace(/\s/g, ""))
+      .then(() => {
+        setCopied(true);
+        try {
+          localStorage.setItem(COPIED_KEY, tokenId(record));
+        } catch {
+          /* private mode: it still hides for this visit */
+        }
+        setTimeout(onDone, 1200); // long enough to read "Copied"
+      })
+      .catch(() => {});
+  }
   return (
     <div className="border-b border-line bg-white px-2">
       <TokenCard
         large
         title={`Last light token · ₦${record.ngn.toLocaleString("en-NG")}`}
         token={record.token}
-        meta={`${when}${record.units ? ` · ${record.units}` : ""}`}
+        meta={copied ? "Copied. You can find it again in Purchases" : `${when}${record.units ? ` · ${record.units}` : ""}`}
         right={
           <button
-            onClick={() => navigator.clipboard?.writeText(record.token.replace(/\s/g, "")).then(() => setCopied(true)).catch(() => {})}
+            onClick={copy}
             className="h-9 shrink-0 rounded-[10px] border border-foreground px-4 text-sm font-medium transition-colors duration-150 hover:bg-surface"
           >
             {copied ? "Copied" : "Copy"}
@@ -106,7 +132,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastToken, setLastToken] = useState<TokenRecord | null>(null);
-  const refreshToken = () => loadTokens(purse).then((t) => setLastToken(t[0] ?? null)).catch(() => {});
+  const refreshToken = () => loadTokens(purse).then((t) => setLastToken(t[0] && !wasCopied(t[0]) ? t[0] : null)).catch(() => {});
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -159,7 +185,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
         </Link>
       </header>
 
-      {lastToken && <LastToken record={lastToken} />}
+      {lastToken && <LastToken key={tokenId(lastToken)} record={lastToken} onDone={() => setLastToken(null)} />}
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5" aria-live="polite">
         {lines.length === 0 && !error && (
