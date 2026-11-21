@@ -42,6 +42,8 @@ export const config = {
   // Mama's sign-in code is shown on screen (no SMS provider in the hackathon build).
   showMamaCode: env("SHOW_MAMA_CODE", "1") !== "0",
   ngnPerUsdc: Number(env("NGN_PER_USDC", "1470")),
+  // Room in the on-chain caps for the naira rate moving after setup (2000 = 20%). See capRate().
+  capRateMarginBps: Number(env("CAP_RATE_MARGIN_BPS", "2000")),
   // CarePurse's service fee on top of face value (basis points, 300 = 3%), same as the gateway's.
   // Limits stay in face value; the on-chain caps add the fee (capBaseUnits).
   serviceFeeBps: (() => {

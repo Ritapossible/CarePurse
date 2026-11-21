@@ -12,7 +12,7 @@
 import crypto from "node:crypto";
 import { Address, Contract, Keypair, Networks, Operation, TransactionBuilder, BASE_FEE, authorizeEntry, rpc, xdr } from "@stellar/stellar-sdk";
 import { MIN_TOPUP, monthlyCap } from "./limits.mjs";
-import { addressVal, bytes32, capBaseUnits, createSoroban, destHash, i128, symbol } from "./purse-contract.mjs";
+import { addressVal, bytes32, capBaseUnits, capRate, createSoroban, destHash, i128, symbol } from "./purse-contract.mjs";
 
 const UTILITIES = ["electricity", "airtime", "data"];
 const AUTH_LEDGERS = 120; // the signature request stays valid ~10 minutes
@@ -23,7 +23,7 @@ function capsMap(limits, config) {
     const l = limits[u];
     const caps = xdr.ScVal.scvMap(
       [["per_day", l.perDay], ["per_month", l.perMonth], ["per_topup", l.perTopup], ["per_week", l.perWeek]].map(
-        ([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, config.ngnPerUsdc, MIN_TOPUP[u], config.usdc.decimals, config.serviceFeeBps)) }),
+        ([k, v]) => new xdr.ScMapEntry({ key: symbol(k), val: i128(capBaseUnits(v ?? 0, capRate(config), MIN_TOPUP[u], config.usdc.decimals, config.serviceFeeBps)) }),
       ),
     );
     return new xdr.ScMapEntry({ key: symbol(u), val: caps });
@@ -119,7 +119,7 @@ export function createSignup({ config, fetchImpl = fetch }) {
     if (!/^G[A-Z2-7]{55}$/.test(guardianAddress ?? "")) throw new Error("not a Stellar address");
     await ensureAccount(guardianAddress);
     const { contractId, tx } = await deployPurse(guardianAddress);
-    const purseCap = capBaseUnits(monthlyCap(limits), config.ngnPerUsdc, 100, config.usdc.decimals, config.serviceFeeBps);
+    const purseCap = capBaseUnits(monthlyCap(limits), capRate(config), 100, config.usdc.decimals, config.serviceFeeBps);
     const pending = await prepareGuardianCall({
       contractId,
       guardianAddress,
@@ -132,7 +132,7 @@ export function createSignup({ config, fetchImpl = fetch }) {
   // A new plan for an existing purse: `configure` again with the new caps and monthly cap, the
   // same saved destinations, for her signature. The contract checks the caps again.
   async function prepareLimits({ contractId, guardianAddress, limits, destinations }) {
-    const purseCap = capBaseUnits(monthlyCap(limits), config.ngnPerUsdc, 100, config.usdc.decimals, config.serviceFeeBps);
+    const purseCap = capBaseUnits(monthlyCap(limits), capRate(config), 100, config.usdc.decimals, config.serviceFeeBps);
     return prepareGuardianCall({
       contractId,
       guardianAddress,

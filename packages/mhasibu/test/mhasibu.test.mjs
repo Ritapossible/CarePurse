@@ -694,3 +694,12 @@ test("Mama can ask about one day or period: 'yesterday', 'on 16 Nov', 'last week
   assert.match(await mhasibu.handle("demo", "what did I buy this week"), /₦200 airtime\n.*₦500 light.*\nTotal: ₦700 \(2 top-ups\)\.$/);
   assert.match(await mhasibu.handle("demo", "abeg wetin I buy for 1 Nov"), /^You no buy anything on Sun, 1 Nov\.$/);
 });
+
+test("on-chain caps leave room for the naira strengthening after setup (₦5,000 top-up, 1470 → 1352.93)", async () => {
+  const { capBaseUnits, capRate } = await import("../src/purse-contract.mjs");
+  const cap = capBaseUnits(5000, capRate({ ngnPerUsdc: 1470, capRateMarginBps: 2000 }), 500, 7, 300);
+  const priceLater = BigInt(Math.ceil((5000 * 1.03 / 1352.93) * 1e7));
+  assert.ok(priceLater <= cap, `${priceLater} should fit under ${cap}`);
+  const noMargin = capBaseUnits(5000, capRate({ ngnPerUsdc: 1470, capRateMarginBps: 0 }), 500, 7, 300);
+  assert.ok(priceLater > noMargin); // without the room, the contract would have refused it
+});

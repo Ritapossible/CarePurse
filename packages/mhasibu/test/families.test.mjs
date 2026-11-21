@@ -99,7 +99,7 @@ test("she can change the plan later (Standard → Light): new caps on-chain firs
   const { families, purses, calls } = setup();
   await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
   const { purseId } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
-  assert.equal((await families.prepareLimits({ privyId: GUARDIAN.privyId, preset: "standard" })).status, "same");
+  assert.equal((await families.prepareLimits({ privyId: GUARDIAN.privyId, preset: "standard" })).status, "pending"); // re-save at today's rate
 
   const prep = await families.prepareLimits({ privyId: GUARDIAN.privyId, preset: "light" });
   assert.equal(prep.status, "pending");

@@ -332,7 +332,7 @@ export default function DashboardPage() {
 
       {sheet === "plan" && (
         <Sheet title="Her plan" onClose={() => setSheet(null)}>
-          <p className="text-sm text-secondary">Switch any time. The new limits are saved on Mama’s purse with one approval from you.</p>
+          <p className="text-sm text-secondary">Switch any time, or re-save your plan when the naira rate moves a lot. The limits are saved on Mama’s purse with one approval from you.</p>
           <div className="mt-5 space-y-3">
             {(["light", "standard"] as const).map((k) => {
               const p = PRESETS[k];
@@ -340,13 +340,13 @@ export default function DashboardPage() {
               return (
                 <button
                   key={k}
-                  disabled={current || Boolean(busy)}
+                  disabled={Boolean(busy)}
                   onClick={() => changePlan(k)}
                   className={`w-full rounded-2xl border p-4 text-left transition-colors duration-150 ${current ? "border-foreground" : "border-line hover:border-foreground"} disabled:cursor-default`}
                 >
                   <div className="flex items-baseline justify-between">
                     <span className="font-medium">{p.label}</span>
-                    <span className="text-sm text-muted">{current ? "Current plan" : busy === `plan-${k}` ? "Saving on Stellar…" : `up to ${naira(p.monthly)} a month`}</span>
+                    <span className="text-sm text-muted">{busy === `plan-${k}` ? "Saving on Stellar…" : current ? "Current plan · tap to re-save at today’s rate" : `up to ${naira(p.monthly)} a month`}</span>
                   </div>
                   <dl className="mt-2 grid grid-cols-[80px_1fr] gap-y-1 text-sm">
                     <dt className="text-muted">Light</dt><dd>{p.electricity}</dd>

@@ -118,13 +118,13 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     return { purseId: p.id, status: "active", tx: done.hash, invite };
   }
 
-  // Her plan can change any time (Light ↔ Standard). Step 1: the new rules, as one `configure`
+  // Her plan can change any time (Light ↔ Standard), or be re-saved at today's rate. Step 1: the new rules, as one `configure`
   // call for her signature. Nothing changes until she signs.
   async function prepareLimits({ privyId, preset }) {
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
     if (!PRESETS[preset]) throw new FamilyError(400, "Pick Light or Standard.");
-    if (preset === p.preset) return { status: "same", preset };
+    // The same plan may be saved again: that rewrites the on-chain caps at today's naira rate.
     const pending = await signup.prepareLimits({ contractId: p.contractId, guardianAddress: p.guardian.address, limits: PRESETS[preset], destinations: p.destinations });
     purses.update(p.id, (x) => { x.limitsChange = { preset, pending, createdAt: iso() }; });
     await purses.flush?.();

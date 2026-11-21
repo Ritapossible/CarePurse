@@ -28,6 +28,11 @@ export function capBaseUnits(ngn, ngnPerUsdc, minTopupNgn, decimals = 7, feeBps 
   return (num + den - 1n) / den + BigInt(Math.ceil(ngn / minTopupNgn));
 }
 
+// The rate the on-chain caps are written with: the naira can strengthen after setup, making each
+// top-up cost more USDC, so the caps leave room for that (CAP_RATE_MARGIN_BPS, default 20%).
+// Mhasibu still enforces the exact naira limits in code; the contract stays the hard backstop.
+export const capRate = (config) => (config.ngnPerUsdc * 10_000) / (10_000 + (config.capRateMarginBps ?? 2000));
+
 export function contractErrorCode(message) {
   const m = String(message).match(/Error\(Contract, #(\d+)\)/);
   return m ? Number(m[1]) : null;
