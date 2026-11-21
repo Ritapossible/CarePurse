@@ -727,3 +727,22 @@ test("Mama names an amount: within her limits she confirms once; over them she i
   // Daily limit: after ₦700 of airtime today, ₦500 more is over the ₦1,000 a day
   assert.match(await mhasibu.handle("demo", "abeg buy airtime #500"), /^I no fit buy ₦500 airtime\. Na ₦300 airtime remain for you today\. I fit buy:\n1\) ₦100\n2\) ₦200\n0\) Cancel/);
 });
+
+test("one agent wallet for every purse: a hold on one family blocks releases for all, until it ends", async () => {
+  const purses = createPurseStore(null, { seed: false });
+  purses.put(newPurse({ ...DEMO_PURSE, id: "a", contractId: "CA" }));
+  purses.put(newPurse({ ...DEMO_PURSE, id: "b", contractId: "CB" }));
+  const releases = [];
+  const walletFor = () => ({ ...fakeWallet(), release: async ({ amount }) => { releases.push(amount); return { tx: "rel" }; }, commitRef: async () => ({ tx: "c" }) });
+  let clock = MONDAY_10AM;
+  const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => clock, wait: async () => {} });
+  // Family A's payment failed a moment ago: its signed x402 payment is valid until the hold ends
+  purses.update("a", (p) => { p.payHoldUntil = new Date(clock + 90_000).toISOString(); });
+  await mhasibu.handle("b", "my light is finished");
+  assert.match(await mhasibu.handle("b", "1"), /minute/i); // B waits too
+  assert.equal(releases.length, 0);
+  clock += 120_000; // hold over
+  await mhasibu.handle("b", "my light is finished");
+  await mhasibu.handle("b", "1");
+  assert.equal(releases.length, 1);
+});

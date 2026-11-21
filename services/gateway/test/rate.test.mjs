@@ -14,7 +14,7 @@ test("uses the feed's USD to NGN rate, rounded to kobo", async () => {
 });
 
 test("falls back to NGN_PER_USDC when the feed fails or answers nonsense", async () => {
-  for (const fetchImpl of [async () => { throw new Error("offline"); }, feed({ result: "error" }), feed({ result: "success", rates: { NGN: 1 } })]) {
+  for (const fetchImpl of [async () => { throw new Error("offline"); }, feed({ result: "error" }), feed({ result: "success", rates: { NGN: 1 } }), feed({ result: "success", rates: { NGN: 2500 } }), feed({ result: "success", rates: { NGN: 900 } })]) {
     const r = await liveRate({ fallback: 1470, fetchImpl, log: quiet });
     assert.equal(r.ngnPerUsdc, 1470);
     assert.equal(r.live, false);

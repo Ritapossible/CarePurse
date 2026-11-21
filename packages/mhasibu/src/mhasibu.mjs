@@ -111,10 +111,21 @@ export function createMhasibu({
     // release, so even a crash or a timeout right after it leaves a trace to settle.
     let release = null;
     // A payment we signed and then gave up on stays valid until its window ends. Release no new money
-    // to the agent wallet before then, so that old signature can never take it.
-    const holdUntil = Date.parse(purses.get(purse.id).payHoldUntil ?? "") || 0;
+    // to the agent wallet before then, so that old signature can never take it. Every purse shares
+    // the one agent wallet, so this holds across families: while ANY purse has money released but not
+    // settled, or a hold still running, no purse releases (one family's coins never meet another's).
+    // Settle other families' leftover orders first (refund or commit), so one stuck order doesn't
+    // block everyone until that Mama writes again.
+    for (const other of purses.all?.() ?? []) {
+      if (other.id !== purse.id && other.openOrder) await settleOpenOrder(other).catch(() => {});
+    }
+    const holds = (purses.all?.() ?? [purses.get(purse.id)]).map((p) => {
+      if (p.openOrder?.released && !p.openOrder?.paid) return Infinity; // settled on that purse's next message
+      return Date.parse(p.payHoldUntil ?? "") || 0;
+    });
+    const holdUntil = Math.max(0, ...holds);
     if (walletOf(purse).release && clock() < holdUntil) {
-      log({ type: "pay-hold", seconds: Math.ceil((holdUntil - clock()) / 1000) });
+      log({ type: "pay-hold", seconds: Number.isFinite(holdUntil) ? Math.ceil((holdUntil - clock()) / 1000) : null });
       return say.waitAMinute(lang);
     }
     if (walletOf(purse).release) {

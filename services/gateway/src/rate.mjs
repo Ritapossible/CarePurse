@@ -7,14 +7,17 @@
 // set from it when the routes are built, and an order's quoted price must equal its paid price.
 // A redeploy or restart picks up the day's new rate.
 const FEED = "https://open.er-api.com/v6/latest/USD";
+const MAX_DRIFT = 0.25;
 
 export async function liveRate({ fallback, fetchImpl = fetch, timeoutMs = 8000, log = console } = {}) {
   try {
     const res = await fetchImpl(FEED, { signal: AbortSignal.timeout(timeoutMs) });
     const body = await res.json();
     const ngn = Number(body?.rates?.NGN);
-    // A sanity band, so a broken feed can't price a top-up at ₦1 or ₦1,000,000 a dollar.
-    if (body?.result !== "success" || !(ngn > 200 && ngn < 10_000)) throw new Error(`unexpected answer (${body?.result ?? res.status})`);
+    if (body?.result !== "success" || !(ngn > 0)) throw new Error(`unexpected answer (${body?.result ?? res.status})`);
+    // Trusted only near the configured rate (±25%): a broken or hijacked feed can't reprice every
+    // top-up. Outside the band, the setting is used and the source says why.
+    if (Math.abs(ngn - fallback) / fallback > MAX_DRIFT) throw new Error(`₦${ngn} is more than ${MAX_DRIFT * 100}% from NGN_PER_USDC=${fallback}`);
     return {
       ngnPerUsdc: Math.round(ngn * 100) / 100,
       source: "open.er-api.com (USD to NGN, daily)",

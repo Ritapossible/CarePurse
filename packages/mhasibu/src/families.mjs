@@ -32,6 +32,10 @@ export function normalisePhone(raw) {
   return /^0[789][01]\d{8}$/.test(d) ? d : null;
 }
 
+const PENDING_SETUP_MS = 9 * 60_000; // the guardian signature request is valid ~10 minutes (120 ledgers)
+const MAX_SETUPS_PER_DAY = 5; // each one deploys a contract, paid by the agent
+const SESSION_DAYS = 30; // Mama stays signed in on her phone this long
+
 export function createFamilies({ purses, signup, config, verifyMeter, clock = () => Date.now() }) {
   const now = () => clock();
   const iso = (t = now()) => new Date(t).toISOString();
@@ -56,6 +60,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     purses.update(purseId, (p) => {
       p.invite = { hash: sha(t), createdAt: iso(), expiresAt: iso(now() + INVITE_DAYS * DAY), usedAt: null };
       p.mamaCode = null;
+      p.mamaSessions = []; // a new link signs Mama out everywhere; she signs in again with it
     });
     return t;
   }
@@ -83,6 +88,17 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     const destinations = { electricity: m, airtime: phone, data: phone };
     const limits = PRESETS[preset];
 
+    // A pending sign-up whose signature request is still valid (~10 minutes) is returned as it is:
+    // each new attempt deploys a contract and costs the agent XLM, so a reload or a looping client
+    // must not create more. Same details: same request. After it expires, start again, at most
+    // MAX_SETUPS_PER_DAY times a day.
+    const sameRequest = existing?.setup?.status === "pending" && existing.setup.pending && existing.guardian.address === guardian.address
+      && existing.preset === preset && existing.destinations.electricity === m && existing.destinations.airtime === phone
+      && now() - Date.parse(existing.setup.createdAt) < PENDING_SETUP_MS;
+    if (sameRequest) return { purseId: existing.id, status: "pending", contractId: existing.contractId, hash: existing.setup.pending.hash };
+    const today = (existing?.setupAttempts ?? []).filter((t) => now() - Date.parse(t) < DAY);
+    if (today.length >= MAX_SETUPS_PER_DAY) throw new FamilyError(429, "Too many set-up attempts today. Please try again tomorrow.");
+
     // A sign-up that wasn't finished (closed the tab, signature expired): start it again with a
     // new purse contract, so the rules always come from one signature.
     const id = existing?.id ?? `p_${crypto.randomBytes(6).toString("hex")}`;
@@ -97,6 +113,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
       contractId: pending.contractId,
     });
     purse.setup = { status: "pending", createdAt: iso(), pending };
+    purse.setupAttempts = [...today, iso()];
     purse.testUsdc = 0;
     purses.put(purse);
     await purses.flush?.();
@@ -319,7 +336,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   function sessionPurse(session) {
     if (!session) return null;
     const h = sha(session);
-    return all().find((p) => (p.mamaSessions ?? []).some((s) => s.hash === h))?.id ?? null;
+    return all().find((p) => (p.mamaSessions ?? []).some((s) => s.hash === h && now() - Date.parse(s.createdAt) < SESSION_DAYS * DAY))?.id ?? null;
   }
 
   // The purse a guardian (Privy user) owns, or null.

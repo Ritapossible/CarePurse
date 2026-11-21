@@ -157,3 +157,26 @@ test("withdraw: to her own wallet (one-time USDC opt-in first), checked against 
   // Next time her wallet already holds USDC: one approval only
   assert.equal((await families.prepareWithdraw({ privyId: GUARDIAN.privyId, usdc: 1 })).kind, "withdraw");
 });
+
+test("a pending sign-up is reused (no new contract on every click), with a daily cap", async () => {
+  const { families, calls, tick } = setup();
+  const a = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const b = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  assert.equal(a.hash, b.hash);
+  assert.equal(calls.filter((c) => c[0] === "prepare").length, 1);
+  for (let i = 0; i < 4; i++) { tick(10 * 60_000); await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" }); }
+  assert.equal(calls.filter((c) => c[0] === "prepare").length, 5);
+  tick(10 * 60_000);
+  await assert.rejects(families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" }), /Too many set-up attempts/);
+});
+
+test("Mama's sessions end after 30 days, and a new invite signs her out everywhere", async () => {
+  const { families, tick } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { invite, purseId } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const sent = await families.sendCode(invite, "08031234567");
+  const { session } = await families.verifyCode(invite, "08031234567", sent.code);
+  assert.equal(families.sessionPurse(session), purseId);
+  await families.sendNewInvite({ privyId: GUARDIAN.privyId });
+  assert.equal(families.sessionPurse(session), null);
+});
