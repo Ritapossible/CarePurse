@@ -55,14 +55,17 @@ function emit(event) {
 }
 
 // The naira rate comes from the gateway, so both price with the same number (it reads today's
-// USD to NGN rate at start). The two start together: wait up to a minute for it, then keep the setting.
+// USD to NGN rate at start). Fetched in the background so the server answers health checks at
+// once; until it arrives, the NGN_PER_USDC setting is used. The two start together, so retry.
 config.rate = { ngnPerUsdc: config.ngnPerUsdc, source: "NGN_PER_USDC setting", asOf: null, live: false };
-for (let i = 0; i < 30; i++) {
-  const r = await fetch(new URL("/v1/rate", config.gatewayUrl)).then((x) => (x.ok ? x.json() : null)).catch(() => null);
-  if (r?.ngnPerUsdc > 0) { config.rate = r; config.ngnPerUsdc = r.ngnPerUsdc; break; }
-  await new Promise((done) => setTimeout(done, 2000));
-}
-console.log(`Rate: ₦${config.ngnPerUsdc} per USDC (${config.rate.source})`);
+(async () => {
+  for (let i = 0; i < 60; i++) {
+    const r = await fetch(new URL("/v1/rate", config.gatewayUrl)).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+    if (r?.ngnPerUsdc > 0) { config.rate = r; config.ngnPerUsdc = r.ngnPerUsdc; console.log(`Rate: ₦${r.ngnPerUsdc} per USDC (${r.source})`); return; }
+    await new Promise((done) => setTimeout(done, 2000));
+  }
+  console.warn(`Rate: gateway didn't answer; using NGN_PER_USDC=${config.ngnPerUsdc}`);
+})();
 
 const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 console.log(config.databaseUrl ? "Purses: Postgres (DATABASE_URL)" : `Purses: ${config.pursesFile} (set DATABASE_URL to keep them across restarts)`);
