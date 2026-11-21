@@ -119,7 +119,10 @@ export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, co
       if (!DISCOS.includes(disco)) return { ok: false, reason: "Unknown electricity company." };
       const { json } = await call("POST", "/merchant-verify", { billersCode: meter, serviceID: disco, type: "prepaid" });
       const c = json?.content ?? {};
-      if (json?.code !== "000" || c.WrongBillersCode || c.error) return { ok: false, reason: c.error ?? "The electricity company did not recognise this meter.", vtpass: vtpassSays(json) };
+      // VTpass answered "000" but the meter is wrong: that is the meter. Any other code (087 bad
+      // credentials, 010/0xx service errors, no answer) is our problem, not the daughter's number.
+      if (json?.code === "000" && (c.WrongBillersCode || c.error)) return { ok: false, reason: c.error ?? "The electricity company did not recognise this meter.", vtpass: vtpassSays(json) };
+      if (json?.code !== "000") return { ok: false, unavailable: true, reason: "We couldn’t reach the electricity company to check this meter. Please try again in a minute.", vtpass: vtpassSays(json) };
       return { ok: true, meter, ownerName: c.Customer_Name, address: c.Address, disco, canVend: c.Can_Vend ?? null };
     },
 

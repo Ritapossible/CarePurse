@@ -14,12 +14,12 @@ const STEPS = [
   { title: "Set her limits", tag: "You", text: "Per top-up, day, week and month. Only you can change them." },
   { title: "Invite Mama", tag: "One link", text: "She signs in with her phone number. No app to install." },
   { title: "Mama asks", tag: "Chat", text: "In English or Pidgin, typos included." },
-  { title: "Mhasibu pays", tag: "Instant", text: "Only what you allowed, only to her saved meter or phone." },
+  { title: "Mhasibu AI pays", tag: "Instant", text: "Only what you allowed, only to her saved meter or phone." },
   { title: "The token arrives", tag: "Seconds", text: "In her chat and on your receipts. She can ask for it again." },
 ];
 
 const CHAT_POINTS = [
-  { tag: "Language", title: "English or Pidgin", text: "Mhasibu answers in the one she writes in." },
+  { tag: "Language", title: "English or Pidgin", text: "Mhasibu AI answers in the one she writes in." },
   { tag: "Options", title: "Tap, don’t type", text: "Amounts come as buttons she can tap." },
   { tag: "Tokens", title: "Never lost", text: "Her last light token stays pinned on top." },
   { tag: "History", title: "Ask any day", text: "“What did I buy on Monday?” just works." },
@@ -33,13 +33,13 @@ const RULES = [
 ];
 
 const FAQ = [
-  { q: "Who holds the money?", a: "Mama’s purse, which only you control. Only you can change its limits or withdraw. Mhasibu receives one approved top-up at a time." },
+  { q: "Who holds the money?", a: "Mama’s purse, which only you control. Only you can change its limits or withdraw. Mhasibu AI receives one approved top-up at a time." },
   { q: "Does Mama need a wallet or crypto?", a: "No. She chats. You fund the purse." },
-  { q: "What if she types it wrong?", a: "Mhasibu reads plain English and Pidgin, typos included. If it isn’t sure, it shows a short numbered menu." },
+  { q: "What if she types it wrong?", a: "Mhasibu AI reads plain English and Pidgin, typos included. If it isn’t sure, it shows a short numbered menu." },
   { q: "What if a payment fails?", a: "The money goes back to the purse and she’s told she wasn’t charged." },
   { q: "Can someone talk the AI into paying more?", a: "No. The AI only sorts her request. Amounts, limits and payees are checked in code and by the purse itself." },
   { q: "What does it cost?", a: "A 3% service fee on each top-up, paid from the purse." },
-  { q: "Can she see what she bought?", a: "Yes. Her purchases page lists every top-up by day, and she can ask Mhasibu about any date." },
+  { q: "Can she see what she bought?", a: "Yes. Her purchases page lists every top-up by day, and she can ask Mhasibu AI about any date." },
   { q: "Is this live?", a: "It’s a working pilot: payments run on a test network and utilities come from a sandbox, so no real money moves yet." },
 ];
 
@@ -84,10 +84,10 @@ export default function Home() {
         {/* Hero */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-12 pt-12 lg:min-h-[calc(100svh-64px-120px)] lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pt-8">
           <div>
-            <p className={eyebrow}>Electricity · Airtime · Data</p>
+            <p className={eyebrow}>Live on Stellar testnet</p>
             <h1 className="mt-5 text-[44px] font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-[72px]">Keep Mama’s utilities on</h1>
             <p className="mt-6 max-w-lg text-lg leading-[1.6] text-secondary">
-              Fund a purse for your parent in Nigeria. She asks in chat, and Mhasibu buys electricity, airtime and data within the
+              Fund a purse for your parent in Nigeria. She asks in chat, and Mhasibu AI buys electricity, airtime and data within the
               limits you set.
             </p>
             <div className="flex flex-wrap items-center gap-x-6">
@@ -150,7 +150,7 @@ export default function Home() {
           <div className="order-1 lg:order-2">
             <p className={eyebrow}>For Mama</p>
             <h2 className={h2}>She asks. It’s done.</h2>
-            <p className={lead}>No app to learn and no card to carry. She chats with Mhasibu, and her light, airtime or data arrives in seconds.</p>
+            <p className={lead}>No app to learn and no card to carry. She chats with Mhasibu AI, and her light, airtime or data arrives in seconds.</p>
             <div className="mt-8 grid max-w-lg gap-3 sm:grid-cols-2">
               {CHAT_POINTS.map((p) => (
                 <div key={p.title} className={`${card} rounded-[20px] p-5 shadow-[0_12px_32px_-20px_rgba(70,45,20,0.25)]`}>

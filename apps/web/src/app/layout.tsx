@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CarePurse",
-  description: "Keep Mama's utilities on. Fund a purse for your parent in Nigeria; Mhasibu buys electricity, airtime and data within the limits you set.",
+  description: "Keep Mama's utilities on. Fund a purse for your parent in Nigeria; Mhasibu AI buys electricity, airtime and data within the limits you set.",
   openGraph: {
     title: "CarePurse",
     description: "Keep Mama's utilities on. Electricity, airtime and data for family in Nigeria, within limits you set.",

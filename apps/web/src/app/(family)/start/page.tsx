@@ -169,7 +169,7 @@ export default function StartPage() {
         <label className="mt-5 block text-sm text-secondary">Network
           <select className={input} value={network} onChange={(e) => setNetwork(e.target.value)}>{NETWORKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         </label>
-        <p className="mt-5 text-sm text-muted">Mama can write in English or Pidgin. Mhasibu answers in the one she uses.</p>
+        <p className="mt-5 text-sm text-muted">Mama can write in English or Pidgin. Mhasibu AI answers in the one she uses.</p>
         <button className={`${primary} mt-8`} disabled={!ok} onClick={() => setStep("meter")}>Continue</button>
       </>
     );
@@ -203,7 +203,7 @@ export default function StartPage() {
   if (step === "limits") {
     return (
       <>
-        <Heading step="Step 3 of 4" title="Her limits" text="Mhasibu can never spend more than this. The limits live in Mama’s purse contract on Stellar, and only you can change them." />
+        <Heading step="Step 3 of 4" title="Her limits" text="Mhasibu AI can never spend more than this. The limits live in Mama’s purse contract on Stellar, and only you can change them." />
         <div className="space-y-3">
           {(["light", "standard"] as const).map((k) => {
             const p = PRESETS[k];

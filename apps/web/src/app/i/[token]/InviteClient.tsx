@@ -33,7 +33,7 @@ export default function InviteClient({ token }: { token: string }) {
       if (!r.ok) return setError(d.error ?? "This link isn’t valid. Ask your child to send a new one.");
       setInvite(d);
       setPhone(d.phone);
-    }).catch(() => setError("Mhasibu is not reachable right now."));
+    }).catch(() => setError("Mhasibu AI is not reachable right now."));
   }, [token]);
 
   const pcm = invite?.language === "pcm";

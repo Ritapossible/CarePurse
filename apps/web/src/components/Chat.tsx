@@ -115,7 +115,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
         setName(h.mama.name);
         setLines(h.history.slice(-30));
       })
-      .catch((err) => setError(String(err?.message).includes("access code") ? "This link needs its access code. Please use the full link you were given." : "Mhasibu is not reachable right now. Please try again soon."));
+      .catch((err) => setError(String(err?.message).includes("access code") ? "This link needs its access code. Please use the full link you were given." : "Mhasibu AI is not reachable right now. Please try again soon."));
     refreshToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [purse]);
@@ -136,7 +136,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
       setLines((l) => [...l, { from: "mhasibu", text: reply, at: new Date().toISOString() }]);
       refreshToken();
     } catch {
-      setError("Mhasibu could not answer. Please try again.");
+      setError("Mhasibu AI could not answer. Please try again.");
     } finally {
       setWaiting(false);
     }
@@ -150,7 +150,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
           <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-live" aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-medium leading-tight">Mhasibu</div>
+          <div className="font-medium leading-tight">Mhasibu AI</div>
           <div className="truncate text-sm text-muted">For Mama {name}</div>
         </div>
         <Link href="/chat/purchases" className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-line bg-white px-4 text-sm font-medium transition-colors duration-150 hover:border-foreground">
@@ -173,7 +173,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
           <Bubble key={i} line={l} onPick={submit} live={!waiting && i === lines.length - 1} />
         ))}
         {waiting && (
-          <div className="flex items-end gap-2" aria-label="Mhasibu is typing">
+          <div className="flex items-end gap-2" aria-label="Mhasibu AI is typing">
             <MhasibuAvatar className="h-7 w-7 shrink-0" />
             <div className="flex gap-1 rounded-[20px] rounded-bl-md border border-line bg-white px-4 py-4">
               {[0, 150, 300].map((d) => <span key={d} className="h-2 w-2 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${d}ms` }} />)}
@@ -199,7 +199,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
             onChange={(e) => setText(e.target.value)}
             placeholder="Type a message"
             className="h-12 min-w-0 flex-1 rounded-xl border border-line bg-surface px-5 text-[17px] outline-none transition-colors duration-150 focus:border-foreground focus:bg-white"
-            aria-label="Message to Mhasibu"
+            aria-label="Message to Mhasibu AI"
           />
           <button aria-label="Send" disabled={waiting || !text.trim()} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] bg-foreground text-background transition-opacity disabled:opacity-30">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>

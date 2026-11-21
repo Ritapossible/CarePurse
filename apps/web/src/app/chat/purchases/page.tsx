@@ -119,7 +119,7 @@ export default function PurchasesPage() {
           {!error && purchases !== null && days.length === 0 && (
             <div className="px-5 py-10 text-center">
               <p className="text-[17px]">{filter === "all" ? "Nothing bought yet." : `No ${NAME[filter as Purchase["utility"]].toLowerCase()} bought yet.`}</p>
-              <Link href="/chat" className="mt-4 inline-flex h-11 items-center rounded-[10px] bg-foreground px-5 font-medium text-background">Ask Mhasibu</Link>
+              <Link href="/chat" className="mt-4 inline-flex h-11 items-center rounded-[10px] bg-foreground px-5 font-medium text-background">Ask Mhasibu AI</Link>
             </div>
           )}
           {days.map(([key, list]) => (
@@ -137,7 +137,7 @@ export default function PurchasesPage() {
 
         {purchases && purchases.length > 0 && (
           <p className="border-t border-line px-5 py-4 text-sm text-muted">
-            You can also ask Mhasibu, for example: &ldquo;What did I buy yesterday?&rdquo;
+            You can also ask Mhasibu AI, for example: &ldquo;What did I buy yesterday?&rdquo;
           </p>
         )}
       </section>

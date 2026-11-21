@@ -86,3 +86,18 @@ test("VTpass's duplicate guard (019) is reported as try-again-later", async () =
   assert.equal(r.ok, false);
   assert.equal(r.retryLater, true);
 });
+
+test("meter check: a wrong meter is the meter; a VTpass error (087) is 'unavailable', not the daughter's number", async () => {
+  const wrong = fakeVtpass({ "/merchant-verify": { code: "000", content: { WrongBillersCode: true, error: "Meter not found" } } });
+  const w = await wrong.provider.lookupMeter("1234567890123");
+  assert.equal(w.ok, false);
+  assert.equal(w.unavailable, undefined);
+  assert.equal(w.reason, "Meter not found");
+
+  const creds = fakeVtpass({ "/merchant-verify": { code: "087", message: "INVALID CREDENTIALS" } });
+  const c = await creds.provider.lookupMeter("1111111111111");
+  assert.equal(c.ok, false);
+  assert.equal(c.unavailable, true);
+  assert.match(c.reason, /couldn’t reach the electricity company/);
+  assert.deepEqual(c.vtpass, { code: "087", message: "INVALID CREDENTIALS" });
+});

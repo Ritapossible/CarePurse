@@ -10,7 +10,7 @@ export default function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-[1.2fr_1fr_1fr]">
         <div>
           <Logo />
-          <p className="mt-4 max-w-xs text-secondary">Electricity, airtime and data for family in Nigeria</p>
+          <p className="mt-4 max-w-xs text-secondary">Keep Mama’s light, airtime and data on, from wherever you are</p>
         </div>
         <div>
           <h3 className="font-medium">Explore</h3>

@@ -12,7 +12,7 @@ export default function DemoPage() {
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="text-sm text-muted">Live demo</p>
-            <h1 className="mt-1 text-2xl font-medium">Mama’s chat and Mhasibu’s x402 log</h1>
+            <h1 className="mt-1 text-2xl font-medium">Mama’s chat and Mhasibu AI’s x402 log</h1>
           </div>
           <span className="inline-flex items-center gap-2 text-sm text-muted">
             <span className="h-2 w-2 rounded-full bg-live" /> Stellar Testnet

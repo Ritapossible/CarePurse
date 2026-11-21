@@ -248,7 +248,7 @@ export default function DashboardPage() {
         {purse.spends.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
             <p className="font-medium">No top-ups yet</p>
-            <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu for light, airtime or data, it shows here</p>
+            <p className="mt-1 text-sm text-muted">When Mama asks Mhasibu AI for light, airtime or data, it shows here</p>
           </div>
         ) : (
           <ul className="mt-3 space-y-3">{spends.map((s, i) => <ActivityRow key={`${s.at}-${i}`} s={s} />)}</ul>
@@ -307,7 +307,7 @@ export default function DashboardPage() {
       {sheet === "invite" && (
         <Sheet title={`Invite Mama ${purse.mama.name}`} onClose={() => setSheet(null)}>
           {purse.invite.status === "joined" ? (
-            <p className="text-secondary">Mama has joined. She chats with Mhasibu from her phone.</p>
+            <p className="text-secondary">Mama has joined. She chats with Mhasibu AI from her phone.</p>
           ) : invite ? (
             <>
               <p className="text-sm text-secondary">Send her this link. It works once, for 7 days.</p>
