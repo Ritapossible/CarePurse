@@ -269,6 +269,14 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     const p = byGuardian(privyId);
     if (!p) return { deleted: true };
     if (p.openOrder) throw new FamilyError(409, "A top-up is still being settled. Try again in a few minutes.");
+    // A payment Mhasibu signed and gave up on stays valid until its window ends. The hold that keeps
+    // every family's money off the shared agent wallet until then lives on this record, so the
+    // record must outlive it.
+    const holdUntil = Date.parse(p.payHoldUntil ?? "") || 0;
+    if (now() < holdUntil) {
+      const minutes = Math.max(1, Math.ceil((holdUntil - now()) / 60_000));
+      throw new FamilyError(409, `A recent top-up is still being closed safely. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`);
+    }
     if (p.setup?.status === "active") {
       const balance = await signup.purseBalance(p.contractId);
       if (balance > 0) throw new FamilyError(409, `Mama’s purse still holds ${balance} USDC. Withdraw it first, then delete your account.`);

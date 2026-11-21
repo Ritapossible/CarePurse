@@ -236,3 +236,18 @@ test("activity: her full history, newest first, a page at a time, filterable", a
   assert.throws(() => families.activity({ privyId: GUARDIAN.privyId, utility: "gas" }), /unknown utility/);
   assert.throws(() => families.activity({ privyId: "someone-else" }), /no purse/);
 });
+
+test("account: delete waits until a signed payment's hold has ended", async () => {
+  const { families, purses, tick } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { purseId } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const { createFamilies } = await import("../src/families.mjs");
+  let clock = NOW;
+  const f2 = createFamilies({ purses, signup: { purseBalance: async () => 0 }, config: { ngnPerUsdc: 1470 }, verifyMeter: async () => ({ ok: true }), clock: () => clock });
+  purses.update(purseId, (p) => { p.payHoldUntil = new Date(NOW + 90_000).toISOString(); });
+  await assert.rejects(f2.deleteAccount({ privyId: GUARDIAN.privyId }), /Try again in 2 minutes/);
+  assert.ok(purses.get(purseId)); // the hold is still on record
+  clock += 91_000;
+  assert.deepEqual(await f2.deleteAccount({ privyId: GUARDIAN.privyId }), { deleted: true });
+  void tick;
+});

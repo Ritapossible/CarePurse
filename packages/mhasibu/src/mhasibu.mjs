@@ -120,7 +120,9 @@ export function createMhasibu({
       if (other.id !== purse.id && other.openOrder) await settleOpenOrder(other).catch(() => {});
     }
     const holds = (purses.all?.() ?? [purses.get(purse.id)]).map((p) => {
-      if (p.openOrder?.released && !p.openOrder?.paid) return Infinity; // settled on that purse's next message
+      // Any unpaid open order holds, not only one marked released: a release that timed out stays
+      // `released: false` until the chain answers, and it may already have landed on the agent wallet.
+      if (p.openOrder && !p.openOrder.paid) return Infinity; // settled on that purse's next message
       return Date.parse(p.payHoldUntil ?? "") || 0;
     });
     const holdUntil = Math.max(0, ...holds);

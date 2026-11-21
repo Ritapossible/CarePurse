@@ -749,3 +749,29 @@ test("one agent wallet for every purse: a hold on one family blocks releases for
   await mhasibu.handle("b", "1");
   assert.equal(releases.length, 1);
 });
+
+test("a release still unknown on another family holds every purse until the chain answers", async () => {
+  const purses = createPurseStore(null, { seed: false });
+  purses.put(newPurse({ ...DEMO_PURSE, id: "a", contractId: "CA" }));
+  purses.put(newPurse({ ...DEMO_PURSE, id: "b", contractId: "CB" }));
+  const releases = [];
+  let chainAnswers = false;
+  const walletFor = () => ({
+    ...fakeWallet(),
+    release: async ({ amount }) => { releases.push(amount); return { tx: "rel" }; },
+    commitRef: async () => ({ tx: "c" }),
+    openOrderRef: async () => { if (!chainAnswers) throw new Error("rpc timeout"); return null; }, // null: A's release never landed
+  });
+  const clock = MONDAY_10AM;
+  const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => clock, wait: async () => {} });
+  // A's release timed out: recorded, not yet known to have landed (released: false)
+  purses.update("a", (p) => { p.openOrder = { orderId: "oa", ref: orderRef("oa"), utility: "electricity", ngn: 500, amount: "3401500", at: new Date(clock).toISOString(), released: false, paid: false, attempts: 0 }; });
+  await mhasibu.handle("b", "my light is finished");
+  assert.match(await mhasibu.handle("b", "1"), /minute/i);
+  assert.equal(releases.length, 0);
+  chainAnswers = true; // the chain says A's release never happened: A's order is cleared, B may go
+  await mhasibu.handle("b", "my light is finished");
+  await mhasibu.handle("b", "1");
+  assert.equal(purses.get("a").openOrder, null);
+  assert.equal(releases.length, 1);
+});

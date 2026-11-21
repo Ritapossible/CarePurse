@@ -219,3 +219,7 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - The gateway re-reads USD to NGN every 6 hours (`RATE_REFRESH_HOURS`), still within ±25% of `NGN_PER_USDC`; a failed reading keeps the current rate. Mhasibu follows the gateway hourly.
 - x402 price is now per order (dynamic price from the `order` query): an order always pays exactly what it was quoted, so a refresh only affects new orders.
 - The rate is not on-chain. The contract enforces USDC caps saved with a 20% margin; Mhasibu enforces the naira limits exactly; the dashboard's "Update rules" re-saves caps when the rate passes the margin.
+
+## 2026-11-21: Review fixes (delete and the shared-wallet hold)
+- `deleteAccount` now refuses until the purse's `payHoldUntil` has passed: the record carries the hold that keeps every family's money off the shared agent wallet while an abandoned signed payment is still valid.
+- The cross-family hold now counts any unpaid open order, including a release that timed out (`released: false` until the chain answers), not only orders marked released.
