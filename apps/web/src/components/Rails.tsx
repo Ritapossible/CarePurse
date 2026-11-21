@@ -8,6 +8,7 @@ export const RAILS = [
   { name: "Soroban", logo: "/logos/stellar.svg", w: 24, h: 24, label: "Soroban", what: "Spending limits enforced on-chain" },
   { name: "USDC", logo: "/logos/usdc.svg", w: 24, h: 24, label: "USDC", what: "The money in the purse" },
   { name: "NEAR AI", logo: "/logos/near.svg", w: 20, h: 20, label: "NEAR AI", what: "A private model, in sealed hardware, reads Mama’s messages" },
+  { name: "Privy", logo: "/logos/privy.png", w: 22, h: 22, label: "Privy", what: "The daughter’s sign-in and her Stellar wallet, with no seed phrase" },
   { name: "VTpass", logo: "/logos/vtpass.png", w: 74, h: 20, label: null, what: "Electricity tokens, airtime and data (sandbox)" },
 ] as const;
 

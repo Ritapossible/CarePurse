@@ -22,13 +22,21 @@ export const metadata: Metadata = {
   },
 };
 
+const RELOAD_TO_TOP = `try{var n=performance.getEntriesByType("navigation")[0];if(n&&n.type==="reload"&&!location.hash){history.scrollRestoration="manual";scrollTo(0,0);addEventListener("load",function(){scrollTo(0,0)})}}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${instrumentSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">{children}</body>
+      <body className="min-h-full flex flex-col bg-background text-foreground">
+        {/* A refresh starts at the top, not where she was (browsers restore the old position by
+            default). Only on a real reload, and not for a #section link; back and forward still
+            return to where she was. Runs before the page paints. */}
+        <script dangerouslySetInnerHTML={{ __html: RELOAD_TO_TOP }} />
+        {children}
+      </body>
     </html>
   );
 }

@@ -239,7 +239,7 @@ export default function Home() {
           </div>
           <div className={`${card} grid gap-px overflow-hidden bg-[#161412]/[0.06] sm:grid-cols-2`}>
             {RAILS.map((r) => (
-              <div key={r.name} className="bg-white p-6">
+              <div key={r.name} className="bg-white p-6 sm:[&:last-child:nth-child(odd)]:col-span-2">
                 <RailLogo rail={r} />
                 <p className="mt-2 text-sm text-secondary">{r.what}</p>
               </div>
