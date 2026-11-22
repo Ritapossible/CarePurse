@@ -13,6 +13,13 @@ const IS_LINK = /^https:\/\/stellar\.expert\//;
 const OPTION = /^(\d)\)\s+(.+)$/; // "1) ₦500" or "0) Cancel"
 const QUICK = ["Light don almost finish", "Buy airtime", "Buy data", "How much is left?", "What did I buy?"];
 
+// A random id for one message (called from the send handler, never during render).
+function newMessageId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID().replace(/-/g, "");
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`; // older phones
+}
+const nowIso = () => new Date().toISOString();
+
 const time = (at?: string) => (at ? new Date(at).toLocaleTimeString("en-NG", { timeZone: LAGOS, hour: "numeric", minute: "2-digit" }) : "");
 
 // Her latest electricity token, pinned under the header so it never scrolls away.
@@ -160,14 +167,12 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
     setError(null);
     // An id for this message: if the answer is lost on the way, it is found again by this id (not by
     // its text, which she may have sent before).
-    const cid = typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID().replace(/-/g, "")
-      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`; // older phones
-    setLines((l) => [...l, { from: "mama", text: t, at: new Date().toISOString(), cid }]);
+    const cid = newMessageId();
+    setLines((l) => [...l, { from: "mama", text: t, at: nowIso(), cid }]);
     setWaiting(true);
     try {
       const reply = await sendMessage(t, purse, cid);
-      setLines((l) => [...l, { from: "mhasibu", text: reply, at: new Date().toISOString() }]);
+      setLines((l) => [...l, { from: "mhasibu", text: reply, at: nowIso() }]);
       refreshToken();
     } catch (err) {
       // No answer in time (or a server error): the reply may still be on its way, since a top-up takes a
