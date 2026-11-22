@@ -47,7 +47,39 @@ export class ContractRefused extends Error {
   }
 }
 
+// Every transaction from one account uses that account's next sequence number, so two built at the
+// same moment collide (tx_bad_seq). One queue per source account, for the whole process: deploys,
+// guardian calls, wallet creation, top-ups and the shared agent's buy/commit/refund all line up.
+const accountQueues = new Map();
+export function withAccount(publicKey, fn) {
+  const before = accountQueues.get(publicKey) ?? Promise.resolve();
+  const run = before.then(fn, fn);
+  const settled = run.then(() => {}, () => {});
+  accountQueues.set(publicKey, settled);
+  settled.then(() => { if (accountQueues.get(publicKey) === settled) accountQueues.delete(publicKey); });
+  return run;
+}
+
+// A stale sequence number (another process, or a transaction the network dropped): rebuild and
+// try again, a few times. Anything else is a real failure.
+export async function retryOnBadSeq(fn, tries = 3) {
+  for (let i = 1; ; i++) {
+    try { return await fn(); } catch (err) {
+      if (!err?.badSeq || i >= tries) throw err;
+      await new Promise((r) => setTimeout(r, 500 * i));
+    }
+  }
+}
+
+// One client per RPC address (they hold connections; the calls are many).
+const clients = new Map();
 export function createSoroban({ rpcUrl, networkPassphrase = Networks.TESTNET }) {
+  const key = `${rpcUrl}|${networkPassphrase}`;
+  if (!clients.has(key)) clients.set(key, makeSoroban({ rpcUrl, networkPassphrase }));
+  return clients.get(key);
+}
+
+function makeSoroban({ rpcUrl, networkPassphrase }) {
   const server = new rpc.Server(rpcUrl);
 
   async function build(sourcePublicKey, operation) {
@@ -55,24 +87,40 @@ export function createSoroban({ rpcUrl, networkPassphrase = Networks.TESTNET }) 
     return new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase }).addOperation(operation).setTimeout(60).build();
   }
 
-  // Simulate, then sign and send. A contract error during simulation means the contract said no
-  // and nothing is signed or sent.
-  async function send(signer, operation) {
-    const tx = await build(signer.publicKey(), operation);
-    const sim = await server.simulateTransaction(tx);
-    if (rpc.Api.isSimulationError(sim)) {
-      const code = contractErrorCode(sim.error);
-      if (code) throw new ContractRefused(code, sim.error);
-      throw new Error(`simulation failed: ${sim.error.slice(0, 300)}`);
-    }
-    const prepared = rpc.assembleTransaction(tx, sim).build();
-    prepared.sign(signer);
-    return submit(prepared, sim);
+  // Simulate, then sign and send, in the signer's queue (retried on a stale sequence number). A
+  // contract error during simulation means the contract said no: nothing is signed or sent.
+  function send(signer, operation) {
+    return withAccount(signer.publicKey(), () => retryOnBadSeq(async () => {
+      const tx = await build(signer.publicKey(), operation);
+      const sim = await server.simulateTransaction(tx);
+      if (rpc.Api.isSimulationError(sim)) {
+        const code = contractErrorCode(sim.error);
+        if (code) throw new ContractRefused(code, sim.error);
+        throw new Error(`simulation failed: ${sim.error.slice(0, 300)}`);
+      }
+      const prepared = rpc.assembleTransaction(tx, sim).build();
+      prepared.sign(signer);
+      return submit(prepared);
+    }));
   }
 
+  // Send a signed transaction and wait for its result. TRY_AGAIN_LATER (the node is busy) is sent
+  // again; DUPLICATE means it was already received, so its result is awaited; a bad sequence number
+  // is marked so the caller can rebuild (retryOnBadSeq).
   async function submit(signedTx) {
-    const sent = await server.sendTransaction(signedTx);
-    if (sent.status === "ERROR") throw new Error(`send failed: ${sent.errorResult?.result().switch().name ?? "unknown"}`);
+    let sent;
+    for (let i = 0; i < 4; i++) {
+      sent = await server.sendTransaction(signedTx);
+      if (sent.status !== "TRY_AGAIN_LATER") break;
+      await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+    }
+    if (sent.status === "TRY_AGAIN_LATER") throw new Error("the network is busy; try again in a moment");
+    if (sent.status === "ERROR") {
+      const code = sent.errorResult?.result().switch().name ?? "unknown";
+      const err = new Error(`send failed: ${code}`);
+      err.badSeq = code === "txBadSeq";
+      throw err;
+    }
     const done = await server.pollTransaction(sent.hash, { attempts: 30 });
     if (done.status !== "SUCCESS") {
       const err = new Error(`transaction ${done.status}`);
@@ -99,7 +147,6 @@ export function createSoroban({ rpcUrl, networkPassphrase = Networks.TESTNET }) 
   };
 }
 
-// The argument of `refund` and `commit`: the same order reference `buy` was given.
 export const refundArgs = (orderId) => [bytes32(sha256(orderId))];
 export const commitArgs = refundArgs;
 export const orderRef = (orderId) => sha256(orderId).toString("hex");

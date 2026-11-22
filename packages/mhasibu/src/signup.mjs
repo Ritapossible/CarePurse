@@ -12,7 +12,7 @@
 import crypto from "node:crypto";
 import { Address, Asset, Contract, Keypair, Networks, Operation, TransactionBuilder, BASE_FEE, authorizeEntry, rpc, xdr } from "@stellar/stellar-sdk";
 import { MIN_TOPUP, monthlyCap } from "./limits.mjs";
-import { addressVal, bytes32, capBaseUnits, capRate, createSoroban, destHash, i128, symbol } from "./purse-contract.mjs";
+import { addressVal, bytes32, capBaseUnits, capRate, createSoroban, destHash, i128, retryOnBadSeq, symbol, withAccount } from "./purse-contract.mjs";
 
 const UTILITIES = ["electricity", "airtime", "data"];
 const AUTH_LEDGERS = 120; // the signature request stays valid ~10 minutes
@@ -44,6 +44,10 @@ export function createSignup({ config, fetchImpl = fetch }) {
   const server = soroban.server;
   const agent = Keypair.fromSecret(config.agentSecret);
 
+  // The operator pays for (and is the source of) sign-ups, guardian calls, wallet creation and
+  // top-ups: one at a time, rebuilt if its sequence number was stale.
+  const asOperator = (fn) => withAccount(agent.publicKey(), () => retryOnBadSeq(fn));
+
   // Her address must exist on the ledger for the network to check her signature. On testnet,
   // Friendbot creates it (she still pays nothing: the fees are Mhasibu's).
   async function ensureAccount(address) {
@@ -66,14 +70,16 @@ export function createSignup({ config, fetchImpl = fetch }) {
     const kp = Keypair.fromSecret(secret);
     const exists = await server.getAccount(kp.publicKey()).then(() => true, () => false);
     if (exists) return { address: kp.publicKey(), created: false }; // created on an earlier try (one transaction: trustline included)
-    const operator = await server.getAccount(agent.publicKey());
-    const tx = new TransactionBuilder(operator, { fee: String(Number(BASE_FEE) * 2), networkPassphrase: passphrase })
-      .addOperation(Operation.createAccount({ destination: kp.publicKey(), startingBalance: AGENT_START_XLM }))
-      .addOperation(Operation.changeTrust({ asset: new Asset("USDC", config.usdc.issuer), source: kp.publicKey() }))
-      .setTimeout(120)
-      .build();
-    tx.sign(agent, kp);
-    await soroban.submit(tx);
+    await asOperator(async () => {
+      const operator = await server.getAccount(agent.publicKey());
+      const tx = new TransactionBuilder(operator, { fee: String(Number(BASE_FEE) * 2), networkPassphrase: passphrase })
+        .addOperation(Operation.createAccount({ destination: kp.publicKey(), startingBalance: AGENT_START_XLM }))
+        .addOperation(Operation.changeTrust({ asset: new Asset("USDC", config.usdc.issuer), source: kp.publicKey() }))
+        .setTimeout(120)
+        .build();
+      tx.sign(agent, kp);
+      return soroban.submit(tx);
+    });
     return { address: kp.publicKey(), created: true };
   }
 
@@ -89,13 +95,15 @@ export function createSignup({ config, fetchImpl = fetch }) {
     if (xlm >= min) return 0;
     const amount = (Number(AGENT_START_XLM) - xlm).toFixed(7);
     if (!(Number(amount) > 0)) return 0;
-    const operator = await server.getAccount(agent.publicKey());
-    const tx = new TransactionBuilder(operator, { fee: BASE_FEE, networkPassphrase: passphrase })
-      .addOperation(Operation.payment({ destination: address, asset: Asset.native(), amount }))
-      .setTimeout(120)
-      .build();
-    tx.sign(agent);
-    await soroban.submit(tx);
+    await asOperator(async () => {
+      const operator = await server.getAccount(agent.publicKey());
+      const tx = new TransactionBuilder(operator, { fee: BASE_FEE, networkPassphrase: passphrase })
+        .addOperation(Operation.payment({ destination: address, asset: Asset.native(), amount }))
+        .setTimeout(120)
+        .build();
+      tx.sign(agent);
+      return soroban.submit(tx);
+    });
     return Number(amount);
   }
 
@@ -156,11 +164,13 @@ export function createSignup({ config, fetchImpl = fetch }) {
       })),
       auth: [signed],
     });
-    const account = await server.getAccount(agent.publicKey());
-    const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase }).addOperation(op).setTimeout(60).build();
-    const prepared = await server.prepareTransaction(tx);
-    prepared.sign(agent);
-    return soroban.submit(prepared);
+    return asOperator(async () => {
+      const account = await server.getAccount(agent.publicKey());
+      const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase }).addOperation(op).setTimeout(60).build();
+      const prepared = await server.prepareTransaction(tx);
+      prepared.sign(agent);
+      return soroban.submit(prepared);
+    });
   }
 
   // Sign-up step 1: deploy her family's purse and prepare `configure` for her signature.
