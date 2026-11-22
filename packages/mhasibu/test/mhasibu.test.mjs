@@ -876,3 +876,19 @@ test("a family wallet follows the live rate: a refresh after it was made reaches
   assert.equal(maxPaymentUsd(cfg), maxPaymentUsd(live));
   assert.equal(live.purseContractId, undefined); // the live config itself is untouched
 });
+
+test("events name their own purse: settling another family's order is logged under that family", async () => {
+  const purses = createPurseStore(null, { seed: false });
+  purses.put(newPurse({ ...DEMO_PURSE, id: "a", contractId: "CA" }));
+  purses.put(newPurse({ ...DEMO_PURSE, id: "b", contractId: "CB" }));
+  const events = [];
+  const walletFor = () => ({ ...fakeWallet(), release: async () => ({ tx: "rel" }), commitRef: async () => ({ tx: "c" }) });
+  const mhasibu = createMhasibu({ purses, wallet: fakeWallet(), walletFor, understander: createUnderstander(null), clock: () => MONDAY_10AM, wait: async () => {}, log: (e) => events.push(e) });
+  purses.update("a", (p) => { p.openOrder = { orderId: "oa", ref: orderRef("oa"), utility: "electricity", ngn: 500, amount: "1", at: new Date(MONDAY_10AM).toISOString(), released: true, paid: true, attempts: 0 }; });
+  await mhasibu.handle("b", "my light is finished");
+  await mhasibu.handle("b", "1"); // B's purchase first settles A's paid order (shared wallet)
+  const commitA = events.find((e) => e.type === "committed" && e.purse === "a");
+  assert.ok(commitA, "A's commit is logged under A");
+  assert.ok(!events.some((e) => e.type === "committed" && e.purse === undefined));
+  assert.equal(await mhasibu.settle("a"), true); // nothing left to settle
+});

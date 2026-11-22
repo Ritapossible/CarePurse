@@ -51,7 +51,19 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   const now = () => clock();
   const iso = (t = now()) => new Date(t).toISOString();
   const all = () => purses.all();
-  const byGuardian = (privyId) => all().find((p) => p.guardian?.privyId && p.guardian.privyId === privyId) ?? null;
+  // Lookups by daughter, Mama's session and invite run on every request: remembered (key → purse id)
+  // and re-checked against the purse each time, so a stale entry is never trusted. A miss scans once.
+  const index = { guardian: new Map(), session: new Map(), invite: new Map() };
+  function lookup(map, key, matches) {
+    const id = map.get(key);
+    const hit = id ? purses.get(id) : null;
+    if (hit && matches(hit)) return hit;
+    map.delete(key);
+    const found = all().find(matches) ?? null;
+    if (found) map.set(key, found.id);
+    return found;
+  }
+  const byGuardian = (privyId) => (privyId ? lookup(index.guardian, privyId, (p) => p.guardian?.privyId === privyId) : null);
   const mine = (privyId) => {
     const p = byGuardian(privyId);
     if (!p) throw new FamilyError(404, "no purse yet");
@@ -487,7 +499,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
 
   function findInvite(t) {
     const h = sha(t);
-    const p = all().find((x) => x.invite?.hash === h);
+    const p = lookup(index.invite, h, (x) => x.invite?.hash === h);
     if (!p) throw new FamilyError(404, "This link isn’t valid. Ask your child to send a new one.");
     if (p.invite.usedAt) throw new FamilyError(410, "This link was already used. Ask your child to send a new one.");
     if (Date.parse(p.invite.expiresAt) < now()) throw new FamilyError(410, "This link has expired. Ask your child to send a new one.");
@@ -559,7 +571,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   function sessionPurse(session) {
     if (!session) return null;
     const h = sha(session);
-    return all().find((p) => (p.mamaSessions ?? []).some((s) => s.hash === h && now() - Date.parse(s.createdAt) < SESSION_DAYS * DAY))?.id ?? null;
+    return lookup(index.session, h, (p) => (p.mamaSessions ?? []).some((s) => s.hash === h && now() - Date.parse(s.createdAt) < SESSION_DAYS * DAY))?.id ?? null;
   }
 
   // The purse a guardian (Privy user) owns, or null.

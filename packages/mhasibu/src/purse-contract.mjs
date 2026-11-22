@@ -50,15 +50,17 @@ export class ContractRefused extends Error {
 // Every transaction from one account uses that account's next sequence number, so two built at the
 // same moment collide (tx_bad_seq). One queue per source account, for the whole process: deploys,
 // guardian calls, wallet creation, top-ups and the shared agent's buy/commit/refund all line up.
-const accountQueues = new Map();
-export function withAccount(publicKey, fn) {
-  const before = accountQueues.get(publicKey) ?? Promise.resolve();
+// `inOrder` is the general form: one job at a time per key (also used for Mhasibu's chat queues).
+const queues = new Map();
+export function inOrder(key, fn) {
+  const before = queues.get(key) ?? Promise.resolve();
   const run = before.then(fn, fn);
   const settled = run.then(() => {}, () => {});
-  accountQueues.set(publicKey, settled);
-  settled.then(() => { if (accountQueues.get(publicKey) === settled) accountQueues.delete(publicKey); });
+  queues.set(key, settled);
+  settled.then(() => { if (queues.get(key) === settled) queues.delete(key); });
   return run;
 }
+export const withAccount = (publicKey, fn) => inOrder(`account:${publicKey}`, fn);
 
 // A stale sequence number (another process, or a transaction the network dropped): rebuild and
 // try again, a few times. Anything else is a real failure.

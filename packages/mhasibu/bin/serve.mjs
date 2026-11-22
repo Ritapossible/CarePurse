@@ -22,7 +22,7 @@ import { createSignup } from "../src/signup.mjs";
 import { createFamilies, FamilyError } from "../src/families.mjs";
 import { openPurseStore } from "../src/purses.mjs";
 import { PRESETS, monthlyCap } from "../src/limits.mjs";
-import { ContractRefused, buyArgs, createSoroban, refundArgs, symbol } from "../src/purse-contract.mjs";
+import { ContractRefused, buyArgs, createSoroban, inOrder, refundArgs, symbol } from "../src/purse-contract.mjs";
 import { maskNumbers } from "../src/replies.mjs";
 import { createSms } from "../src/sms.mjs";
 
@@ -41,7 +41,6 @@ function authorised(req) {
 // Each live-log listener follows one purse; events carry the purse they belong to.
 const clients = new Map(); // res -> purse id
 const currentPurse = new AsyncLocalStorage();
-const recent = [];
 
 function emit(event) {
   // The live log is for watching the agent, not for reading Mama's numbers: chat lines can hold her
@@ -49,9 +48,8 @@ function emit(event) {
   const e = { at: new Date().toISOString(), ...event };
   for (const k of ["text", "message"]) if (typeof e[k] === "string") e[k] = maskNumbers(e[k]);
   if (e.tx) e.link = explorer.tx(e.tx);
-  e.purse = e.purse ?? currentPurse.getStore() ?? "demo";
-  recent.push(e);
-  if (recent.length > 200) recent.shift();
+  // Outside a chat (sign-up routes, background jobs) an event belongs to no family's log.
+  e.purse = e.purse ?? currentPurse.getStore() ?? "system";
   const line = `data: ${JSON.stringify(e)}\n\n`;
   for (const [res, purse] of clients) if (purse === e.purse) res.write(line);
 }
@@ -143,7 +141,22 @@ const readJson = (req, max = 10_000) => new Promise((resolve, reject) => {
   req.on("end", () => { try { resolve(JSON.parse(data || "{}")); } catch { reject(new Error("bad json")); } });
 });
 
-let busy = Promise.resolve(); // one message at a time, so two taps can't race a payment
+// Chat queues. One message at a time per purse (two taps can't race a payment). Purses still on the
+// shared agent wallet also share one wallet queue (their payment holds depend on it); a family with
+// its own wallet never waits for another family.
+const forPurse = (purseId, fn) => {
+  const own = purses.get(purseId)?.agent?.address;
+  return own ? inOrder(`purse:${purseId}`, fn) : inOrder("wallet:shared", () => inOrder(`purse:${purseId}`, fn));
+};
+
+// Background: settle any open order every minute, in that purse's queue, so a stuck order never
+// waits for Mama's next message (and never blocks other families on the shared wallet).
+setInterval(() => {
+  for (const p of purses.all?.() ?? []) {
+    if (!p.openOrder) continue;
+    forPurse(p.id, () => currentPurse.run(p.id, () => mhasibu.settle(p.id))).catch((err) => emit({ purse: p.id, type: "error", message: `background settle: ${err.message}` }));
+  }
+}, 60_000).unref();
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
@@ -209,9 +222,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/v1/chat") {
       const { purse = "demo", text } = await readJson(req);
       if (typeof text !== "string" || !text.trim()) return send(res, 400, { error: "text is required" });
-      const run = busy.then(() => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500))));
-      busy = run.catch(() => {});
-      return send(res, 200, { reply: await run });
+      if (!purses.get(purse)) return send(res, 404, { error: "no such purse" });
+      const reply = await forPurse(purse, () => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500))));
+      return send(res, 200, { reply });
     }
     // ── Sign-up (the daughter) ──────────────────────────────────
     if (req.method === "POST" && url.pathname === "/v1/meters/verify") {
@@ -260,17 +273,17 @@ const server = http.createServer(async (req, res) => {
       const amount = BigInt(caps.per_topup) + 1n;
       const purse = purses.get("demo");
       const orderId = `overspend-${Date.now()}`;
-      emit({ type: "attack", usdc: Number(amount) / 1e7, text: `Bypassing Mhasibu's own rule checks: asking the purse contract for ${(Number(amount) / 1e7).toFixed(7)} USDC of electricity, just over Adaeze's cap` });
+      emit({ purse: "demo", type: "attack", usdc: Number(amount) / 1e7, text: `Bypassing Mhasibu's own rule checks: asking the purse contract for ${(Number(amount) / 1e7).toFixed(7)} USDC of electricity, just over Adaeze's cap` });
       try {
         const r = await soroban.invoke(agent, config.purseContractId, "buy",
           buyArgs({ utility: "electricity", destination: purse.destinations.electricity, amount, orderId, key: config.destHashKey, contractId: config.purseContractId }));
-        emit({ type: "contract-ok", tx: r.hash, text: "The contract allowed it (it shouldn't): refunding now" });
+        emit({ purse: "demo", type: "contract-ok", tx: r.hash, text: "The contract allowed it (it shouldn't): refunding now" });
         const back = await soroban.invoke(agent, config.purseContractId, "refund", refundArgs(orderId));
-        emit({ type: "refunded", tx: back.hash, amount: String(amount) });
+        emit({ purse: "demo", type: "refunded", tx: back.hash, amount: String(amount) });
         return send(res, 200, { refused: false, tx: r.hash, refunded: back.hash });
       } catch (err) {
         if (!(err instanceof ContractRefused)) throw err;
-        emit({ type: "contract-refused", rule: err.rule, code: err.code });
+        emit({ purse: "demo", type: "contract-refused", rule: err.rule, code: err.code });
         return send(res, 200, { refused: true, rule: err.rule, code: err.code });
       }
     }
@@ -287,17 +300,17 @@ const server = http.createServer(async (req, res) => {
       const orderId = `wrong-destination-${Date.now()}`;
       const soroban = createSoroban({ rpcUrl: config.rpcUrl });
       const agent = Keypair.fromSecret(config.agentSecret);
-      emit({ type: "attack", kind: "wrong-destination", text: `Bypassing Mhasibu's own checks: asking the purse contract to pay unsaved meter ${wrongMeter}` });
+      emit({ purse: "demo", type: "attack", kind: "wrong-destination", text: `Bypassing Mhasibu's own checks: asking the purse contract to pay unsaved meter ${wrongMeter}` });
       try {
         const r = await soroban.invoke(agent, config.purseContractId, "buy",
           buyArgs({ utility: "electricity", destination: wrongMeter, amount, orderId, key: config.destHashKey, contractId: config.purseContractId }));
-        emit({ type: "contract-ok", tx: r.hash, text: "The contract allowed the unsaved meter (it shouldn't): refunding now" });
+        emit({ purse: "demo", type: "contract-ok", tx: r.hash, text: "The contract allowed the unsaved meter (it shouldn't): refunding now" });
         const back = await soroban.invoke(agent, config.purseContractId, "refund", refundArgs(orderId));
-        emit({ type: "refunded", tx: back.hash, amount: String(amount) });
+        emit({ purse: "demo", type: "refunded", tx: back.hash, amount: String(amount) });
         return send(res, 200, { refused: false, tx: r.hash, refunded: back.hash });
       } catch (err) {
         if (!(err instanceof ContractRefused)) throw err;
-        emit({ type: "contract-refused", kind: "wrong-destination", rule: err.rule, code: err.code });
+        emit({ purse: "demo", type: "contract-refused", kind: "wrong-destination", rule: err.rule, code: err.code });
         return send(res, 200, { refused: true, rule: err.rule, code: err.code });
       }
     }

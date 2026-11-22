@@ -415,3 +415,19 @@ test("sign-in codes go by SMS when Termii is set; without SMS or the demo settin
   const closed = createFamilies({ purses, signup: {}, config: { agentSecret: OPERATOR, showMamaCode: false }, verifyMeter: async () => ({ ok: true }) });
   await assert.rejects(closed.sendCode(invite, "08031234567"), /isn’t set up yet/);
 });
+
+test("lookups are remembered but always re-checked: a signed-out session or a new invite never matches", async () => {
+  const { families, purses } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { purseId, invite } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const { code } = await families.sendCode(invite, "08031234567");
+  const { session } = await families.verifyCode(invite, "08031234567", code);
+  assert.equal(families.sessionPurse(session), purseId);
+  assert.equal(families.sessionPurse(session), purseId); // remembered
+  assert.equal(families.guardianPurse(GUARDIAN.privyId), purseId);
+  await families.sendNewInvite({ privyId: GUARDIAN.privyId }); // signs Mama out everywhere
+  assert.equal(families.sessionPurse(session), null);
+  assert.equal(families.guardianPurse(null), null);
+  purses.remove(purseId);
+  assert.equal(families.guardianPurse(GUARDIAN.privyId), null);
+});

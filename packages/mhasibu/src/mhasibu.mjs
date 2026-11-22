@@ -44,9 +44,13 @@ export function createMhasibu({
   understander = createUnderstander(config.llm),
   clock = () => Date.now(),
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  log = () => {},
+  log: baseLog = () => {},
   sms = null, // Termii: Mama's electricity token also goes to her phone by text
 } = {}) {
+  // Every event names the purse it belongs to (the live log shows each family only its own).
+  const log = (e) => baseLog(e);
+  const logFor = (purse) => (e) => baseLog({ purse: purse?.id, ...e });
+
   // The wallet for a purse: its own contract (families who signed up) and, once it has one, its own
   // agent wallet; otherwise the default (the demo purse, PURSE_CONTRACT_ID, on the shared wallet).
   const wallets = new Map();
@@ -62,7 +66,7 @@ export function createMhasibu({
   const feeBps = config.serviceFeeBps ?? 0;
   const notifyGuardian = (purse, kind, text) => {
     purses.update(purse.id, (p) => p.notifications.push({ at: new Date(clock()).toISOString(), kind, text, read: false }));
-    log({ type: "notify-guardian", kind, text });
+    baseLog({ purse: purse.id, type: "notify-guardian", kind, text });
   };
   const remember = (purse, from, text) => purses.update(purse.id, (p) => p.history.push({ at: new Date(clock()).toISOString(), from, text }));
 
@@ -246,16 +250,17 @@ export function createMhasibu({
   const deliveredFields = (r = {}) => Object.fromEntries(Object.entries({ token: r.token, units: r.units, reference: r.reference, bundle: r.bundle }).filter(([, v]) => v != null));
 
   async function commitOpen(purse) {
+    const plog = logFor(purse);
     const open = purse.openOrder;
     if (!open || !walletOf(purse).commitRef) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
     try {
       const done = await walletOf(purse).commitRef(open.ref ?? orderRef(open.orderId));
       purses.update(purse.id, (p) => { p.openOrder = null; });
-      log({ type: "committed", tx: done.tx, link: explorer.tx(done.tx) });
+      plog({ type: "committed", tx: done.tx, link: explorer.tx(done.tx) });
       return true;
     } catch (err) {
       if (err instanceof ContractRefused && err.rule === "already committed") { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
-      log({ type: "commit-failed", message: err.message });
+      plog({ type: "commit-failed", message: err.message });
       return false;
     }
   }
@@ -269,6 +274,7 @@ export function createMhasibu({
   // `open` may come from the purse record or only from the chain (orderId unknown).
   // Returns { kind: "delivered" | "refunded" | "pending", token?, units? }.
   async function resolveReleased(purse, open, { refundAttempts = 1 } = {}) {
+    const plog = logFor(purse);
     const ref = open.ref ?? orderRef(open.orderId);
     const status = await (open.orderId ? walletOf(purse).orderStatus(open.orderId) : walletOf(purse).orderByRef(ref)).catch(() => undefined);
     if (status === undefined) return { kind: "pending" }; // gateway unreachable: don't guess
@@ -300,13 +306,13 @@ export function createMhasibu({
     if (issued && (issued.token || issued.reference) && ["failed", "fulfilling"].includes(status?.status)) {
       try {
         const paid = await walletOf(purse).payGatewayDirect(open.amount);
-        log({ type: "paid-direct", tx: paid.tx, link: explorer.tx(paid.tx), amount: open.amount });
+        plog({ type: "paid-direct", tx: paid.tx, link: explorer.tx(paid.tx), amount: open.amount });
         keep({ tx: paid.tx, paidDirect: true });
         notifyGuardian(purse, "receipt", `Mama's ₦${(open.ngn ?? status.ngn).toLocaleString("en-NG")} ${open.utility} was delivered but the x402 settlement failed, so Mhasibu paid the gateway directly.${issued.token ? ` Token: ${issued.token}.` : ""} ${explorer.tx(paid.tx)}`);
         await commitRef(purse, ref);
         return { kind: "delivered", token: issued.token, units: issued.units };
       } catch (err) {
-        log({ type: "paid-direct-failed", message: err.message });
+        plog({ type: "paid-direct-failed", message: err.message });
         return { kind: "pending" };
       }
     }
@@ -314,11 +320,11 @@ export function createMhasibu({
     for (let i = 0; i < refundAttempts; i++) {
       try {
         const back = await walletOf(purse).refundRef(ref);
-        log({ type: "refunded", tx: back.tx, link: explorer.tx(back.tx), amount: open.amount });
+        plog({ type: "refunded", tx: back.tx, link: explorer.tx(back.tx), amount: open.amount });
         purses.update(purse.id, (p) => { p.spends = p.spends.filter((s) => s.order !== orderId); p.openOrder = null; });
         return { kind: "refunded" };
       } catch (err) {
-        log({ type: "refund-failed", message: err.message, attempt: i + 1 });
+        plog({ type: "refund-failed", message: err.message, attempt: i + 1 });
         if (err instanceof ContractRefused) break;
         if (i < refundAttempts - 1) await wait(2_000 * (i + 1));
       }
@@ -327,11 +333,12 @@ export function createMhasibu({
   }
 
   async function commitRef(purse, ref) {
+    const plog = logFor(purse);
     try {
       const done = await walletOf(purse).commitRef(ref);
-      log({ type: "committed", tx: done.tx, link: explorer.tx(done.tx) });
+      plog({ type: "committed", tx: done.tx, link: explorer.tx(done.tx) });
     } catch (err) {
-      if (!(err instanceof ContractRefused && err.rule === "already committed")) { log({ type: "commit-failed", message: err.message }); return false; }
+      if (!(err instanceof ContractRefused && err.rule === "already committed")) { plog({ type: "commit-failed", message: err.message }); return false; }
     }
     purses.update(purse.id, (p) => { p.openOrder = null; });
     return true;
@@ -340,6 +347,7 @@ export function createMhasibu({
   // An open order on the chain that this purse has no record of (its id was lost): read the amount
   // from the contract, the outcome from the gateway (by reference), and settle it.
   async function settleChainOrder(purse) {
+    const plog = logFor(purse);
     const ref = await walletOf(purse).openOrderRef().catch(() => undefined);
     if (!ref) return ref === null;
     const rec = await walletOf(purse).contractOrder(ref).catch(() => null);
@@ -351,6 +359,7 @@ export function createMhasibu({
 
   // Before anything else on each message: settle the open order, if any. Returns true when clear.
   async function settleOpenOrder(purse) {
+    const plog = logFor(purse);
     const open = purse.openOrder;
     if (!open) return true;
     if (!walletOf(purse).release) { purses.update(purse.id, (p) => { p.openOrder = null; }); return true; }
@@ -397,6 +406,15 @@ export function createMhasibu({
 
   return {
     understander: understander.name,
+
+    // Background: settle this purse's open order, if any (the server runs it in the purse's queue).
+    async settle(purseId) {
+      const purse = purses.get(purseId);
+      if (!purse?.openOrder) return true;
+      const clear = await settleOpenOrder(purse);
+      await purses.flush?.().catch(() => {});
+      return clear;
+    },
 
     async handle(purseId, text) {
       const purse = purses.get(purseId);
