@@ -250,3 +250,8 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - Server: per-purse chat queues (shared-wallet purses share one), background settler, cached lookups, events tagged with their purse, body size/abort handled, rate limits, NEAR privacy re-checked hourly, optional `AGENT_SEAL_KEY` (v2 sealing; v1 still opens).
 - Delete account closes the family wallet (trustline removed, XLM merged back to the operator). Tested live.
 - Web relay rules extracted (`relay-policy.ts`) and tested; production build verified.
+
+## 2026-11-22: Invite hardening (review) and SMS timing
+- The invite hint is the last 4 digits only (`•••• 4567`); wrong numbers are checked first and limited per invite (5 an hour; 10 in all burns the link and notifies the daughter). A guesser faces ~40,000 numbers with at most 10 tries.
+- The demo access code is no longer stored in localStorage: read once from the link, kept in page memory, remembered by the relay's httpOnly cookie.
+- SMS (Termii) is built and tested but stays off until mainnet (decision). Testnet keeps `SHOW_MAMA_CODE=1` on Pxxl; `render.yaml` defaults to 0. On testnet one number serves both Mama's sign-in and her airtime/data (the VTpass sandbox number); splitting them is a mainnet task.

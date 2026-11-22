@@ -170,6 +170,8 @@ flowchart LR
 - **Pause / resume** the purse on-chain; Mhasibu AI tells Mama when it's paused.
 - **Activity:** the latest three top-ups on the dashboard, and **See all** for the full history by day, filtered by electricity, airtime or data.
 - **Update rules** when the naira moves past the purse's margin, and **Upgrade** (purses made before 21 Nov) to give Mama's purse its own Mhasibu AI wallet. One approval each.
+- **Notifications:** a bell with an unread count: receipts, anything Mama asks her for (*"raise my data limit"*), limits reached, payments being checked.
+- **Mama's details:** change her meter, phone, electricity company or network; the new meter is checked, then one approval saves it on the purse.
 - **Invite Mama** by link (WhatsApp share), one use, 7 days; a new link signs Mama out everywhere.
 - **Account settings:** photo, name (Mama sees it), wallet address, sign out, and **delete account** (only with an empty purse, so no money is ever stranded).
 
@@ -178,7 +180,7 @@ flowchart LR
 <details open>
 <summary><b>Mama</b></summary>
 
-- **No app and no wallet:** she opens the link, confirms her phone number with a 6-digit code, and chats. She can add CarePurse to her home screen.
+- **No app and no wallet:** she opens the link, types her phone number, enters a 6-digit code, and chats (on testnet the code is shown on screen; by SMS at mainnet). She can add CarePurse to her home screen.
 - **English or Pidgin, detected from her own words.** Typos are fine (*"ligt don almst finsh"* → electricity).
 - **Tappable options** instead of typing numbers; amounts in her words are understood (*"#2000"*, *"N1500"*, *"10k"*).
 - **Data shows what she gets:** only the prices her network sells, each with its bundle (*"₦600 · 2.5GB, 2 days"*); if she asks for a price that doesn't exist, she's told so.
@@ -191,7 +193,7 @@ flowchart LR
 <details>
 <summary><b>Demo for judges</b></summary>
 
-- `/demo` shows Mama's chat beside the live **Agent & x402 Log**: the understanding step, the 402, the contract release, the signed payment and every Stellar transaction, as they happen.
+- `/demo?code=…` (the access code is then kept in a secure cookie) shows Mama's chat beside the live **Agent & x402 Log**: the understanding step, the 402, the contract release, the signed payment and every Stellar transaction, as they happen.
 - Two on-chain refusal buttons: **take more than the cap** (refused with `OverPerTopup`) and **pay a meter that wasn't saved** (refused with Error #8). No USDC moves.
 
 </details>
@@ -203,11 +205,11 @@ flowchart LR
 | Payments | [x402](https://www.x402.org) v2 (`exact` scheme) on Stellar · `@x402/express`, `@x402/stellar` · x402.org facilitator |
 | Money | USDC (Circle, Stellar testnet), 7 decimals |
 | Limits | Soroban smart contract in Rust (`contracts/purse`, 20 tests) |
-| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 94 tests) |
+| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 95 tests) |
 | Understanding | `deepseek-ai/DeepSeek-V4.1-Flash-1017` on NEAR AI Cloud (private, TEE); keyword parser as fallback |
 | Gateway | Express (`services/gateway`, 23 tests) · VTpass sandbox for electricity, airtime and data |
 | Web | Next.js 16 · Tailwind CSS v4 · Privy (email/Google login, embedded Stellar wallet) · relay rules tested (5 tests) |
-| SMS | Termii, for Mama's sign-in code and her electricity token (when `TERMII_API_KEY` is set) |
+| SMS | Termii, for Mama's sign-in code and her electricity token. **Built and tested; switched on at mainnet** (`TERMII_API_KEY`). On testnet the code is shown on screen |
 | Data | Postgres (Neon), rows sealed with AES-256-GCM |
 | Hosting | Vercel (web) · Pxxl (backend container) · UptimeRobot |
 
@@ -281,14 +283,14 @@ CarePurse moves money for an elderly user, so no single mistake, crash or attack
 | **Private API** | Only `GET /v1/status` is public. Browsers never call the backend; the web app's server relays the routes its pages use and adds the key |
 | **Mid-flight money is never lost or paid twice** | Orders are written down before release, refunded on failure, and settled from the chain after a crash |
 | **Accounts** | One purse per account; a pending sign-up is reused (no new contract per click) and capped at 5 a day; Mama's sessions expire after 30 days |
-| **Mama's sign-in** | The invite link shows only the last digits of her number (she types it); codes are rate-limited per invite (30 s apart, 5 an hour, 15 wrong tries an hour) and go by SMS (Termii) |
+| **Mama's sign-in** | The invite link shows only the last 4 digits of her number, so she types it in full. Wrong numbers are limited (5 an hour; 10 in all locks the link and tells the daughter); codes are limited too (30 s apart, 5 an hour, 15 wrong an hour). Codes go by SMS once Termii is on (mainnet); on testnet they're shown on screen |
 | **Abuse limits** | Chat is limited per purse; the demo's attack buttons once every 15 s; the demo's access code lives in an httpOnly cookie, never in URLs |
 | **Data at rest** | Every row is sealed (AES-256-GCM); the backend refuses to start in production without `DATA_ENCRYPTION_KEY`; family wallet keys are sealed again (optionally under a separate `AGENT_SEAL_KEY`) |
 | **Testnet only** | The gateway and Mhasibu AI refuse any other network, and any non-sandbox VTpass URL. No secrets in the repo |
 
 Reviewed by six rounds of external review, each finding checked against the code before changing anything ([`MEMORY.md`](MEMORY.md)).
 
-**Known limits (hackathon):** the live demo shows Mama's sign-in code on screen (`SHOW_MAMA_CODE=1`) until a Termii key is set (the SMS code path is built and tested); purses made before 21 Nov stay on the shared agent wallet until the daughter taps **Upgrade**; state is held in memory by one backend instance (Postgres keeps it across restarts, but two replicas can't share it yet); Stellar testnet and the VTpass sandbox only. Each is on the [roadmap](#status-and-roadmap).
+**Known limits (hackathon):** on testnet, Mama's sign-in code is shown on screen (`SHOW_MAMA_CODE=1`): SMS through Termii is built and tested, and is switched on when we move to mainnet; purses made before 21 Nov stay on the shared agent wallet until the daughter taps **Upgrade**; state is held in memory by one backend instance (Postgres keeps it across restarts, but two replicas can't share it yet); Stellar testnet and the VTpass sandbox only. Each is on the [roadmap](#status-and-roadmap).
 
 ## Privacy
 
@@ -329,7 +331,7 @@ docs/                  Diagrams and the ideation deck
 **Working today on Stellar testnet:** sign-up with Privy and a purse contract and agent wallet per family, Mama's invite and sign-in, the chat in English and Pidgin, electricity, airtime and data through x402 and the VTpass sandbox, on-chain limits and refusals, plan changes, pause, withdraw, purchases, accounts, and the live naira rate.
 
 **Before mainnet** (CarePurse runs on Stellar testnet and the VTpass sandbox for now):
-- **SMS through Termii** for Mama's sign-in code and her token, instead of showing the code on screen
+- **Switch on SMS (Termii):** already built and tested for Mama's sign-in code and her token; at mainnet we add the key and an approved sender ID, and stop showing the code on screen
 - **A native speaker's review** of the Pidgin replies
 - **Mainnet money:** Circle USDC on Stellar mainnet, an off-ramp to refill the naira float, and production VTpass keys
 - **More than one instance** per service, with the rate and payment holds shared through the database

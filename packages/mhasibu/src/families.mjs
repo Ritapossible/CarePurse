@@ -43,9 +43,15 @@ const SESSION_DAYS = 30; // Mama stays signed in on her phone this long
 const CODE_GAP_MS = 30_000;
 const CODES_PER_HOUR = 5;
 const FAILS_PER_HOUR = 15;
+// Wrong phone numbers on one invite: 5 an hour, and after 10 in all the link stops working (her
+// child sends a new one). The link only hints the last 4 digits, so a guesser faces ~40,000 numbers.
+const WRONG_NUMBERS_PER_HOUR = 5;
+const WRONG_NUMBERS_PER_LINK = 10;
 const HOUR = 3_600_000;
 // "0801 ••• 1111": enough for Mama to recognise her number, not enough to learn it from the link.
 export const maskPhone = (p) => String(p ?? "").replace(/^(\d{4})\d+(\d{4})$/, "$1 ••• $2");
+// On the invite page (anyone holding the link sees it): the last 4 digits only.
+export const phoneHint = (p) => `•••• ${String(p ?? "").slice(-4)}`;
 
 export function createFamilies({ purses, signup, config, verifyMeter, sms = null, clock = () => Date.now() }) {
   const now = () => clock();
@@ -602,6 +608,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     if (!p) throw new FamilyError(404, "This link isn’t valid. Ask your child to send a new one.");
     if (p.invite.usedAt) throw new FamilyError(410, "This link was already used. Ask your child to send a new one.");
     if (Date.parse(p.invite.expiresAt) < now()) throw new FamilyError(410, "This link has expired. Ask your child to send a new one.");
+    if (p.invite.burntAt) throw new FamilyError(410, "This link was locked after too many wrong numbers. Ask your child to send a new one.");
     return p;
   }
 
@@ -609,16 +616,35 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   function invite(t) {
     const p = findInvite(t);
     // Her number is never sent to whoever holds the link, only a hint: she types it in full.
-    return { mamaName: p.mama.name, guardianName: p.guardian.name, phoneHint: maskPhone(p.mama.phone), language: p.mama.language, codeBySms: Boolean(sms?.configured) };
+    return { mamaName: p.mama.name, guardianName: p.guardian.name, phoneHint: phoneHint(p.mama.phone), language: p.mama.language, codeBySms: Boolean(sms?.configured) };
   }
 
   // A 6-digit code for the number on the invite, by text message (Termii). In the demo
   // (SHOW_MAMA_CODE=1) it is also returned to the page. Rate-limited per invite.
   const recentTimes = (list) => (list ?? []).filter((t) => now() - Date.parse(t) < HOUR);
+  // Her number, checked before anything else (and before any code is made). Wrong numbers are
+  // counted per invite: too many in an hour waits; too many in all burns the link.
+  async function checkNumber(p, phoneRaw) {
+    if (recentTimes(p.invite.wrongNumbers).length >= WRONG_NUMBERS_PER_HOUR) throw new FamilyError(429, "Too many tries. Please try again in an hour.");
+    if (normalisePhone(phoneRaw) === p.mama.phone) return;
+    let burnt = false;
+    purses.update(p.id, (x) => {
+      x.invite.wrongNumbers = [...(x.invite.wrongNumbers ?? []), iso()];
+      x.invite.wrongTotal = (x.invite.wrongTotal ?? 0) + 1;
+      if (x.invite.wrongTotal >= WRONG_NUMBERS_PER_LINK) {
+        x.invite.burntAt = iso();
+        x.mamaCode = null;
+        burnt = true;
+        (x.notifications ??= []).push({ at: iso(), kind: "blocked", text: "Mama’s invite link was locked after too many wrong phone numbers. If she was trying, send her a new link from the dashboard.", read: false });
+      }
+    });
+    await purses.flush?.();
+    throw new FamilyError(burnt ? 410 : 403, burnt ? "This link was locked after too many wrong numbers. Ask your child to send a new one." : "That isn’t the number your child entered.");
+  }
   async function sendCode(t, phoneRaw) {
     const p = findInvite(t);
-    const phone = normalisePhone(phoneRaw);
-    if (phone !== p.mama.phone) throw new FamilyError(403, "That isn’t the number your child entered.");
+    await checkNumber(p, phoneRaw);
+    const phone = p.mama.phone;
     if (!sms?.configured && !config.showMamaCode) throw new FamilyError(503, "Sign-in by text message isn’t set up yet. Please ask your child.");
     const sends = recentTimes(p.codeSends);
     if (sends.length && now() - Date.parse(sends.at(-1)) < CODE_GAP_MS) throw new FamilyError(429, "Please wait a moment before asking for another code.");
@@ -639,7 +665,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
 
   async function verifyCode(t, phoneRaw, codeRaw) {
     const p = findInvite(t);
-    if (normalisePhone(phoneRaw) !== p.mama.phone) throw new FamilyError(403, "That isn’t the number your child entered.");
+    await checkNumber(p, phoneRaw);
     const c = p.mamaCode;
     if (!c || Date.parse(c.expiresAt) < now()) throw new FamilyError(410, "The code has expired. Tap Send code again.");
     if (c.tries >= CODE_TRIES) throw new FamilyError(429, "Too many tries. Tap Send code again.");

@@ -1,35 +1,28 @@
 // The Mhasibu API (packages/mhasibu, npm run serve) holds the agent wallet, so it is a separate
 // server. The browser talks only to this web app's relay (/api/mhasibu/...), which adds the API key
-// on the server side. A demo link's ?code=… is read once, kept, and taken out of the address bar
-// (so it isn't left in history or screenshots); the relay then also remembers it in an httpOnly cookie.
+// on the server side. A demo link's ?code=… is read once and taken out of the address bar; the relay
+// then remembers it in an httpOnly cookie (scripts can't read it). It is never stored in the browser
+// (no localStorage): only kept in this page's memory until the cookie is set.
 export const MHASIBU_URL = "/api/mhasibu";
 
 let memoryCode = "";
 function accessCode(): string {
   if (typeof window === "undefined") return "";
+  try { localStorage.removeItem("carepurse-code"); } catch { /* older builds stored it there: forget it */ }
   const url = new URL(window.location.href);
   const fromLink = url.searchParams.get("code");
   if (fromLink) {
     memoryCode = fromLink;
-    try { localStorage.setItem("carepurse-code", fromLink); } catch { /* private mode: kept in memory */ }
     url.searchParams.delete("code");
     window.history.replaceState(window.history.state, "", url.toString());
-    return fromLink;
   }
-  try {
-    return localStorage.getItem("carepurse-code") ?? memoryCode;
-  } catch {
-    return memoryCode;
-  }
+  return memoryCode;
 }
-// For someone who opened a page without the full link: save the code they type, then reload.
-export function saveAccessCode(code: string) {
+// For someone who opened a page without the full link: send the code they typed once (the relay
+// sets its cookie), then reload.
+export async function saveAccessCode(code: string) {
   memoryCode = code.trim();
-  try {
-    localStorage.setItem("carepurse-code", memoryCode);
-  } catch {
-    /* private mode: kept in memory for this page */
-  }
+  await fetch(`${MHASIBU_URL}/v1/history`, { headers: { "x-access-code": memoryCode } }).catch(() => {});
   window.location.reload();
 }
 const withCode = (headers: Record<string, string> = {}) => ({ ...headers, "x-access-code": accessCode() });

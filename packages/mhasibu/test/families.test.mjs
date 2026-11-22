@@ -73,7 +73,7 @@ test("Mama: code only for her number, invite works once, sessions map to her pur
   const { purseId } = await families.prepare({ ...SIGNUP, guardian: GUARDIAN });
   const { invite } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
   assert.equal(families.invite(invite).phone, undefined); // never her full number to whoever holds the link
-  assert.equal(families.invite(invite).phoneHint, "0803 ••• 4567");
+  assert.equal(families.invite(invite).phoneHint, "•••• 4567"); // last 4 digits only
   await assert.rejects(families.sendCode(invite, "08099999999"), /isn’t the number/);
   const { code } = await families.sendCode(invite, "0803 123 4567");
   assert.match(code, /^\d{6}$/);
@@ -505,4 +505,21 @@ test("delete account: the family's agent wallet is closed (XLM back to the opera
   assert.deepEqual(await f.deleteAccount({ privyId: GUARDIAN.privyId }), { deleted: true });
   assert.deepEqual(closed, [purses.get(prep.purseId)?.agent?.address ?? closed[0]]);
   assert.equal(purses.get(prep.purseId), null);
+});
+
+test("wrong phone numbers on an invite: 5 an hour, and 10 in all locks the link (her child is told)", async () => {
+  const { families, purses, tick } = setup();
+  const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { invite } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  for (let i = 0; i < 5; i++) await assert.rejects(families.sendCode(invite, `0803123${String(i).padStart(4, "0")}`), /isn’t the number/);
+  await assert.rejects(families.sendCode(invite, "08031234567"), /Too many tries/); // even the right one waits
+  await assert.rejects(families.verifyCode(invite, "08031234567", "123456"), /Too many tries/);
+  tick(3_600_000);
+  for (let i = 5; i < 9; i++) await assert.rejects(families.verifyCode(invite, `0803123${String(i).padStart(4, "0")}`, "123456"), /isn’t the number/);
+  await assert.rejects(families.sendCode(invite, "08031230009"), /locked after too many wrong numbers/); // the 10th
+  await assert.rejects(families.sendCode(invite, "08031234567"), /locked/); // burnt for good
+  assert.throws(() => families.invite(invite), /locked/);
+  assert.equal(purses.get(prep.purseId).notifications.at(-1).kind, "blocked");
+  const { invite: fresh } = await families.sendNewInvite({ privyId: GUARDIAN.privyId });
+  assert.equal((await families.sendCode(fresh, "08031234567")).sent, true); // a new link works
 });
