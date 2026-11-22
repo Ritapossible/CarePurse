@@ -4,6 +4,7 @@
 // Pidgin wording should be checked by a native speaker before the demo.
 
 const naira = (n) => `₦${Number(n).toLocaleString("en-NG")}`;
+const NETWORK_NAME = { mtn: "MTN", glo: "Glo", airtel: "Airtel", etisalat: "9mobile", "9mobile": "9mobile" };
 const LABEL = { en: { electricity: "light", airtime: "airtime", data: "data" }, pcm: { electricity: "light", airtime: "airtime", data: "data" } };
 const WHEN = {
   en: { day: "tomorrow", week: "on Monday", month: "next month" },
@@ -83,6 +84,16 @@ export const say = {
     return lang === "pcm"
       ? `I no fit buy ${naira(askedNgn)} ${u}. ${why} I fit buy:\n${list}\n0) Cancel\nReply with the number.`
       : `I can't buy ${naira(askedNgn)} of ${u}. ${why} I can buy:\n${list}\n0) Cancel\nReply with the number.`;
+  },
+
+  // Data within her limit, but the network has no bundle at exactly that price (e.g. MTN has no
+  // ₦500 internet bundle; its ₦500 item is a call-time bundle).
+  notSoldByNetwork(lang, { network, askedNgn, options }) {
+    const net = NETWORK_NAME[network] ?? String(network ?? "Your network").toUpperCase();
+    const list = options.map((o, i) => `${i + 1}) ${naira(o)}`).join("\n");
+    return lang === "pcm"
+      ? `${net} no get ${naira(askedNgn)} data bundle, so I no fit buy am. See the ${net} data wey fit your limit:\n${list}\n0) Cancel\nReply with the number.`
+      : `${net} doesn't sell a ${naira(askedNgn)} data bundle, so I can't buy that one. These ${net} data bundles fit within your limit:\n${list}\n0) Cancel\nReply with the number.`;
   },
 
   notASize(lang, { utility, askedNgn, options }) {

@@ -725,7 +725,7 @@ test("Mama names an amount: within her limits she confirms once; over them she i
 
   // No utility named: ask which; then the amount carries over
   assert.match(await mhasibu.handle("demo", "#300 please"), /^What should I buy ₦300 of\?/);
-  assert.match(await mhasibu.handle("demo", "3"), /^₦300 isn't a size I can buy for data\. These are:\n1\) ₦100\n2\) ₦200\n3\) ₦500/);
+  assert.match(await mhasibu.handle("demo", "3"), /^MTN doesn't sell a ₦300 data bundle, so I can't buy that one\. These MTN data bundles fit within your limit:\n1\) ₦100\n2\) ₦200\n3\) ₦500/);
 
   // Daily limit: after ₦700 of airtime today, ₦500 more is over the ₦1,000 a day
   assert.match(await mhasibu.handle("demo", "abeg buy airtime #500"), /^I no fit buy ₦500 airtime\. Na ₦300 airtime remain for you today\. I fit buy:\n1\) ₦100\n2\) ₦200\n0\) Cancel/);
@@ -844,4 +844,17 @@ test("while a move to her own wallet awaits approval, no top-up starts on the ol
   await mhasibu.handle("f", "my light is finished");
   await mhasibu.handle("f", "1");
   assert.deepEqual(releases, ["f"]);
+});
+
+test("data: a size within her limit that the network doesn't sell is explained, not called 'not a size'", async () => {
+  // MTN sells internet data at ₦100 and ₦200, but no ₦500 bundle (its ₦500 item is call time).
+  const wallet = fakeWallet();
+  wallet.options = async (utility, maxNgn) => (utility === "data" ? [100, 200] : TIERS[utility]).filter((n) => n <= maxNgn).map((ngn) => ({ utility, ngn, amount: String(ngn * 6803) }));
+  const { mhasibu } = setup({ wallet });
+  await mhasibu.handle("demo", "Buy data");
+  const en = await mhasibu.handle("demo", "#500");
+  assert.match(en, /^MTN doesn't sell a ₦500 data bundle, so I can't buy that one\. These MTN data bundles fit within your limit:\n1\) ₦100\n2\) ₦200\n0\) Cancel/);
+  const pcm = await mhasibu.handle("demo", "abeg buy data of #500");
+  assert.match(pcm, /^MTN no get ₦500 data bundle, so I no fit buy am\./);
+  assert.match(await mhasibu.handle("demo", "2"), /Done! ₦200/i);
 });

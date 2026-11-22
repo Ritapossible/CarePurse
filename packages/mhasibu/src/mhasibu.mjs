@@ -85,6 +85,7 @@ export function createMhasibu({
         notifyGuardian(purse, "asked-over-limit", `Mama asked for ₦${askedNgn.toLocaleString("en-NG")} of ${utility}; the ${room.tightest.rule} limit allows ₦${room.maxNgn.toLocaleString("en-NG")} now.`);
         return say.amountNotAllowed(lang, { utility, askedNgn, maxNgn: room.maxNgn, rule: room.tightest.rule, guardian: purse.guardian.name, options: sizes });
       }
+      if (utility === "data") return say.notSoldByNetwork(lang, { network: purse.providers?.network ?? "mtn", askedNgn, options: sizes });
       return say.notASize(lang, { utility, askedNgn, options: sizes });
     }
     keep(sizes);
