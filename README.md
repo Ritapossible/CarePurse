@@ -165,12 +165,12 @@ flowchart LR
 
 - **Sign-up in about three minutes:** sign in with Privy → Mama's details → her meter (checked with the electricity company, the owner's name is shown) → a plan → **one signature** saves every rule on her new purse contract.
 - **Two plans,** shown in naira: *Light* (up to ₦50,000 a month) and *Standard* (up to ₦120,000 a month), with per-top-up, daily and weekly limits. **Change plan** any time, or re-save it at today's rate.
-- **Dashboard:** balance, what Mama can spend after the fee, this month's spending against the cap, recent activity with tokens, fees and Stellar receipts.
+- **Dashboard:** what Mama can spend is the big number (the purse total and the 3% service fee under it), her last top-up right below, this month's spending against the cap, and recent activity with tokens, fees and Stellar receipts. It refreshes on its own.
 - **Add money** (address and QR code; test USDC on testnet) and **Withdraw** (to her own wallet or any Stellar address; her wallet is opted in to USDC automatically the first time).
 - **Pause / resume** the purse on-chain; Mhasibu AI tells Mama when it's paused.
 - **Activity:** the latest three top-ups on the dashboard, and **See all** for the full history by day, filtered by electricity, airtime or data.
 - **Update rules** when the naira moves past the purse's margin, and **Upgrade** (purses made before 21 Nov) to give Mama's purse its own Mhasibu AI wallet. One approval each.
-- **Notifications:** a bell with an unread count: receipts, anything Mama asks her for (*"raise my data limit"*), limits reached, payments being checked.
+- **Notifications:** a bell in the top bar with an unread count: receipts, anything Mama asks her for (*"raise my data limit"*), limits reached, payments being checked.
 - **Mama's details:** change her meter, phone, electricity company or network; the new meter is checked, then one approval saves it on the purse.
 - **Invite Mama** by link (WhatsApp share), one use, 7 days; a new link signs Mama out everywhere.
 - **Account settings:** photo, name (Mama sees it), Mama's phone and meter (with **Change**), wallet address, sign out, and **delete account** (only with an empty purse, so no money is ever stranded).
@@ -185,6 +185,7 @@ flowchart LR
 - **Tappable options** instead of typing numbers; amounts in her words are understood (*"#2000"*, *"N1500"*, *"10k"*).
 - **Data shows what she gets:** only the prices her network sells, each with its bundle (*"₦600 · 2.5GB, 2 days"*); if she asks for a price that doesn't exist, she's told so.
 - **Honest answers:** when she asks for more than she's allowed, she's told which limit and how much is left, and what she can have now.
+- **A slow answer never makes her buy twice:** each message is acknowledged the moment it arrives; if the reply is slow, her chat waits for it instead of asking her to send again.
 - **Her token never gets lost:** pinned at the top until she copies it, kept on her **Purchases** page by day, and she can ask *"send my token again"*.
 - Asks naturally: *"How much is left?"* (in naira), *"What did I buy yesterday?"*, *"What can you help me do?"*.
 
@@ -281,7 +282,7 @@ CarePurse moves money for an elderly user, so no single mistake, crash or attack
 | **The guardian is her own wallet** | At sign-up our server asks Privy which Stellar wallet belongs to her login; any other address is refused, and without `PRIVY_APP_SECRET` sign-up stays closed |
 | **Sign-up can't drain the operator** | A family wallet's key is saved before its account is created, and every retry reuses it; attempts count toward a daily cap before anything is spent; one sign-up or Upgrade at a time per daughter |
 | **Private API** | Only `GET /v1/status` is public. Browsers never call the backend; the web app's server relays the routes its pages use and adds the key |
-| **Mid-flight money is never lost or paid twice** | Orders are written down before release, refunded on failure, and settled from the chain after a crash |
+| **Mid-flight money is never lost or paid twice** | Orders are written down before release, refunded on failure, and settled from the chain after a crash; a background job settles any open order every minute; each chat message is acknowledged on arrival, so a slow reply never leads to a second purchase |
 | **Accounts** | One purse per account; a pending sign-up is reused (no new contract per click) and capped at 5 a day; Mama's sessions expire after 30 days |
 | **Mama's sign-in** | The invite link shows only the last 4 digits of her number, so she types it in full. Wrong numbers are limited (5 an hour; 10 in all locks the link and tells the daughter); codes are limited too (30 s apart, 5 an hour, 15 wrong an hour). Codes go by SMS once Termii is on (mainnet); on testnet they're shown on screen |
 | **Abuse limits** | Chat is limited per purse (the shared demo purse per visitor, and overall); the demo's attack buttons once every 15 s; the demo's access code lives in an httpOnly cookie, never in URLs |
