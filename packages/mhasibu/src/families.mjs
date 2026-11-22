@@ -430,6 +430,9 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
         withdrawals: [...(p.withdrawals ?? [])].reverse().slice(0, 10),
         rulesBehind: behind,
         ownWallet: Boolean(p.agent),
+        // Her plan has changed since it was saved (e.g. Standard data ₦500 → ₦1,000 a time): her purse
+        // keeps the old limits, on-chain and here, until she approves the new ones.
+        planOutdated: Boolean(PRESETS[p.preset]) && JSON.stringify(p.limits) !== JSON.stringify(PRESETS[p.preset]),
       },
     };
   }

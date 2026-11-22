@@ -37,6 +37,12 @@ function Icon({ d, className = "h-5 w-5" }: { d: string; className?: string }) {
   );
 }
 
+// "₦1,000 a time, ₦1,000 a day", from the limits saved on her purse.
+const limitText = (l?: { perTopup?: number; perDay?: number; perWeek?: number; perMonth?: number }) => {
+  if (!l?.perTopup) return null;
+  const period = l.perDay ? [l.perDay, "day"] : l.perWeek ? [l.perWeek, "week"] : l.perMonth ? [l.perMonth, "month"] : null;
+  return `${naira(l.perTopup)} a time${period ? `, ${naira(period[0] as number)} a ${period[1]}` : ""}`;
+};
 const maskPhone = (p: string) => p.replace(/\D/g, "").replace(/^(\d{4})\d+(\d{3})$/, "$1 ••• $2");
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -247,11 +253,20 @@ export default function DashboardPage() {
         )}
       </header>
 
-      {purse.rulesBehind && (
+      {(purse.rulesBehind || purse.planOutdated) && (
         <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-medium">Update Mama’s rules to today’s rate</p>
-            <p className="mt-0.5 text-sm text-secondary">The naira moved since her plan was saved, so some top-ups within her limits could be refused. One approval fixes it.</p>
+            {purse.planOutdated ? (
+              <>
+                <p className="font-medium">Apply the updated {preset.label} plan</p>
+                <p className="mt-0.5 text-sm text-secondary">Data now goes up to ₦1,000 a time, so Mama can get MTN’s 1.5GB for 30 days. Her purse keeps the old limits until you approve.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">Update Mama’s rules to today’s rate</p>
+                <p className="mt-0.5 text-sm text-secondary">The naira moved since her plan was saved, so some top-ups within her limits could be refused. One approval fixes it.</p>
+              </>
+            )}
           </div>
           <button disabled={Boolean(busy)} onClick={() => changePlan(purse.preset as "light" | "standard")} className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] bg-foreground px-4 text-sm font-medium text-background disabled:opacity-40">
             {busy === `plan-${purse.preset}` ? "Saving on Stellar…" : "Update rules"}
@@ -381,7 +396,7 @@ export default function DashboardPage() {
                 <li key={u} className="flex items-center gap-3 px-4 py-3.5">
                   <Icon d={ICONS[u]} className="h-[18px] w-[18px] shrink-0 text-muted" />
                   <span className="w-24 shrink-0 font-medium">{UTILITY[u]}</span>
-                  <span className="min-w-0 flex-1 text-right text-sm text-secondary">{preset[u]}</span>
+                  <span className="min-w-0 flex-1 text-right text-sm text-secondary">{limitText(purse.limits?.[u]) ?? preset[u]}</span>
                 </li>
               ))}
               <li className="flex items-center justify-between px-4 py-3.5">

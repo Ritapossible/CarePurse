@@ -52,7 +52,7 @@ At sign-up she picks one of two presets, shown in naira. The app converts to USD
 | Preset | Electricity | Airtime | Data |
 |---|---|---|---|
 | **Light** | ₦2,000 a time, ₦5,000 a week | ₦200 a time, ₦500 a day | ₦200 a time, ₦500 a day |
-| **Standard** (demo) | ₦5,000 a time, ₦15,000 a week | ₦500 a time, ₦1,000 a day | ₦500 a time, ₦1,000 a day |
+| **Standard** (demo) | ₦5,000 a time, ₦15,000 a week | ₦500 a time, ₦1,000 a day | ₦1,000 a time, ₦1,000 a day (was ₦500 until 22 Nov) |
 
 - **Monthly cap:** the whole-purse monthly cap is **calculated, never typed**: electricity weekly × 4, plus the airtime and data daily limits × 30. That gives ₦50,000 for Light and ₦120,000 for Standard.
 - **Custom limits** are a later edit on the dashboard, not part of sign-up.
@@ -236,3 +236,8 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - Older purses: no top-up starts while an Upgrade approval exists, until it lands or the ledger passes its `validUntil` (unknown ledger: keep waiting). Replaces the 9-minute timer, which ended before the signature did.
 - Cost: the family wallet key is generated and saved (sealed) before the account is created; `createAgentWallet` is idempotent; the same next wallet is reused for every Upgrade retry; sign-up attempts are counted before anything is spent; one sign-up or Upgrade at a time per daughter.
 - Tested live on testnet: with an order open, `set_agent` was refused (Error #15), then succeeded after the refund. A first run stopped before its clean-up and left 0.95 test USDC in a throwaway purse; the rerun returned all its USDC.
+
+## 2026-11-22: Standard data ₦1,000 a time; every real data price, with what it gives
+- MTN sells no ₦500 internet bundle (its ₦500 item is call time), so ₦500 a time only reached ₦200 (200MB, 2 days). Standard data is now ₦1,000 a time (MTN 1.5GB, 30 days); ₦1,000 a day and ₦120,000 a month are unchanged.
+- Data prices now include ₦600, ₦800, ₦1,500, ₦2,500, ₦3,000; Mama sees only those her network sells, each with its bundle ("₦600 · 2.5GB, 2 days"), and a ₦500 request is explained ("MTN doesn't sell a ₦500 data bundle").
+- Existing purses keep their saved limits (here and on-chain) until the daughter approves the dashboard banner ("Apply the updated Standard plan"). At start, the backend adopts the new plan only for purses whose on-chain caps already allow it (the demo purse, synced 22 Nov with `npm run sync-purse`).

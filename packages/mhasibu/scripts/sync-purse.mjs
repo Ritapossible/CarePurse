@@ -5,7 +5,7 @@
 import { xdr } from "@stellar/stellar-sdk";
 import { config } from "../src/config.mjs";
 import { DEMO_PURSE, openPurseStore } from "../src/purses.mjs";
-import { monthlyCap } from "../src/limits.mjs";
+import { PRESETS, monthlyCap } from "../src/limits.mjs";
 import { bytes32, capBaseUnits, capRate, createSoroban, destHash, i128, keypair, symbol } from "../src/purse-contract.mjs";
 
 const MIN_TOPUP = { electricity: 500, airtime: 100, data: 100 };
@@ -14,6 +14,7 @@ purses.update("demo", (p) => {
   p.mama = { ...p.mama, ...DEMO_PURSE.mama };
   p.destinations = { ...DEMO_PURSE.destinations };
   p.providers = { ...DEMO_PURSE.providers };
+  p.limits = structuredClone(PRESETS[p.preset ?? "standard"]); // the plan as it is now
 });
 const purse = purses.get("demo");
 console.log(`✓ demo purse: meter ${purse.destinations.electricity} (${purse.providers.disco}), phone ${purse.destinations.airtime} (${purse.providers.network})`);

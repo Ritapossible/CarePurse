@@ -184,3 +184,12 @@ test("orders and meter lookups need the gateway key; the x402 route and options 
     assert.equal((await fetch(`${gw.base}${payPath}`)).status, 402); // x402: payment is the door
   } finally { await gw.close(); }
 });
+
+test("data options list only the prices the network sells, each with its bundle", async () => {
+  const provider = { ...createMockProvider(), dataTiers: async () => new Map([[100, "100MB, 24 hrs"], [200, "200MB, 2 days"], [600, "2.5GB, 2 days"], [800, "3GB, 2 days"], [1000, "1.5GB, 30 days"], [1500, "6GB, 7 days"]]) };
+  const gw = await startGateway({ provider });
+  try {
+    const { options } = await (await fetch(`${gw.base}/v1/options?utility=data&max_ngn=1000`)).json();
+    assert.deepEqual(options.map((o) => [o.ngn, o.bundle]), [[100, "100MB, 24 hrs"], [200, "200MB, 2 days"], [600, "2.5GB, 2 days"], [800, "3GB, 2 days"], [1000, "1.5GB, 30 days"]]);
+  } finally { await gw.close(); }
+});

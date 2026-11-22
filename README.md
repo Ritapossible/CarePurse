@@ -181,6 +181,7 @@ flowchart LR
 - **No app and no wallet:** she opens the link, confirms her phone number with a 6-digit code, and chats. She can add CarePurse to her home screen.
 - **English or Pidgin, detected from her own words.** Typos are fine (*"ligt don almst finsh"* → electricity).
 - **Tappable options** instead of typing numbers; amounts in her words are understood (*"#2000"*, *"N1500"*, *"10k"*).
+- **Data shows what she gets:** only the prices her network sells, each with its bundle (*"₦600 · 2.5GB, 2 days"*); if she asks for a price that doesn't exist, she's told so.
 - **Honest answers:** when she asks for more than she's allowed, she's told which limit and how much is left, and what she can have now.
 - **Her token never gets lost:** pinned at the top until she copies it, kept on her **Purchases** page by day, and she can ask *"send my token again"*.
 - Asks naturally: *"How much is left?"* (in naira), *"What did I buy yesterday?"*, *"What can you help me do?"*.
@@ -202,9 +203,9 @@ flowchart LR
 | Payments | [x402](https://www.x402.org) v2 (`exact` scheme) on Stellar · `@x402/express`, `@x402/stellar` · x402.org facilitator |
 | Money | USDC (Circle, Stellar testnet), 7 decimals |
 | Limits | Soroban smart contract in Rust (`contracts/purse`, 20 tests) |
-| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 73 tests) |
+| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 74 tests) |
 | Understanding | `deepseek-ai/DeepSeek-V4.1-Flash-1017` on NEAR AI Cloud (private, TEE); keyword parser as fallback |
-| Gateway | Express (`services/gateway`, 21 tests) · VTpass sandbox for electricity, airtime and data |
+| Gateway | Express (`services/gateway`, 23 tests) · VTpass sandbox for electricity, airtime and data |
 | Web | Next.js 16 · Tailwind CSS v4 · Privy (email/Google login, embedded Stellar wallet) |
 | Data | Postgres (Neon), rows sealed with AES-256-GCM |
 | Hosting | Vercel (web) · Pxxl (backend container) · UptimeRobot |

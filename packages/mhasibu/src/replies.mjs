@@ -4,6 +4,8 @@
 // Pidgin wording should be checked by a native speaker before the demo.
 
 const naira = (n) => `₦${Number(n).toLocaleString("en-NG")}`;
+// One choice: "₦600 · 2.5GB, 2 days" for a data bundle, "₦500" otherwise (an option or a plain amount).
+const item = (o) => (typeof o === "number" ? naira(o) : `${naira(o.ngn)}${o.bundle ? ` · ${o.bundle}` : ""}`);
 const NETWORK_NAME = { mtn: "MTN", glo: "Glo", airtel: "Airtel", etisalat: "9mobile", "9mobile": "9mobile" };
 const LABEL = { en: { electricity: "light", airtime: "airtime", data: "data" }, pcm: { electricity: "light", airtime: "airtime", data: "data" } };
 const WHEN = {
@@ -19,7 +21,7 @@ const MENU = {
 
 export const say = {
   options(lang, { utility, options, destinationLabel, recentNgn }) {
-    const list = options.map((o, i) => `${i + 1}) ${naira(o.ngn)}`).join("\n");
+    const list = options.map((o, i) => `${i + 1}) ${item(o)}`).join("\n");
     const u = LABEL[lang][utility];
     if (lang === "pcm") {
       const again = recentNgn ? `You don buy ${naira(recentNgn)} ${u} small time ago. You still want more?\n` : "";
@@ -52,11 +54,12 @@ export const say = {
 
   // She asked for a specific amount. Within her limits: confirm it once. Over: say why, plainly,
   // then what she can have. Not a size we sell: the nearest sizes.
-  confirmAmount(lang, { utility, ngn, destinationLabel }) {
+  confirmAmount(lang, { utility, ngn, destinationLabel, bundle }) {
     const u = LABEL[lang][utility];
+    const what = bundle ? ` (${bundle})` : "";
     return lang === "pcm"
-      ? `Make I buy ${naira(ngn)} ${u} for ${destinationLabel}?\n1) Yes, buy ${naira(ngn)}\n0) Cancel\nReply with the number.`
-      : `Shall I buy ${naira(ngn)} of ${u} for ${destinationLabel}?\n1) Yes, buy ${naira(ngn)}\n0) Cancel\nReply with the number.`;
+      ? `Make I buy ${naira(ngn)} ${u}${what} for ${destinationLabel}?\n1) Yes, buy ${naira(ngn)}\n0) Cancel\nReply with the number.`
+      : `Shall I buy ${naira(ngn)} of ${u}${what} for ${destinationLabel}?\n1) Yes, buy ${naira(ngn)}\n0) Cancel\nReply with the number.`;
   },
 
   amountNotAllowed(lang, { utility, askedNgn, maxNgn, rule, guardian, options }) {
@@ -80,7 +83,7 @@ export const say = {
         "purse balance": `Money for your purse fit only buy ${max} now.`,
       },
     }[lang][rule] ?? "";
-    const list = options.map((o, i) => `${i + 1}) ${naira(o)}`).join("\n");
+    const list = options.map((o, i) => `${i + 1}) ${item(o)}`).join("\n");
     return lang === "pcm"
       ? `I no fit buy ${naira(askedNgn)} ${u}. ${why} I fit buy:\n${list}\n0) Cancel\nReply with the number.`
       : `I can't buy ${naira(askedNgn)} of ${u}. ${why} I can buy:\n${list}\n0) Cancel\nReply with the number.`;
@@ -90,7 +93,7 @@ export const say = {
   // ₦500 internet bundle; its ₦500 item is a call-time bundle).
   notSoldByNetwork(lang, { network, askedNgn, options }) {
     const net = NETWORK_NAME[network] ?? String(network ?? "Your network").toUpperCase();
-    const list = options.map((o, i) => `${i + 1}) ${naira(o)}`).join("\n");
+    const list = options.map((o, i) => `${i + 1}) ${item(o)}`).join("\n");
     return lang === "pcm"
       ? `${net} no get ${naira(askedNgn)} data bundle, so I no fit buy am. See the ${net} data wey fit your limit:\n${list}\n0) Cancel\nReply with the number.`
       : `${net} doesn't sell a ${naira(askedNgn)} data bundle, so I can't buy that one. These ${net} data bundles fit within your limit:\n${list}\n0) Cancel\nReply with the number.`;
@@ -98,7 +101,7 @@ export const say = {
 
   notASize(lang, { utility, askedNgn, options }) {
     const u = LABEL[lang][utility];
-    const list = options.map((o, i) => `${i + 1}) ${naira(o)}`).join("\n");
+    const list = options.map((o, i) => `${i + 1}) ${item(o)}`).join("\n");
     return lang === "pcm"
       ? `I no fit buy exactly ${naira(askedNgn)} ${u}. See the ones wey dey:\n${list}\n0) Cancel\nReply with the number.`
       : `${naira(askedNgn)} isn't a size I can buy for ${u}. These are:\n${list}\n0) Cancel\nReply with the number.`;

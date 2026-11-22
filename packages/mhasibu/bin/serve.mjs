@@ -21,6 +21,7 @@ import { openUnderstander } from "../src/understand.mjs";
 import { createSignup } from "../src/signup.mjs";
 import { createFamilies, FamilyError } from "../src/families.mjs";
 import { openPurseStore } from "../src/purses.mjs";
+import { PRESETS, monthlyCap } from "../src/limits.mjs";
 import { ContractRefused, buyArgs, createSoroban, refundArgs, symbol } from "../src/purse-contract.mjs";
 import { maskNumbers } from "../src/replies.mjs";
 
@@ -98,6 +99,25 @@ const families = createFamilies({
     return { ok: Boolean(body.ok), ownerName: body.ownerName ?? null, address: body.address ?? null, disco: body.disco ?? disco ?? null, reason: body.reason ?? null, unavailable: Boolean(body.unavailable), vtpass: body.vtpass?.code ? { code: body.vtpass.code, message: body.vtpass.message ?? null, ...(body.vtpass.keys ? { keys: body.vtpass.keys } : {}) } : null };
   },
 });
+
+// A plan changed in code (e.g. Standard data ₦500 → ₦1,000 a time) is adopted for a purse only once
+// its on-chain caps already allow it: the demo purse after `npm run sync-purse`; a family's purse
+// after the daughter approves "Update rules" (that path updates both). Never looser than the chain.
+// Checked against today's live rate only (fetched in the background at start), so a fallback rate
+// can't make old caps look big enough.
+setTimeout(async () => {
+  if (!config.rate?.live) return console.warn("Plan: no live rate yet; purses keep their saved limits");
+  for (const p of purses.all?.() ?? []) {
+    const plan = PRESETS[p.preset];
+    const contractId = p.contractId ?? (p.id === "demo" ? config.purseContractId : null);
+    if (!plan || !contractId || JSON.stringify(p.limits) === JSON.stringify(plan)) continue;
+    const behind = await signup.capsBehind({ contractId, limits: plan }).catch(() => true);
+    if (behind) continue;
+    purses.update(p.id, (x) => { x.limits = structuredClone(plan); x.monthlyCap = monthlyCap(plan); });
+    console.log(`Plan: ${p.id} now uses the current ${p.preset} limits (its on-chain caps allow them)`);
+  }
+  await purses.flush?.();
+}, 90_000).unref();
 
 // Each family's own agent wallet pays its network fees: check hourly, top up from the operator
 // below 2 XLM. One failure is logged and retried next hour.

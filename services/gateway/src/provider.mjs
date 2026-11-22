@@ -6,6 +6,9 @@ import crypto from "node:crypto";
 const digits = (n) => Array.from(crypto.randomBytes(n), (b) => b % 10).join("");
 const groups = (s) => s.match(/.{1,4}/g).join(" ");
 
+// "MTN N600 2.5GB - 2 days" → "2.5GB, 2 days" (the price is shown separately).
+export const bundleLabel = (name) => String(name ?? "").replace(/^(MTN|GLO|AIRTEL|9MOBILE|ETISALAT)?\s*N[\d,]+(\.\d+)?\s+/i, "").replace(/\s+-\s+/g, ", ").trim();
+
 export function createMockProvider() {
   return {
     name: "mock sandbox",
@@ -107,9 +110,12 @@ export function createVtpassProvider({ baseUrl, apiKey, secretKey, publicKey, co
   return {
     name: "VTpass sandbox",
 
-    // Data tiers this network really sells at exactly that price (others are hidden).
+    // Data prices this network really sells (others are hidden), each with what it gives, e.g.
+    // 600 → "2.5GB, 2 days". The first bundle at a price is the one bought (dataVariation).
     async dataTiers(network = "mtn") {
-      return new Set((await dataBundles(network)).map((v) => v.amount));
+      const tiers = new Map();
+      for (const v of await dataBundles(network)) if (!tiers.has(v.amount)) tiers.set(v.amount, bundleLabel(v.name));
+      return tiers;
     },
 
     // The sandbox wallet's balance (VTpass debits it for every purchase).

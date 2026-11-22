@@ -38,7 +38,7 @@ Two presets, no table:
 | Preset | Electricity | Airtime | Data |
 |---|---|---|---|
 | **Light** | ₦2,000 a time, ₦5,000 a week | ₦200 a time, ₦500 a day | ₦200 a time, ₦500 a day |
-| **Standard** | ₦5,000 a time, ₦15,000 a week | ₦500 a time, ₦1,000 a day | ₦500 a time, ₦1,000 a day |
+| **Standard** | ₦5,000 a time, ₦15,000 a week | ₦500 a time, ₦1,000 a day | ₦1,000 a time, ₦1,000 a day |
 
 - **We demo Standard.**
 - **Monthly cap:** the whole-purse monthly cap is **calculated for her**, and she never fills it in. It's the electricity weekly limit × 4, plus the airtime and data daily limits × 30. That gives ₦50,000 for Light and ₦120,000 for Standard.

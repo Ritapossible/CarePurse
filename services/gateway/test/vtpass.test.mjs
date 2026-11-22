@@ -58,7 +58,9 @@ test("airtime goes to the network's serviceID; data is sold only at exact bundle
   assert.equal(calls.at(-1).body.serviceID, "glo");
   // ₦500: only a talk bundle costs ₦500, so no data is bought (Mama is never charged ₦500 for less).
   assert.equal((await provider.purchase({ utility: "data", ngn: 500, destination: "08011111111", network: "mtn" })).ok, false);
-  assert.deepEqual([...(await provider.dataTiers("mtn"))].sort((a, b) => a - b), [100, 200, 1000]);
+  const tiers = await provider.dataTiers("mtn");
+  assert.deepEqual([...tiers.keys()].sort((a, b) => a - b), [100, 200, 1000]); // no ₦500: that one is call time
+  assert.equal(tiers.get(1000), "1.5GB");
   const data = await provider.purchase({ utility: "data", ngn: 200, destination: "08011111111", network: "mtn" });
   assert.equal(data.bundle, "200MB");
   const get = calls.find((c) => c.method === "GET");
@@ -101,4 +103,11 @@ test("meter check: a wrong meter is the meter; a VTpass error (087) is 'unavaila
   assert.match(c.reason, /couldn’t reach the electricity company/);
   assert.equal(c.vtpass.code, "087");
   assert.deepEqual(c.vtpass.keys, { apiKey: { length: 1, quoted: false }, publicKey: { length: 1, startsWithPK_: false, quoted: false }, secretKey: { length: 1, startsWithSK_: false, quoted: false } });
+});
+
+test("bundle labels: the price is shown separately, the rest reads plainly", async () => {
+  const { bundleLabel } = await import("../src/provider.mjs");
+  assert.equal(bundleLabel("MTN N600 2.5GB - 2 days"), "2.5GB, 2 days");
+  assert.equal(bundleLabel("N1000 1.5GB - 30 days"), "1.5GB, 30 days");
+  assert.equal(bundleLabel("N100 100MB - 24 hrs"), "100MB, 24 hrs");
 });

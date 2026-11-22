@@ -24,7 +24,10 @@ export type Purse = {
   feeBps?: number;
   withdrawals?: { at: string; usdc: number; to: string; tx: string }[];
   ownWallet?: boolean; // false: an older purse on the shared agent wallet (one approval moves it)
-  rulesBehind?: boolean; // the on-chain caps are behind today’s naira rate: re-save the plan
+  rulesBehind?: boolean;
+  // The limits saved on her purse (naira): what Mhasibu AI and the contract actually allow.
+  limits?: Record<string, { perTopup?: number; perDay?: number; perWeek?: number; perMonth?: number }>;
+  planOutdated?: boolean; // her plan gained a new limit since it was saved: approve to apply it // the on-chain caps are behind today’s naira rate: re-save the plan
   rate?: { ngnPerUsdc: number; asOf: string | null; live: boolean };
   notifications: { at: string; kind: string; text: string }[];
   testUsdcLeft: number;
@@ -34,7 +37,7 @@ export type Profile = { name: string; avatar: string | null; address: string; em
 
 export const PRESETS = {
   light: { label: "Light", electricity: "₦2,000 a time, ₦5,000 a week", airtime: "₦200 a time, ₦500 a day", data: "₦200 a time, ₦500 a day", monthly: 50_000 },
-  standard: { label: "Standard", electricity: "₦5,000 a time, ₦15,000 a week", airtime: "₦500 a time, ₦1,000 a day", data: "₦500 a time, ₦1,000 a day", monthly: 120_000 },
+  standard: { label: "Standard", electricity: "₦5,000 a time, ₦15,000 a week", airtime: "₦500 a time, ₦1,000 a day", data: "₦1,000 a time, ₦1,000 a day", monthly: 120_000 },
 } as const;
 
 export const DISCOS = [

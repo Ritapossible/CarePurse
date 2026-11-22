@@ -10,7 +10,7 @@ export const PRESETS = {
   standard: {
     electricity: { perTopup: 5000, perWeek: 15000 },
     airtime: { perTopup: 500, perDay: 1000 },
-    data: { perTopup: 500, perDay: 1000 },
+    data: { perTopup: 1000, perDay: 1000 }, // ₦1,000: MTN's 1.5GB for 30 days (it has no ₦500 bundle)
   },
 };
 

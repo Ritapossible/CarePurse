@@ -4,7 +4,9 @@
 export const UTILITIES = {
   electricity: { label: "Electricity", destination: "meter", tiers: [500, 1000, 2000, 5000, 10000] },
   airtime: { label: "Airtime", destination: "phone", tiers: [100, 200, 500, 1000, 2000, 5000] },
-  data: { label: "Data", destination: "phone", tiers: [100, 200, 500, 1000, 2000, 5000] },
+  // Data: every price a network may sell a bundle at; /v1/options shows only those the chosen
+  // network really sells (VTpass bundle list), with what each one gives.
+  data: { label: "Data", destination: "phone", tiers: [100, 200, 500, 600, 800, 1000, 1500, 2000, 2500, 3000, 5000] },
 };
 
 export const isUtility = (name) => Object.hasOwn(UTILITIES, name);

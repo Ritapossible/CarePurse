@@ -68,7 +68,7 @@ export function createApp({
       const network = NETWORKS.includes(req.query.network) ? req.query.network : "mtn";
       try {
         const sold = await provider.dataTiers(network);
-        list = list.filter((o) => sold.has(o.ngn));
+        list = list.filter((o) => sold.has(o.ngn)).map((o) => ({ ...o, ...(typeof sold.get === "function" && sold.get(o.ngn) ? { bundle: sold.get(o.ngn) } : {}) }));
       } catch (err) {
         log.error(err);
         return res.status(502).json({ error: "Could not load data bundles right now." });

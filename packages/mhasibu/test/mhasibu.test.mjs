@@ -846,15 +846,20 @@ test("while a move to her own wallet awaits approval, no top-up starts on the ol
   assert.deepEqual(releases, ["f"]);
 });
 
-test("data: a size within her limit that the network doesn't sell is explained, not called 'not a size'", async () => {
-  // MTN sells internet data at ₦100 and ₦200, but no ₦500 bundle (its ₦500 item is call time).
+test("data: real MTN prices with what each gives; ₦500 (not sold) explained; ₦1,000 now allowed", async () => {
+  // MTN sells internet data at these prices, but no ₦500 bundle (its ₦500 item is call time).
+  const MTN = new Map([[100, "100MB, 24 hrs"], [200, "200MB, 2 days"], [600, "2.5GB, 2 days"], [800, "3GB, 2 days"], [1000, "1.5GB, 30 days"], [1500, "6GB, 7 days"]]);
   const wallet = fakeWallet();
-  wallet.options = async (utility, maxNgn) => (utility === "data" ? [100, 200] : TIERS[utility]).filter((n) => n <= maxNgn).map((ngn) => ({ utility, ngn, amount: String(ngn * 6803) }));
+  wallet.options = async (utility, maxNgn) => (utility === "data" ? [...MTN.keys()] : TIERS[utility]).filter((n) => n <= maxNgn)
+    .map((ngn) => ({ utility, ngn, amount: String(ngn * 6803), ...(utility === "data" ? { bundle: MTN.get(ngn) } : {}) }));
   const { mhasibu } = setup({ wallet });
-  await mhasibu.handle("demo", "Buy data");
+  const list = await mhasibu.handle("demo", "Buy data");
+  assert.match(list, /1\) ₦100 · 100MB, 24 hrs\n2\) ₦200 · 200MB, 2 days\n3\) ₦600 · 2\.5GB, 2 days\n4\) ₦800 · 3GB, 2 days\n5\) ₦1,000 · 1\.5GB, 30 days\n0\) Cancel/);
+  assert.doesNotMatch(list, /₦1,500/); // over the ₦1,000 a time
   const en = await mhasibu.handle("demo", "#500");
-  assert.match(en, /^MTN doesn't sell a ₦500 data bundle, so I can't buy that one\. These MTN data bundles fit within your limit:\n1\) ₦100\n2\) ₦200\n0\) Cancel/);
+  assert.match(en, /^MTN doesn't sell a ₦500 data bundle, so I can't buy that one\. These MTN data bundles fit within your limit:\n1\) ₦100 · 100MB, 24 hrs\n/);
   const pcm = await mhasibu.handle("demo", "abeg buy data of #500");
   assert.match(pcm, /^MTN no get ₦500 data bundle, so I no fit buy am\./);
-  assert.match(await mhasibu.handle("demo", "2"), /Done! ₦200/i);
+  assert.match(await mhasibu.handle("demo", "Please buy data of 1000"), /^Shall I buy ₦1,000 of data \(1\.5GB, 30 days\) for 08011111111\?/);
+  assert.match(await mhasibu.handle("demo", "1"), /Done! ₦1,000/i);
 });

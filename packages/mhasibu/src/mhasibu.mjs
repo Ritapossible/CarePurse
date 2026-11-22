@@ -79,14 +79,14 @@ export function createMhasibu({
     const sizes = options.map((o) => o.ngn);
     const keep = (choices) => purses.update(purse.id, (p) => { p.pending = { utility, options: choices, expiresAt: new Date(now + config.optionsTtlMinutes * MINUTE).toISOString() }; });
     if (askedNgn) {
-      if (sizes.includes(askedNgn)) { keep([askedNgn]); return say.confirmAmount(lang, { utility, ngn: askedNgn, destinationLabel }); }
+      if (sizes.includes(askedNgn)) { keep([askedNgn]); return say.confirmAmount(lang, { utility, ngn: askedNgn, destinationLabel, bundle: options.find((o) => o.ngn === askedNgn)?.bundle }); }
       keep(sizes);
       if (askedNgn > room.maxNgn) {
         notifyGuardian(purse, "asked-over-limit", `Mama asked for ₦${askedNgn.toLocaleString("en-NG")} of ${utility}; the ${room.tightest.rule} limit allows ₦${room.maxNgn.toLocaleString("en-NG")} now.`);
-        return say.amountNotAllowed(lang, { utility, askedNgn, maxNgn: room.maxNgn, rule: room.tightest.rule, guardian: purse.guardian.name, options: sizes });
+        return say.amountNotAllowed(lang, { utility, askedNgn, maxNgn: room.maxNgn, rule: room.tightest.rule, guardian: purse.guardian.name, options });
       }
-      if (utility === "data") return say.notSoldByNetwork(lang, { network: purse.providers?.network ?? "mtn", askedNgn, options: sizes });
-      return say.notASize(lang, { utility, askedNgn, options: sizes });
+      if (utility === "data") return say.notSoldByNetwork(lang, { network: purse.providers?.network ?? "mtn", askedNgn, options });
+      return say.notASize(lang, { utility, askedNgn, options });
     }
     keep(sizes);
     return say.options(lang, { utility, options, destinationLabel, recentNgn: recent?.ngn });
