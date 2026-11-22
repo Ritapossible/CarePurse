@@ -523,3 +523,22 @@ test("wrong phone numbers on an invite: 5 an hour, and 10 in all locks the link 
   const { invite: fresh } = await families.sendNewInvite({ privyId: GUARDIAN.privyId });
   assert.equal((await families.sendCode(fresh, "08031234567")).sent, true); // a new link works
 });
+
+test("unread counts only notifications marked unread; new ones from every flow are marked", async () => {
+  const { families, purses } = setup();
+  const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  purses.update(prep.purseId, (p) => { p.notifications.push({ at: new Date(NOW).toISOString(), kind: "receipt", text: "old, before read flags" }); });
+  assert.equal((await families.dashboard({ privyId: GUARDIAN.privyId })).purse.unread, 0); // old: not counted
+  await families.preparePause({ privyId: GUARDIAN.privyId, paused: true });
+  await families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const { purse } = await families.dashboard({ privyId: GUARDIAN.privyId });
+  assert.equal(purse.unread, 1);
+  assert.match(purse.notifications[0].text, /^Purse paused \(tx txhash\)\.$/); // text intact
+  assert.equal(families.profile({ privyId: GUARDIAN.privyId }).profile.unread, 1);
+});
+
+test("update on a purse that no longer exists does nothing (her account was closed mid-chat)", () => {
+  const { purses } = setup();
+  assert.equal(purses.update("p_gone", (p) => { p.paused = true; }), null);
+});

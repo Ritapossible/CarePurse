@@ -230,7 +230,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
       x.limits = PRESETS[change.preset];
       x.monthlyCap = monthlyCap(PRESETS[change.preset]);
       x.limitsChange = null;
-      (x.notifications ??= []).push({ at: iso(), kind: "limits-changed", text: `Plan changed to ${change.preset === "light" ? "Light" : "Standard"} (tx ${done.hash}).` });
+      (x.notifications ??= []).push({ at: iso(), kind: "limits-changed", text: `Plan changed to ${change.preset === "light" ? "Light" : "Standard"} (tx ${done.hash}).`, read: false });
     });
     for (const k of behindCache.keys()) if (k.startsWith(`${p.contractId}:`)) behindCache.delete(k);
     await purses.flush?.();
@@ -397,19 +397,19 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
       if (a.kind === "agent") {
         x.agent = x.nextAgent;
         delete x.nextAgent;
-        (x.notifications ??= []).push({ at: iso(), kind: "agent", text: `Mama’s purse now has its own Mhasibu AI wallet (tx ${done.hash}).` });
+        (x.notifications ??= []).push({ at: iso(), kind: "agent", text: `Mama’s purse now has its own Mhasibu AI wallet (tx ${done.hash}).`, read: false });
         return;
       }
       if (a.kind === "destinations") {
         x.destinations = a.next.destinations;
         x.mama = { ...x.mama, phone: a.next.phone };
         x.providers = { ...x.providers, disco: a.next.disco, network: a.next.network };
-        (x.notifications ??= []).push({ at: iso(), kind: "meter-changed", text: `Mama’s details changed: meter •••${a.next.destinations.electricity.slice(-4)}, phone ${maskPhone(a.next.phone)} (tx ${done.hash}).` });
+        (x.notifications ??= []).push({ at: iso(), kind: "meter-changed", text: `Mama’s details changed: meter •••${a.next.destinations.electricity.slice(-4)}, phone ${maskPhone(a.next.phone)} (tx ${done.hash}).`, read: false });
         return;
       }
       if (a.kind === "pause" || a.kind === "unpause") x.paused = a.kind === "pause";
       if (a.kind === "withdraw") (x.withdrawals ??= []).push({ at: iso(), usdc: a.usdc, to: a.to, tx: done.hash });
-      (x.notifications ??= []).push({ at: iso(), kind: a.kind, text: a.kind === "withdraw" ? `Withdrew ${a.usdc} USDC to ${a.to.slice(0, 6)}…${a.to.slice(-4)} (tx ${done.hash}).` : `Purse ${a.kind === "pause" ? "paused" : "resumed"} (tx ${done.hash}).` });
+      (x.notifications ??= []).push({ at: iso(), kind: a.kind, text: a.kind === "withdraw" ? `Withdrew ${a.usdc} USDC to ${a.to.slice(0, 6)}…${a.to.slice(-4)} (tx ${done.hash}).` : `Purse ${a.kind === "pause" ? "paused" : "resumed"} (tx ${done.hash}).`, read: false });
     });
     if (a.kind === "destinations") for (const k of behindCache.keys()) if (k.startsWith(`${p.contractId}:`)) behindCache.delete(k);
     await purses.flush?.();
@@ -425,7 +425,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   function profile({ privyId }) {
     const p = byGuardian(privyId);
     if (!p) return { profile: null };
-    return { profile: { name: p.guardian.name, avatar: p.guardian.avatar ?? null, address: p.guardian.address, email: p.guardian.email ?? null, purseStatus: p.setup?.status ?? "active", contractId: p.contractId, unread: (p.notifications ?? []).filter((n) => !n.read).length, mama: { name: p.mama.name, phone: p.mama.phone, meter: p.destinations.electricity } } };
+    return { profile: { name: p.guardian.name, avatar: p.guardian.avatar ?? null, address: p.guardian.address, email: p.guardian.email ?? null, purseStatus: p.setup?.status ?? "active", contractId: p.contractId, unread: (p.notifications ?? []).filter((n) => n.read === false).length, mama: { name: p.mama.name, phone: p.mama.phone, meter: p.destinations.electricity } } };
   }
 
   async function updateProfile({ privyId, name, avatar }) {
@@ -473,8 +473,15 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
       if (!w?.sealed || !signup.closeAgentWallet) continue;
       await signup.closeAgentWallet({ secret: openAgentKey(w.sealed, config) }).catch((err) => { throw new FamilyError(409, err.message); });
     }
-    purses.remove(p.id);
-    await purses.flush?.();
+    // The wallet is closed now: the record must go too. Retried, so a database hiccup can't leave a
+    // purse whose wallet no longer exists.
+    for (let i = 1; ; i++) {
+      purses.remove(p.id);
+      try { await purses.flush?.(); break; } catch (err) {
+        if (i >= 3) throw new FamilyError(503, "Your account is closed, but we couldn’t finish tidying up. Please try again in a minute.");
+        await new Promise((r) => setTimeout(r, 500 * i));
+      }
+    }
     return { deleted: true };
   }
 
@@ -551,7 +558,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
         monthNgn: spentSince(p.spends, periodStart("month", now())),
         rate: { ngnPerUsdc: config.ngnPerUsdc, asOf: config.rate?.asOf ?? null, live: Boolean(config.rate?.live) },
         notifications: [...(p.notifications ?? [])].reverse().slice(0, 30).map(({ at, kind, text, read }) => ({ at, kind, text, read: Boolean(read) })),
-        unread: (p.notifications ?? []).filter((n) => !n.read).length,
+        unread: (p.notifications ?? []).filter((n) => n.read === false).length,
         testUsdcLeft: TEST_USDC_TIMES - (p.testUsdc ?? 0),
         withdrawals: [...(p.withdrawals ?? [])].reverse().slice(0, 10),
         rulesBehind: behind,
@@ -686,7 +693,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
       x.codeFails = [];
       x.mamaSessions = [...(x.mamaSessions ?? []).slice(-4), { hash: sha(session), createdAt: iso() }];
       x.history.push({ at: iso(), from: "mhasibu", text: welcome });
-      x.notifications = [...(x.notifications ?? []), { at: iso(), kind: "joined", text: `Mama ${p.mama.name} joined CarePurse.` }];
+      x.notifications = [...(x.notifications ?? []), { at: iso(), kind: "joined", text: `Mama ${p.mama.name} joined CarePurse.`, read: false }];
     });
     await purses.flush?.();
     return { purseId: p.id, session };

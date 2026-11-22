@@ -55,8 +55,9 @@ export function createPurseStore(file, { seed = true, records = null } = {}) {
     const { avatar = null, ...guardian } = p.guardian ?? {};
     records.save("purse", id, { ...p, guardian });
     if (avatar !== (lastAvatar.get(id) ?? null)) {
-      records.save("avatar", id, { avatar });
       lastAvatar.set(id, avatar);
+      // If that write fails, forget it was saved, so the next change to this purse writes it again.
+      Promise.resolve(records.save("avatar", id, { avatar })).then((ok) => { if (ok === false && lastAvatar.get(id) === avatar) lastAvatar.delete(id); });
     }
   }
 
@@ -78,7 +79,8 @@ export function createPurseStore(file, { seed = true, records = null } = {}) {
     // Every purse (sign-up lookups: by guardian, invite or Mama's session).
     all: () => Object.values(state.purses),
     put(purse) { state.purses[purse.id] = purse; persist(purse.id); save(); return purse; },
-    update(id, fn) { const purse = state.purses[id]; fn(purse); persist(id); save(); return purse; },
+    // A purse removed meanwhile (her account was closed mid-chat): nothing to update.
+    update(id, fn) { const purse = state.purses[id]; if (!purse) return null; fn(purse); persist(id); save(); return purse; },
     remove(id) { delete state.purses[id]; lastAvatar.delete(id); records?.remove("purse", id); records?.remove("avatar", id); save(); },
     // Wait until every change so far is stored.
     flush: async () => { await records?.flush(); },

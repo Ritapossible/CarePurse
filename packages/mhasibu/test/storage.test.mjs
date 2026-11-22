@@ -79,3 +79,25 @@ test("loading joins the photo back onto its purse", () => {
   const purses = createPurseStore(null, { seed: false, records: { rows, save() {}, remove() {} } });
   assert.equal(purses.get("p").guardian.avatar, "data:image/png;base64,BBBB");
 });
+
+test("save() reports whether its write landed; a failed photo write is retried on the next change", async () => {
+  const pool = fakePool();
+  let failNext = true;
+  const query = pool.query;
+  pool.query = async (sql, args) => { if (/^insert/i.test(sql.trim()) && args[0] === "avatar" && failNext) { failNext = false; throw new Error("db down"); } return query(sql, args); };
+  pool.open();
+  const r = await openRecords("postgres://fake", ["purse", "avatar"], { pool, encryptionKey: "k".repeat(32), log: { warn() {}, error() {} } });
+  assert.equal(await r.save("purse", "a", { n: 1 }), true);
+  assert.equal(await r.save("avatar", "a", { avatar: "x" }), false);
+  await r.flush().catch(() => {}); // the failure is also reported by flush
+  const purses = createPurseStore(null, { seed: false, records: r });
+  purses.put(newPurse({ ...DEMO_PURSE, id: "p" }));
+  failNext = true;
+  purses.update("p", (p) => { p.guardian.avatar = "data:image/jpeg;base64,AAAA"; });
+  await new Promise((res) => setTimeout(res, 20));
+  const avatarWrites = () => pool.writes.filter((w) => w.kind === "avatar" && w.id === "p").length;
+  assert.equal(avatarWrites(), 0); // that write failed
+  purses.update("p", (p) => { p.paused = true; }); // any next change retries the photo
+  await r.flush().catch(() => {});
+  assert.equal(avatarWrites(), 1);
+});

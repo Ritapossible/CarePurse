@@ -81,14 +81,18 @@ export async function openRecords(databaseUrl, kinds, { log = console, encryptio
   // its latest state (a chat message changes a purse several times). Order is kept per record, and
   // flush() still waits for every change so far.
   const latest = new Map(); // "kind\0id" → { kind, id, doc } waiting to be written
+  const outcome = new Map(); // "kind\0id" → promise of that write: true written, false failed
   const keyOf = (kind, id) => `${kind}\u0000${id}`;
   return {
     rows,
+    // Returns a promise: true once this state is stored, false if the write failed.
     save(kind, id, doc) {
       const key = keyOf(kind, id);
       const queued = latest.has(key);
       latest.set(key, { kind, id, doc });
-      if (queued) return; // the write already queued will carry this state
+      if (queued) return outcome.get(key); // the write already queued will carry this state
+      let settle;
+      outcome.set(key, new Promise((r) => { settle = r; }));
       chain = chain
         .then(() => {
           const item = latest.get(key);
@@ -99,7 +103,9 @@ export async function openRecords(databaseUrl, kinds, { log = console, encryptio
             `insert into ${TABLE} (kind, id, doc) values ($1, $2, $3::jsonb)
              on conflict (kind, id) do update set doc = excluded.doc, updated_at = now()`, [item.kind, item.id, json]);
         })
-        .catch((err) => { failure = err; log.error?.(`database write failed (${kind} ${id}): ${err.message}`); });
+        .then(() => { outcome.delete(key); settle(true); })
+        .catch((err) => { failure = err; outcome.delete(key); settle(false); log.error?.(`database write failed (${kind} ${id}): ${err.message}`); });
+      return outcome.get(key);
     },
     // Deleted for good (an account the daughter closed): the row goes, not just its contents.
     remove(kind, id) {

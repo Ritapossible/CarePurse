@@ -60,7 +60,7 @@ export default function AppHeader() {
             {path !== "/dashboard" && profile && (
               <Link href="/dashboard" className="text-[15px] text-secondary transition-colors duration-150 hover:text-foreground">Dashboard</Link>
             )}
-            {profile && (
+            {profile?.purseStatus === "active" && (
               <button
                 onClick={() => (path === "/dashboard" ? window.dispatchEvent(new Event("carepurse:open-alerts")) : router.push("/dashboard?alerts=1"))}
                 aria-label={`Notifications${profile.unread ? `, ${profile.unread} new` : ""}`}

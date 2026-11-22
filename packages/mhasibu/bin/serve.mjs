@@ -361,7 +361,11 @@ const server = http.createServer(async (req, res) => {
     send(res, 404, { error: "not found" });
   } catch (err) {
     // Sign-up and sign-in rules answer with their own message and status (wrong code, expired link).
-    if (err instanceof FamilyError) return send(res, err.status, { error: err.message });
+    if (err instanceof FamilyError) {
+      // Too large: answer, then close the connection (don't keep reading what's left of the body).
+      if (err.status === 413) { res.setHeader("connection", "close"); send(res, 413, { error: err.message }); return req.destroy(); }
+      return send(res, err.status, { error: err.message });
+    }
     emit({ type: "error", message: err.message });
     send(res, 500, { error: "Mhasibu could not finish that. Try again." });
   }
