@@ -1,6 +1,7 @@
 "use client";
-// The header inside the app (setup, dashboard, account). Signed in: Dashboard and her photo with
-// an account menu. Signed out: a quiet Sign in. No marketing links and no "Launch App" here.
+// The header inside the app (setup, dashboard, account). Signed in: Dashboard, her notifications
+// bell (with the unread count) and her photo with an account menu. Signed out: a quiet Sign in.
+// No marketing links and no "Launch App" here.
 import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -55,9 +56,21 @@ export default function AppHeader() {
           <Link href="/dashboard" className="text-[15px] font-medium text-secondary transition-colors duration-150 hover:text-foreground">Sign in</Link>
         )}
         {ready && authenticated && (
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 sm:gap-4">
             {path !== "/dashboard" && profile && (
               <Link href="/dashboard" className="text-[15px] text-secondary transition-colors duration-150 hover:text-foreground">Dashboard</Link>
+            )}
+            {profile && (
+              <button
+                onClick={() => (path === "/dashboard" ? window.dispatchEvent(new Event("carepurse:open-alerts")) : router.push("/dashboard?alerts=1"))}
+                aria-label={`Notifications${profile.unread ? `, ${profile.unread} new` : ""}`}
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-secondary transition-colors duration-150 hover:bg-surface hover:text-foreground"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+                {profile.unread ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[11px] font-medium leading-none text-background">{profile.unread > 9 ? "9+" : profile.unread}</span>
+                ) : null}
+              </button>
             )}
             <div className="relative" ref={menu}>
               <button onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-expanded={open} className="rounded-full ring-offset-2 transition-shadow focus-visible:ring-2 focus-visible:ring-foreground">

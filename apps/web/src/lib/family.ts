@@ -36,7 +36,15 @@ export type Purse = {
   testUsdcLeft: number;
 };
 
-export type Profile = { name: string; avatar: string | null; address: string; email: string | null; purseStatus: string; contractId: string };
+export type Profile = {
+  name: string;
+  avatar: string | null;
+  address: string;
+  email: string | null;
+  purseStatus: string;
+  contractId: string;
+  unread?: number; // notifications she hasn't opened (the header bell)
+};
 
 export const PRESETS = {
   light: { label: "Light", electricity: "₦2,000 a time, ₦5,000 a week", airtime: "₦200 a time, ₦500 a day", data: "₦200 a time, ₦500 a day", monthly: 50_000 },

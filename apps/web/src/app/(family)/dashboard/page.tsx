@@ -3,14 +3,14 @@
 // The service fee shows here only (Mama never sees it).
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import AuthCard from "@/components/AuthCard";
 import Link from "next/link";
 import ActivityRow, { UTILITY, when } from "@/components/ActivityRow";
-import { DISCOS, NETWORKS, PRESETS, type Purse, type Spend, explorer, inviteUrl, naira, useFamilyApi, useStellarWallet, whatsappUrl } from "@/lib/family";
+import { DISCOS, NETWORKS, PRESETS, type Purse, explorer, inviteUrl, naira, useFamilyApi, useStellarWallet, whatsappUrl } from "@/lib/family";
 
-const INVITE = { none: "Not invited", waiting: "Invite sent", joined: "Active", expired: "Link expired" } as const;
+const INVITE = { none: "Not invited", waiting: "Invite sent", joined: "Joined", expired: "Link expired" } as const;
 
 // Small line icons, drawn once, in currentColor.
 const ICONS = {
@@ -60,7 +60,8 @@ const limitText = (l?: { perTopup?: number; perDay?: number; perWeek?: number; p
   const period = l.perDay ? [l.perDay, "day"] : l.perWeek ? [l.perWeek, "week"] : l.perMonth ? [l.perMonth, "month"] : null;
   return `${naira(l.perTopup)} a time${period ? `, ${naira(period[0] as number)} a ${period[1]}` : ""}`;
 };
-const maskPhone = (p: string) => p.replace(/\D/g, "").replace(/^(\d{4})\d+(\d{3})$/, "$1 ••• $2");
+// Her number as the daughter typed it, easy to read: 0801 111 1111.
+const formatPhone = (p: string) => p.replace(/\D/g, "").replace(/^(\d{4})(\d{3})(\d{4})$/, "$1 $2 $3");
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -174,9 +175,23 @@ export default function DashboardPage() {
     setSheet("alerts");
     if (purse?.unread) {
       setPurse((p) => (p ? { ...p, unread: 0 } : p));
-      api("POST", "notifications-read").catch(() => {});
+      api("POST", "notifications-read").then(() => window.dispatchEvent(new Event("carepurse:profile"))).catch(() => {});
     }
   }
+  // The bell lives in the header: it opens this list (here, or arriving with ?alerts=1).
+  const openAlertsRef = useRef(openAlerts);
+  useEffect(() => { openAlertsRef.current = openAlerts; });
+  useEffect(() => {
+    const open = () => openAlertsRef.current();
+    window.addEventListener("carepurse:open-alerts", open);
+    return () => window.removeEventListener("carepurse:open-alerts", open);
+  }, []);
+  useEffect(() => {
+    if (!purse || new URLSearchParams(window.location.search).get("alerts") !== "1") return;
+    window.history.replaceState(window.history.state, "", "/dashboard");
+    const t = setTimeout(() => openAlertsRef.current(), 0);
+    return () => clearTimeout(t);
+  }, [purse]);
 
   // Mama's meter, phone and providers: checked, then one approval saves them on her purse.
   function openDetails() {
@@ -307,10 +322,6 @@ export default function DashboardPage() {
           <h1 className="mt-1 text-2xl font-medium tracking-[-0.01em]">Mama {purse.mama.name}’s purse</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={openAlerts} aria-label={`Notifications${purse.unread ? `, ${purse.unread} new` : ""}`} className="relative flex h-8 w-8 items-center justify-center rounded-full bg-surface text-secondary transition-colors duration-150 hover:text-foreground">
-            <Icon d={ICONS.bell} className="h-[18px] w-[18px]" />
-            {purse.unread ? <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[11px] font-medium leading-none text-background">{purse.unread > 9 ? "9+" : purse.unread}</span> : null}
-          </button>
           {purse.paused ? (
             <span className="inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-muted" />Paused</span>
           ) : (
@@ -357,17 +368,19 @@ export default function DashboardPage() {
           {/* Balance, with the two money actions */}
           <section className="rounded-[24px] bg-foreground p-6 text-background">
             <div className="flex items-center gap-2 text-sm text-background/60">
-              Balance
+              Mama can spend
               <button onClick={() => setHidden((h) => !h)} aria-label={hidden ? "Show balance" : "Hide balance"} className="text-background/60 hover:text-background">
                 <Icon d={hidden ? ICONS.eyeOff : ICONS.eye} className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-3 text-[40px] font-medium leading-none tracking-[-0.02em] tabular-nums sm:text-[44px]">{hidden ? "₦ ••••••" : naira(purse.balanceNgn ?? 0)}</div>
-            {!hidden && purse.spendableNgn != null && purse.feeBps ? (
-              <p className="mt-2 text-sm text-background/80 tabular-nums">Mama can spend {naira(purse.spendableNgn)} after your {purse.feeBps / 100}% fee</p>
-            ) : null}
+            <div className="mt-3 text-[40px] font-medium leading-none tracking-[-0.02em] tabular-nums sm:text-[44px]">{hidden ? "₦ ••••••" : naira(purse.spendableNgn ?? purse.balanceNgn ?? 0)}</div>
+            {!hidden && (
+              <p className="mt-2 text-sm text-background/70 tabular-nums">
+                {naira(purse.balanceNgn ?? 0)} in the purse{purse.feeBps ? ` · includes a ${purse.feeBps / 100}% service fee` : ""}
+              </p>
+            )}
             {purse.rate && !hidden && (
-              <p className="mt-1 text-[13px] text-background/50 tabular-nums">{Number(purse.balanceUsdc ?? 0).toFixed(2)} USDC · ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")} per USDC{purse.rate.live ? " today" : ""}</p>
+              <p className="mt-1 text-xs text-background/40 tabular-nums">{Number(purse.balanceUsdc ?? 0).toFixed(2)} USDC · ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")} per USDC{purse.rate.live ? " today" : ""}</p>
             )}
             <div className="mt-6">
               <div className="flex justify-between text-sm">
@@ -382,37 +395,64 @@ export default function DashboardPage() {
               <button onClick={() => setSheet("fund")} className="inline-flex h-11 items-center justify-center gap-2 rounded-[12px] bg-background text-sm font-medium text-foreground transition-opacity duration-150 hover:opacity-90">
                 <Icon d={ICONS.add} className="h-4 w-4" />Add money
               </button>
-              <button onClick={() => { setError(null); setSheet("withdraw"); }} className="inline-flex h-11 items-center justify-center gap-2 rounded-[12px] bg-background/10 text-sm font-medium text-background transition-colors duration-150 hover:bg-background/20">
+              <button onClick={() => { setError(null); setSheet("withdraw"); }} className="inline-flex h-11 items-center justify-center gap-2 rounded-[12px] border border-background/40 bg-transparent text-sm font-medium text-background transition-colors duration-150 hover:border-background/70 hover:bg-background/10">
                 <Icon d={ICONS.withdraw} className="h-4 w-4" />Withdraw
               </button>
             </div>
           </section>
+
+          {/* 5. The last top-up, so "did the light come?" is answered without scrolling */}
+          <Link href="/activity" className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3.5 transition-colors duration-150 hover:border-foreground">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs text-muted">Last top-up</div>
+              <div className="mt-0.5 truncate text-sm font-medium tabular-nums">
+                {purse.spends[0] ? `${UTILITY[purse.spends[0].utility] ?? purse.spends[0].utility} · ${naira(purse.spends[0].ngn)} · ${when(purse.spends[0].at)}${purse.spends[0].unconfirmed ? " · checking" : ""}` : "No top-up yet"}
+              </div>
+            </div>
+            {purse.spends.length > 0 && <span className="shrink-0 text-sm text-muted">See all</span>}
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+          </Link>
 
           {/* Mama and the purse's controls, as one list */}
           <section className="divide-y divide-line rounded-2xl border border-line bg-white">
             <div className="flex items-center gap-4 p-4">
               <span className={`${rowIcon} text-base font-medium`}>{purse.mama.name.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0 flex-1">
-                <div className="font-medium">Mama {purse.mama.name}</div>
-                <div className="truncate text-sm text-muted">{maskPhone(purse.mama.phone)} · Meter •••{purse.destinations.electricity.slice(-4)} · {INVITE[purse.invite.status]}</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-medium">Mama {purse.mama.name}</span>
+                  {joined && <span className="text-xs text-muted">{INVITE.joined}</span>}
+                </div>
+                <div className="text-sm text-muted tabular-nums">{formatPhone(purse.mama.phone)}</div>
+                <div className="text-sm text-muted">Meter •••{purse.destinations.electricity.slice(-4)}</div>
               </div>
               <button onClick={openDetails} className={rowButton}>Edit</button>
             </div>
-            <div className="flex items-center gap-4 p-4">
-              <span className={rowIcon}><Icon d={ICONS.invite} className="h-[18px] w-[18px]" /></span>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium">Sign-in link</div>
-                <div className="text-sm text-muted">{joined ? "A new link signs her out elsewhere" : "Works once, for 7 days"}</div>
+            {joined ? (
+              <div className="flex items-center gap-4 p-4">
+                <span className={rowIcon}><Icon d={ICONS.invite} className="h-[18px] w-[18px]" /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">Sign-in link</div>
+                  <div className="text-sm text-muted">She can open her chat from this link</div>
+                </div>
+                <button onClick={() => setSheet("invite")} className={rowButton}>New link</button>
               </div>
-              <button onClick={() => setSheet("invite")} className={rowButton}>{joined ? "New link" : purse.invite.status === "waiting" ? "Resend" : "Invite"}</button>
-            </div>
+            ) : (
+              <div className="flex items-center gap-4 bg-surface p-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Icon d={ICONS.invite} className="h-[18px] w-[18px]" /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">Mama hasn’t joined yet</div>
+                  <div className="text-sm text-secondary">{purse.invite.status === "waiting" ? "Her link is waiting. It works once, for 7 days." : purse.invite.status === "expired" ? "Her link expired. Send a new one." : "Send her the sign-in link."}</div>
+                </div>
+                <button onClick={() => setSheet("invite")} className="h-9 shrink-0 rounded-[10px] bg-foreground px-3.5 text-sm font-medium text-background">{purse.invite.status === "waiting" ? "Resend" : "Send link"}</button>
+              </div>
+            )}
             <div className="flex items-center gap-4 p-4">
               <span className={rowIcon}><Icon d={purse.paused ? ICONS.play : ICONS.pause} className="h-[18px] w-[18px]" /></span>
               <div className="min-w-0 flex-1">
                 <div className="font-medium">Top-ups</div>
                 <div className="text-sm text-muted">{busy === "pause" && step ? step : purse.paused ? "Paused until you resume" : "Mhasibu AI can buy for her"}</div>
               </div>
-              <button onClick={togglePause} disabled={Boolean(busy)} className={purse.paused ? `${rowButton} border-foreground bg-foreground text-background` : rowButton}>
+              <button onClick={togglePause} disabled={Boolean(busy)} className={purse.paused ? "h-9 shrink-0 rounded-[10px] bg-foreground px-3.5 text-sm font-medium text-background disabled:opacity-40" : "h-9 shrink-0 px-2 text-sm font-medium text-secondary underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline disabled:opacity-40"}>
                 {busy === "pause" ? "Approving…" : purse.paused ? "Resume" : "Pause"}
               </button>
             </div>
@@ -628,10 +668,8 @@ export default function DashboardPage() {
       )}
 
       {sheet === "invite" && (
-        <Sheet title={`Invite Mama ${purse.mama.name}`} onClose={() => setSheet(null)}>
-          {purse.invite.status === "joined" ? (
-            <p className="text-secondary">Mama has joined. She chats with Mhasibu AI from her phone.</p>
-          ) : invite ? (
+        <Sheet title={joined ? "New sign-in link" : `Invite Mama ${purse.mama.name}`} onClose={() => setSheet(null)}>
+          {invite ? (
             <>
               <p className="text-sm text-secondary">Send her this link. It works once, for 7 days.</p>
               <button onClick={() => copy("invite", inviteUrl(invite))} className="mt-4 flex w-full items-center gap-3 rounded-xl bg-surface px-4 py-3 text-left">
@@ -642,9 +680,15 @@ export default function DashboardPage() {
             </>
           ) : (
             <>
-              <p className="text-sm text-secondary">{purse.invite.status === "waiting" ? "A link was sent but not used yet. A new link cancels the old one." : "Make a link for Mama. She signs in with her phone number."}</p>
+              <p className="text-sm text-secondary">
+                {purse.invite.status === "joined"
+                  ? "Mama has joined and chats from her phone. A new link signs her out on her other phones; she signs in again with it, using her phone number."
+                  : purse.invite.status === "waiting"
+                    ? "A link was sent but not used yet. A new link cancels the old one."
+                    : "Make a link for Mama. She signs in with her phone number."}
+              </p>
               <button disabled={busy === "invite"} onClick={() => act("invite")} className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-foreground font-medium text-background disabled:opacity-40">
-                {busy === "invite" ? "Making a link…" : "Create invite link"}
+                {busy === "invite" ? "Making a link…" : purse.invite.status === "joined" ? "Create a new link" : "Create invite link"}
               </button>
             </>
           )}
