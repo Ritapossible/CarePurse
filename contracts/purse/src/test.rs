@@ -367,3 +367,22 @@ fn set_agent_waits_for_the_open_order() {
     t.purse.set_agent(&t.agent);
     assert_eq!(t.purse.agent(), t.agent);
 }
+
+#[test]
+fn every_guardian_call_extends_the_purse_lifetime() {
+    use soroban_sdk::testutils::storage::Instance as _;
+    let t = setup();
+    let ttl = || t.env.as_contract(&t.purse.address, || t.env.storage().instance().get_ttl());
+    // Let the lifetime run down, then each guardian call must top it back up.
+    for call in 0..4 {
+        t.env.ledger().with_mut(|l| l.sequence_number += 100_000);
+        let before = ttl();
+        match call {
+            0 => t.purse.pause(),
+            1 => t.purse.unpause(),
+            2 => t.purse.withdraw(&t.guardian, &1),
+            _ => t.purse.set_agent(&t.agent),
+        };
+        assert!(ttl() > before, "call {call} did not extend the lifetime");
+    }
+}

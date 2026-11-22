@@ -186,8 +186,14 @@ export function createSignup({ config, fetchImpl = fetch }) {
       auth: [signed],
     });
     return asOperator(async () => {
-      const account = await server.getAccount(agent.publicKey());
-      const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase }).addOperation(op).setTimeout(60).build();
+      let account = await server.getAccount(agent.publicKey());
+      let tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase }).addOperation(op).setTimeout(60).build();
+      // An archived purse is restored first (the operator pays), then her signed call goes through.
+      const sim = await server.simulateTransaction(tx);
+      if (!rpc.Api.isSimulationError(sim) && (await soroban.restoreIfArchived(sim, agent))) {
+        account = await server.getAccount(agent.publicKey());
+        tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase }).addOperation(op).setTimeout(60).build();
+      }
       const prepared = await server.prepareTransaction(tx);
       prepared.sign(agent);
       return soroban.submit(prepared);

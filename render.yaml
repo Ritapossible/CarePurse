@@ -62,7 +62,7 @@ services:
       - { key: LLM_BASE_URL, value: https://cloud-api.near.ai/v1 }
       - { key: LLM_MODEL, value: deepseek-ai/DeepSeek-V4.1-Flash-1017 } # NEAR "verifiable": runs in an attested TEE (Mhasibu checks at start)
       - { key: PURSE_CONTRACT_ID, value: CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC }
-      - { key: PURSE_WASM_HASH, value: 869db7a55f2bd22c7e4b97c2ee4f96115eb80ac5dc4345cc0e7eff8b912e22f3 } # purse code for sign-up (npm run install-wasm)
+      - { key: PURSE_WASM_HASH, value: 5fc9ac612be083a498a2b2413eb580f815448a793c7f7322491b7e0b0f8ec282 } # purse code for sign-up (npm run install-wasm)
       - { key: TREASURY_SECRET, sync: false }        # testnet wallet for "Get test USDC"
       - { key: SHOW_MAMA_CODE, value: "0" }          # set "1" only for a demo without SMS (TERMII_API_KEY): the code is then shown on screen
       - { key: GATEWAY_URL, sync: false }            # the gateway's https URL

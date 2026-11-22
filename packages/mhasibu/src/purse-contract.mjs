@@ -2,7 +2,7 @@
 // Mhasibu calls `buy` before every x402 payment. The contract checks the guardian's caps and
 // saved destinations, then sends exactly that amount of USDC to the agent wallet.
 import crypto from "node:crypto";
-import { Address, BASE_FEE, Contract, Keypair, Networks, TransactionBuilder, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
+import { Address, BASE_FEE, Contract, Keypair, Networks, Operation, TransactionBuilder, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
 
 // Must match `enum Error` in contracts/purse/src/lib.rs.
 export const CONTRACT_ERRORS = {
@@ -89,12 +89,34 @@ function makeSoroban({ rpcUrl, networkPassphrase }) {
     return new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase }).addOperation(operation).setTimeout(60).build();
   }
 
+  // Storage left unused long enough is archived by the network. A simulation then says "restore
+  // first": send that restore (paid by `payer`, any account can), and the caller simulates again.
+  // Returns true when a restore was sent. Must run inside `payer`'s queue.
+  async function restoreIfArchived(sim, payer) {
+    if (!rpc.Api.isSimulationRestore(sim)) return false;
+    const account = await server.getAccount(payer.publicKey());
+    const fee = String(Number(BASE_FEE) + Number(sim.restorePreamble.minResourceFee));
+    const restore = new TransactionBuilder(account, { fee, networkPassphrase })
+      .setSorobanData(sim.restorePreamble.transactionData.build())
+      .addOperation(Operation.restoreFootprint({}))
+      .setTimeout(60)
+      .build();
+    restore.sign(payer);
+    await submit(restore);
+    return true;
+  }
+
   // Simulate, then sign and send, in the signer's queue (retried on a stale sequence number). A
   // contract error during simulation means the contract said no: nothing is signed or sent.
+  // Archived storage is restored first, then the call is simulated again.
   function send(signer, operation) {
     return withAccount(signer.publicKey(), () => retryOnBadSeq(async () => {
-      const tx = await build(signer.publicKey(), operation);
-      const sim = await server.simulateTransaction(tx);
+      let tx = await build(signer.publicKey(), operation);
+      let sim = await server.simulateTransaction(tx);
+      if (!rpc.Api.isSimulationError(sim) && (await restoreIfArchived(sim, signer))) {
+        tx = await build(signer.publicKey(), operation);
+        sim = await server.simulateTransaction(tx);
+      }
       if (rpc.Api.isSimulationError(sim)) {
         const code = contractErrorCode(sim.error);
         if (code) throw new ContractRefused(code, sim.error);
@@ -145,6 +167,7 @@ function makeSoroban({ rpcUrl, networkPassphrase }) {
     send,
     submit,
     read,
+    restoreIfArchived,
     invoke: (signer, contractId, method, args) => send(signer, new Contract(contractId).call(method, ...args)),
   };
 }

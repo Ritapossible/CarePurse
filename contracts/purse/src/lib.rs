@@ -259,17 +259,22 @@ impl Purse {
             return Err(Error::OrderOpen);
         }
         env.storage().instance().set(&Key::Agent, &agent);
+        bump(&env);
         Ok(())
     }
 
+    // Every guardian call also extends the purse's lifetime, like every agent call, so a purse that
+    // is only ever paused, resumed or withdrawn from is never archived for lack of use.
     pub fn pause(env: Env) {
         guardian(&env).require_auth();
         env.storage().instance().set(&Key::Paused, &true);
+        bump(&env);
     }
 
     pub fn unpause(env: Env) {
         guardian(&env).require_auth();
         env.storage().instance().set(&Key::Paused, &false);
+        bump(&env);
     }
 
     pub fn withdraw(env: Env, to: Address, amount: i128) {
@@ -279,6 +284,7 @@ impl Purse {
         }
         let usdc: Address = env.storage().instance().get(&Key::Usdc).unwrap();
         token::TokenClient::new(&env, &usdc).transfer(&env.current_contract_address(), &to, &amount);
+        bump(&env);
     }
 
     // ── Agent only ────────────────────────────────────────────

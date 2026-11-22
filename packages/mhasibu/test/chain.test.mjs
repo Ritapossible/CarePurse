@@ -40,3 +40,30 @@ test("submit: a busy node is retried, a duplicate is awaited, a bad sequence is 
   assert.equal(err.badSeq, true);
   assert.equal(createSoroban({ rpcUrl: "https://fake-rpc.invalid" }), soroban); // one client per address
 });
+
+test("archived storage: a restore is sent first, then the call is simulated again", async () => {
+  const { Account, Keypair, Operation, SorobanDataBuilder, TransactionBuilder } = await import("@stellar/stellar-sdk");
+  const { ContractRefused } = await import("../src/purse-contract.mjs");
+  const soroban = createSoroban({ rpcUrl: "https://restore-test.invalid" });
+  const signer = Keypair.random();
+  const sent = [];
+  let sims = 0;
+  soroban.server.getAccount = async (pk) => new Account(pk, String(100 + sent.length));
+  soroban.server.sendTransaction = async (tx) => { sent.push(tx.operations.map((o) => o.type)); return { status: "PENDING", hash: `h${sent.length}` }; };
+  soroban.server.pollTransaction = async () => ({ status: "SUCCESS" });
+  soroban.server.simulateTransaction = async () => {
+    sims++;
+    if (sims === 1) return { transactionData: new SorobanDataBuilder(), restorePreamble: { minResourceFee: "1000", transactionData: new SorobanDataBuilder() }, result: {} };
+    return { error: "HostError: Error(Contract, #3)" }; // the real call, now on live storage: refused
+  };
+  const op = Operation.invokeContractFunction({ contract: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC", function: "buy", args: [] });
+  const err = await soroban.send(signer, op).catch((e) => e);
+  assert.deepEqual(sent, [["restoreFootprint"]]); // the restore went out first
+  assert.equal(sims, 2); // then the call was simulated again
+  assert.ok(err instanceof ContractRefused && err.code === 3);
+  // Nothing archived: no restore.
+  const before = sent.length;
+  assert.equal(await soroban.restoreIfArchived({ transactionData: new SorobanDataBuilder() }, signer), false);
+  assert.equal(sent.length, before);
+  void TransactionBuilder;
+});
