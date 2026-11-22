@@ -41,10 +41,14 @@ export function sealer(secret) {
   };
 }
 
-export async function openRecords(databaseUrl, kinds, { log = console, encryptionKey = process.env.DATA_ENCRYPTION_KEY } = {}) {
+export async function openRecords(databaseUrl, kinds, { log = console, encryptionKey = process.env.DATA_ENCRYPTION_KEY, pool: givenPool = null } = {}) {
   const box = sealer((encryptionKey ?? "").trim());
-  if (!box) log.warn?.("DATA_ENCRYPTION_KEY is not set: records are stored unencrypted. Set it in production.");
-  const pool = new pg.Pool({ connectionString: databaseUrl, max: 3 });
+  if (!box) {
+    // Mama's numbers, chat and sealed wallet keys live in these rows: never unencrypted in production.
+    if (process.env.NODE_ENV === "production") throw new Error("DATA_ENCRYPTION_KEY is not set. Records are never stored unencrypted in production: set it (a long random string) and restart.");
+    log.warn?.("DATA_ENCRYPTION_KEY is not set: records are stored unencrypted (development only).");
+  }
+  const pool = givenPool ?? new pg.Pool({ connectionString: databaseUrl, max: 3 });
   // The gateway and Mhasibu share one database and start together. Two "create table if not exists"
   // at the same moment can clash in Postgres, so take a lock first: one creates, the other waits.
   const setup = await pool.connect();
@@ -73,19 +77,33 @@ export async function openRecords(databaseUrl, kinds, { log = console, encryptio
 
   let chain = Promise.resolve();
   let failure = null;
+  // Writes are coalesced: several saves of one record before its write starts become ONE write of
+  // its latest state (a chat message changes a purse several times). Order is kept per record, and
+  // flush() still waits for every change so far.
+  const latest = new Map(); // "kind\0id" → { kind, id, doc } waiting to be written
+  const keyOf = (kind, id) => `${kind}\u0000${id}`;
   return {
     rows,
-    // Snapshot now, write in order. A failed write is logged and reported by the next flush().
     save(kind, id, doc) {
-      const json = JSON.stringify(box ? box.seal(kind, id, doc) : doc);
+      const key = keyOf(kind, id);
+      const queued = latest.has(key);
+      latest.set(key, { kind, id, doc });
+      if (queued) return; // the write already queued will carry this state
       chain = chain
-        .then(() => pool.query(
-          `insert into ${TABLE} (kind, id, doc) values ($1, $2, $3::jsonb)
-           on conflict (kind, id) do update set doc = excluded.doc, updated_at = now()`, [kind, id, json]))
+        .then(() => {
+          const item = latest.get(key);
+          latest.delete(key);
+          if (!item) return; // removed before it was written
+          const json = JSON.stringify(box ? box.seal(item.kind, item.id, item.doc) : item.doc);
+          return pool.query(
+            `insert into ${TABLE} (kind, id, doc) values ($1, $2, $3::jsonb)
+             on conflict (kind, id) do update set doc = excluded.doc, updated_at = now()`, [item.kind, item.id, json]);
+        })
         .catch((err) => { failure = err; log.error?.(`database write failed (${kind} ${id}): ${err.message}`); });
     },
     // Deleted for good (an account the daughter closed): the row goes, not just its contents.
     remove(kind, id) {
+      latest.delete(keyOf(kind, id));
       chain = chain
         .then(() => pool.query(`delete from ${TABLE} where kind = $1 and id = $2`, [kind, id]))
         .catch((err) => { failure = err; log.error?.(`database delete failed (${kind} ${id}): ${err.message}`); });

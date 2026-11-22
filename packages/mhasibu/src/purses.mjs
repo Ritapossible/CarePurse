@@ -28,17 +28,41 @@ export function newPurse({ id, mama, guardian, destinations, providers = { disco
 // survive restarts), the JSON file otherwise.
 export async function openPurseStore({ file, databaseUrl, seed = true, log } = {}) {
   if (!databaseUrl) return createPurseStore(file, { seed });
-  const records = await openRecords(databaseUrl, ["purse"], { log });
+  const records = await openRecords(databaseUrl, ["purse", "avatar"], { log });
   return createPurseStore(null, { seed, records });
 }
 
+export const MAX_HISTORY = 300;
+export const MAX_NOTIFICATIONS = 100;
+
 export function createPurseStore(file, { seed = true, records = null } = {}) {
   let state = { purses: {} };
-  if (records) for (const r of records.rows) state.purses[r.id] = r.doc;
+  if (records) {
+    for (const r of records.rows) if (r.kind !== "avatar") state.purses[r.id] = r.doc;
+    // Her photo is its own row (written only when it changes), joined back here.
+    for (const r of records.rows) if (r.kind === "avatar" && state.purses[r.id]?.guardian) state.purses[r.id].guardian.avatar = r.doc.avatar ?? null;
+  }
   else if (file && fs.existsSync(file)) state = JSON.parse(fs.readFileSync(file, "utf8"));
+  // Kept small: the chat history and notifications are capped (purchases are kept: limits and
+  // her history need them). The photo is stored apart, and only when it changes.
+  const lastAvatar = new Map(Object.values(state.purses).map((p) => [p.id, p.guardian?.avatar ?? null]));
+  function persist(id) {
+    const p = state.purses[id];
+    if (!p) return;
+    if (p.history?.length > MAX_HISTORY) p.history.splice(0, p.history.length - MAX_HISTORY);
+    if (p.notifications?.length > MAX_NOTIFICATIONS) p.notifications.splice(0, p.notifications.length - MAX_NOTIFICATIONS);
+    if (!records) return;
+    const { avatar = null, ...guardian } = p.guardian ?? {};
+    records.save("purse", id, { ...p, guardian });
+    if (avatar !== (lastAvatar.get(id) ?? null)) {
+      records.save("avatar", id, { avatar });
+      lastAvatar.set(id, avatar);
+    }
+  }
+
   if (seed && !state.purses[DEMO_PURSE.id]) {
     state.purses[DEMO_PURSE.id] = newPurse(DEMO_PURSE);
-    records?.save("purse", DEMO_PURSE.id, state.purses[DEMO_PURSE.id]);
+    persist(DEMO_PURSE.id);
   }
 
   const save = () => {
@@ -53,9 +77,9 @@ export function createPurseStore(file, { seed = true, records = null } = {}) {
     get: (id) => state.purses[id] ?? null,
     // Every purse (sign-up lookups: by guardian, invite or Mama's session).
     all: () => Object.values(state.purses),
-    put(purse) { state.purses[purse.id] = purse; records?.save("purse", purse.id, purse); save(); return purse; },
-    update(id, fn) { const purse = state.purses[id]; fn(purse); records?.save("purse", id, purse); save(); return purse; },
-    remove(id) { delete state.purses[id]; records?.remove("purse", id); save(); },
+    put(purse) { state.purses[purse.id] = purse; persist(purse.id); save(); return purse; },
+    update(id, fn) { const purse = state.purses[id]; fn(purse); persist(id); save(); return purse; },
+    remove(id) { delete state.purses[id]; lastAvatar.delete(id); records?.remove("purse", id); records?.remove("avatar", id); save(); },
     // Wait until every change so far is stored.
     flush: async () => { await records?.flush(); },
     close: async () => { await records?.close(); },
