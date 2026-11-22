@@ -863,3 +863,16 @@ test("data: real MTN prices with what each gives; ₦500 (not sold) explained; �
   assert.match(await mhasibu.handle("demo", "Please buy data of 1000"), /^Shall I buy ₦1,000 of data \(1\.5GB, 30 days\) for 08011111111\?/);
   assert.match(await mhasibu.handle("demo", "1"), /Done! ₦1,000/i);
 });
+
+test("a family wallet follows the live rate: a refresh after it was made reaches it", async () => {
+  const { walletConfig } = await import("../src/mhasibu.mjs");
+  const { maxPaymentUsd } = await import("../src/wallet.mjs");
+  const live = { ngnPerUsdc: 1352.93, serviceFeeBps: 300, agentSecret: "SOPERATOR" };
+  const cfg = walletConfig(live, { contractId: "CFAMILY" });
+  assert.equal(cfg.purseContractId, "CFAMILY");
+  assert.equal(cfg.ngnPerUsdc, 1352.93);
+  live.ngnPerUsdc = 1376.74; // the hourly refresh
+  assert.equal(cfg.ngnPerUsdc, 1376.74);
+  assert.equal(maxPaymentUsd(cfg), maxPaymentUsd(live));
+  assert.equal(live.purseContractId, undefined); // the live config itself is untouched
+});

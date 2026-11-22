@@ -203,7 +203,7 @@ flowchart LR
 | Payments | [x402](https://www.x402.org) v2 (`exact` scheme) on Stellar · `@x402/express`, `@x402/stellar` · x402.org facilitator |
 | Money | USDC (Circle, Stellar testnet), 7 decimals |
 | Limits | Soroban smart contract in Rust (`contracts/purse`, 20 tests) |
-| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 74 tests) |
+| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 75 tests) |
 | Understanding | `deepseek-ai/DeepSeek-V4.1-Flash-1017` on NEAR AI Cloud (private, TEE); keyword parser as fallback |
 | Gateway | Express (`services/gateway`, 23 tests) · VTpass sandbox for electricity, airtime and data |
 | Web | Next.js 16 · Tailwind CSS v4 · Privy (email/Google login, embedded Stellar wallet) |

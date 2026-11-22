@@ -26,13 +26,21 @@ const SETTLE_WINDOW_MS = 30 * MINUTE;
 // The one-digit menu shown with help and "I didn't understand" (same order as MENU in replies.mjs).
 const MENU_CHOICES = [null, "electricity", "airtime", "data", "check_balance", "my_token", "history"];
 
+// A purse's wallet settings: its own contract and agent key, layered ON the live config (not a
+// copy). Wallets are cached, so a copy would keep the rate it was made with.
+export function walletConfig(config, purse) {
+  return Object.assign(Object.create(config), { purseContractId: purse.contractId, ...(purse.agent ? { agentSecret: openAgentKey(purse.agent.sealed, config.agentSecret) } : {}) });
+}
+
 export function createMhasibu({
   config = defaultConfig,
   purses = createPurseStore(config.pursesFile),
   wallet = createWallet(config),
   // One purse contract per family: the same wallet code, pointed at that purse's contract.
   // A purse with its own agent wallet signs with that wallet's key (unsealed only here, in memory).
-  walletFor = (purse) => createWallet({ ...config, purseContractId: purse.contractId, ...(purse.agent ? { agentSecret: openAgentKey(purse.agent.sealed, config.agentSecret) } : {}) }),
+  // Its settings are layered ON the live config (not a copy), so a rate refresh reaches every
+  // cached wallet: Mama's balance, the checks before paying and the payment ceiling all use today's rate.
+  walletFor = (purse) => createWallet(walletConfig(config, purse)),
   understander = createUnderstander(config.llm),
   clock = () => Date.now(),
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
