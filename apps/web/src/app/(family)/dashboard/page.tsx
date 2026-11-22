@@ -113,6 +113,15 @@ export default function DashboardPage() {
     return () => clearTimeout(t);
   }, [ready, authenticated, load]);
 
+  // Fresh without a reload: when she comes back to the tab, and every minute while it's open.
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    const refresh = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", refresh);
+    const timer = setInterval(refresh, 60_000);
+    return () => { document.removeEventListener("visibilitychange", refresh); clearInterval(timer); };
+  }, [ready, authenticated, load]);
+
   useEffect(() => {
     if (purse?.contractId) QRCode.toDataURL(purse.contractId, { margin: 1, width: 360 }).then(setQr).catch(() => {});
   }, [purse?.contractId]);

@@ -59,8 +59,8 @@ Two buttons:
 
 ## Mama: one screen
 
-1. **The link opens** with her phone number already filled in.
-2. **She taps Send code** and types the 6 digits. In the demo, the code is shown on screen.
+1. **The link opens** showing only the last 4 digits of her number (anyone holding the link sees no more), and she types her number in full.
+2. **She taps Send code** and types the 6 digits. The code goes by SMS (Termii) once that is switched on at mainnet; on testnet it is shown on screen. Wrong numbers are limited (5 an hour; 10 in all locks the link and tells her child), and so are codes.
 3. **The chat opens:**
 
 > Welcome Mama Ngozi. Adaeze has set up CarePurse for you. Tell me when your light, airtime or data is low.
@@ -97,5 +97,5 @@ Two buttons:
 | D4 | Limits (Light / Standard), then fund: address, QR, Get test USDC | Daughter |
 | D5 | Invite Mama: Copy link, Share on WhatsApp | Daughter |
 | D6 | Dashboard: balance, receipts, invite status, Send a new invite, Pause (custom limits later) | Daughter |
-| M1 | Invite link: phone filled in, Send code, enter code | Mama |
+| M1 | Invite link: she types her number (last 4 digits shown), Send code, enter code | Mama |
 | M2 | Chat with Mhasibu | Mama |

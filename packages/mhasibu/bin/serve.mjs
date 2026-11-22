@@ -132,10 +132,13 @@ async function adoptPlans() {
 // Each family's own agent wallet pays its network fees: check hourly, top up from the operator
 // below 2 XLM. One failure is logged and retried next hour.
 setInterval(async () => {
-  for (const p of purses.all?.() ?? []) {
-    if (!p.agent?.address) continue;
-    const sent = await signup.topUpAgentXlm(p.agent.address).catch((err) => { console.warn(`XLM top-up for ${p.id} failed: ${err.message}`); return 0; });
-    if (sent) console.log(`XLM top-up: ${sent} XLM to ${p.id}'s agent wallet`);
+  const wallets = (purses.all?.() ?? []).filter((p) => p.agent?.address);
+  for (let i = 0; i < wallets.length; i += 8) {
+    // Balances are read 8 at a time; any top-up payment still goes one at a time (the operator's queue).
+    await Promise.all(wallets.slice(i, i + 8).map(async (p) => {
+      const sent = await signup.topUpAgentXlm(p.agent.address).catch((err) => { console.warn(`XLM top-up for ${p.id} failed: ${err.message}`); return 0; });
+      if (sent) console.log(`XLM top-up: ${sent} XLM to ${p.id}'s agent wallet`);
+    }));
   }
 }, 60 * 60_000).unref();
 
@@ -262,7 +265,13 @@ const server = http.createServer(async (req, res) => {
       const { purse = "demo", text, cid } = await readJson(req);
       if (typeof text !== "string" || !text.trim()) return send(res, 400, { error: "text is required" });
       if (!purses.get(purse)) return send(res, 404, { error: "no such purse" });
-      if (tooMany(`chat:${purse}`, 30, 60_000)) return send(res, 429, { error: "That’s a lot of messages. Please wait a minute." });
+      // Mama: 30 a minute for her purse. The shared demo purse: 15 a minute per visitor (the web relay
+      // names the visitor), and 120 a minute in all.
+      const visitor = /^[0-9a-f]{16}$/.test(String(req.headers["x-carepurse-visitor"] ?? "")) ? req.headers["x-carepurse-visitor"] : "unknown";
+      const limited = purse === "demo"
+        ? tooMany(`chat:demo:${visitor}`, 15, 60_000) || tooMany("chat:demo:all", 120, 60_000)
+        : tooMany(`chat:${purse}`, 30, 60_000);
+      if (limited) return send(res, 429, { error: "That’s a lot of messages. Please wait a minute." });
       const reply = await forPurse(purse, () => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500), { cid })));
       return send(res, 200, { reply });
     }

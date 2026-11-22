@@ -69,7 +69,19 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     if (found) map.set(key, found.id);
     return found;
   }
-  const byGuardian = (privyId) => (privyId ? lookup(index.guardian, privyId, (p) => p.guardian?.privyId === privyId) : null);
+  // A daughter with no purse yet (most dashboard visits before sign-up): the miss is remembered until
+  // a purse is added or removed, instead of scanning every purse each time. Her privyId is set only
+  // when her purse is created, so no other change can turn a miss into a hit.
+  const misses = new Map(); // privyId → store version when it missed
+  const byGuardian = (privyId) => {
+    if (!privyId) return null;
+    const v = purses.version?.();
+    if (v !== undefined && misses.get(privyId) === v) return null;
+    const p = lookup(index.guardian, privyId, (x) => x.guardian?.privyId === privyId);
+    if (p) misses.delete(privyId);
+    else if (v !== undefined) { if (misses.size > 10_000) misses.clear(); misses.set(privyId, v); }
+    return p;
+  };
   const mine = (privyId) => {
     const p = byGuardian(privyId);
     if (!p) throw new FamilyError(404, "no purse yet");

@@ -5,7 +5,7 @@
 //   - Mama signed in (her session cookie from the invite): her own purse, nothing else.
 //   - The demo link (?code=WEB_ACCESS_CODE): the demo purse only.
 // WEB_ACCESS_CODE is required in production for the demo: without it the demo routes are closed.
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { MAMA_COOKIE, UPSTREAM, purseForSession } from "@/lib/server/mhasibu";
 import { decide, pin } from "@/lib/server/relay-policy";
@@ -49,7 +49,12 @@ async function relay(request: Request, path: string[]) {
   target.search = query.toString();
   const upstream = await fetch(target, {
     method: request.method,
-    headers: { "content-type": "application/json", ...(KEY ? { authorization: `Bearer ${KEY}` } : {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(KEY ? { authorization: `Bearer ${KEY}` } : {}),
+      // A short hash of the visitor's address (never the address itself), for per-visitor limits on the demo.
+      "x-carepurse-visitor": createHash("sha256").update(`cp-visitor:${(request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`).digest("hex").slice(0, 16),
+    },
     body,
     cache: "no-store",
     signal: request.signal,

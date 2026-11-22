@@ -74,14 +74,17 @@ export function createPurseStore(file, { seed = true, records = null } = {}) {
   };
   save();
 
+  // Bumped whenever a purse is added or removed (lookups can remember a miss until then).
+  let version = 0;
   return {
+    version: () => version,
     get: (id) => state.purses[id] ?? null,
     // Every purse (sign-up lookups: by guardian, invite or Mama's session).
     all: () => Object.values(state.purses),
-    put(purse) { state.purses[purse.id] = purse; persist(purse.id); save(); return purse; },
+    put(purse) { const isNew = !state.purses[purse.id]; state.purses[purse.id] = purse; if (isNew) version++; persist(purse.id); save(); return purse; },
     // A purse removed meanwhile (her account was closed mid-chat): nothing to update.
     update(id, fn) { const purse = state.purses[id]; if (!purse) return null; fn(purse); persist(id); save(); return purse; },
-    remove(id) { delete state.purses[id]; lastAvatar.delete(id); records?.remove("purse", id); records?.remove("avatar", id); save(); },
+    remove(id) { if (state.purses[id]) version++; delete state.purses[id]; lastAvatar.delete(id); records?.remove("purse", id); records?.remove("avatar", id); save(); },
     // Wait until every change so far is stored.
     flush: async () => { await records?.flush(); },
     close: async () => { await records?.close(); },

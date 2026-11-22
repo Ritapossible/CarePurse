@@ -542,3 +542,23 @@ test("update on a purse that no longer exists does nothing (her account was clos
   const { purses } = setup();
   assert.equal(purses.update("p_gone", (p) => { p.paused = true; }), null);
 });
+
+test("a daughter with no purse yet is remembered as a miss, until a purse is added (then she is found)", async () => {
+  const { families, purses } = setup();
+  let scans = 0;
+  const all = purses.all;
+  purses.all = () => { scans++; return all(); };
+  assert.equal(families.profile({ privyId: GUARDIAN.privyId }).profile, null);
+  assert.equal(families.profile({ privyId: GUARDIAN.privyId }).profile, null);
+  assert.equal(scans, 1); // the second miss didn't scan
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" }); // adds her purse
+  assert.ok(families.profile({ privyId: GUARDIAN.privyId }).profile); // found straight away
+});
+
+test("SMS goes on Termii's dnd channel (reaches Do-Not-Disturb lines)", async () => {
+  const { createSms } = await import("../src/sms.mjs");
+  let body;
+  const sms = createSms({ apiKey: "TL-test", fetchImpl: async (_u, init) => { body = JSON.parse(init.body); return { ok: true, status: 200, json: async () => ({ code: "ok" }) }; } });
+  await sms.send("08031234567", "hi");
+  assert.equal(body.channel, "dnd");
+});

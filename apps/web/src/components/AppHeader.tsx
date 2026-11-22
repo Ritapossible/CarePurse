@@ -37,7 +37,11 @@ export default function AppHeader() {
     if (!ready || !authenticated) return;
     const t = setTimeout(load, 0);
     window.addEventListener("carepurse:profile", load); // the account page saved a change
-    return () => { clearTimeout(t); window.removeEventListener("carepurse:profile", load); };
+    // The bell's count stays fresh: when she comes back to the tab, and every minute while it's open.
+    const refresh = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", refresh);
+    const timer = setInterval(refresh, 60_000);
+    return () => { clearTimeout(t); clearInterval(timer); window.removeEventListener("carepurse:profile", load); document.removeEventListener("visibilitychange", refresh); };
   }, [ready, authenticated, load]);
   useEffect(() => {
     if (!open) return;
