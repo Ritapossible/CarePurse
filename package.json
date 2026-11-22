@@ -1,6 +1,7 @@
 {
   "name": "carepurse-backend",
   "private": true,
+  "license": "MIT",
   "description": "Runs the CarePurse backend (gateway + Mhasibu) as one service. The web app lives in apps/web.",
   "type": "module",
   "engines": {

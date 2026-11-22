@@ -2,6 +2,7 @@
 name = "carepurse-purse"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 publish = false
 description = "CarePurse purse contract: holds Mama's USDC and enforces the guardian's limits on-chain"
 

@@ -9,6 +9,7 @@
 [![Soroban](https://img.shields.io/badge/limits-Soroban%20contract-0F0F0F)](contracts/purse)
 [![NEAR AI](https://img.shields.io/badge/AI-private%20(TEE)-0F0F0F)](#privacy)
 [![Next.js](https://img.shields.io/badge/web-Next.js-0F0F0F?logo=nextdotjs)](apps/web)
+[![License: MIT](https://img.shields.io/badge/license-MIT-0F0F0F)](LICENSE)
 
 [**Live app**](https://care-purse.vercel.app) · [Architecture](ARCHITECTURE.md) · [Sign-up flow](SIGNUP.md) · [Plan](PLAN.md) · [Deploy](DEPLOY.md)
 
@@ -36,6 +37,7 @@
 - [Repository layout](#repository-layout)
 - [Status and roadmap](#status-and-roadmap)
 - [Team](#team)
+- [License](#license)
 
 ## The problem
 
@@ -363,5 +365,9 @@ Built for **EmpowerHer: Building the Agent Economy** (Stallion). Stellar **testn
 |---|---|---|
 | Builder | Rita | [@Ritapossible](https://github.com/Ritapossible) |
 | Builder | Gloria | [@Gloria-Robinson](https://github.com/Gloria-Robinson) |
+
+## License
+
+[MIT](LICENSE) © 2026 Rita and Gloria. Photos keep their own licences (see below).
 
 <sub>Photos: Pexels and Unsplash (free licences), and one generated scene; credits in [`apps/web/public/photos/CREDITS.md`](apps/web/public/photos/CREDITS.md).</sub>

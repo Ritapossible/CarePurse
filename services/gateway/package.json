@@ -4,6 +4,7 @@
   "description": "CarePurse top-up gateway: sells electricity, airtime and data over x402 on Stellar testnet",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "start": "node src/server.mjs",
     "setup": "node scripts/setup.mjs",

@@ -4,6 +4,7 @@
   "description": "Mhasibu AI: understands Mama, checks the rules in code, and pays the CarePurse gateway over x402",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "main": "src/mhasibu.mjs",
   "scripts": {
     "chat": "node bin/chat.mjs",
