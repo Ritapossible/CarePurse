@@ -25,6 +25,7 @@ const ICONS = {
   limits: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4",
   receipts: "M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4",
   eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  bell: "M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
   eyeOff: "M3 3l18 18M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7c1.6 0 3-.4 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2",
   close: "M6 6l12 12M18 6 6 18",
   copy: "M9 9h11v11H9zM5 15H4V4h11v1",
@@ -34,6 +35,22 @@ function Icon({ d, className = "h-5 w-5" }: { d: string; className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={d} />
     </svg>
+  );
+}
+
+// What each notification is about, in her words.
+const ALERT_LABEL: Record<string, string> = {
+  receipt: "Top-up", "change-request": "Mama asked you", "asked-over-limit": "Mama asked for more", "limit-reached": "Limit reached",
+  "low-balance": "Low balance", "rules-outdated": "Rules need updating", "check-payment": "Checking a payment", blocked: "Payment blocked",
+  joined: "Mama joined", "limits-changed": "Plan changed", pause: "Purse paused", unpause: "Purse resumed", withdraw: "Withdrawal", agent: "Own wallet",
+  "meter-changed": "Details changed",
+};
+// Links in a notification read as "View receipt"; the rest stays plain text.
+function linkify(text: string) {
+  return text.split(/(https?:\/\/\S+)/g).map((part, i) =>
+    /^https?:\/\//.test(part)
+      ? <a key={i} href={part} target="_blank" rel="noreferrer" className="font-medium text-foreground underline-offset-4 hover:underline">View receipt</a>
+      : part,
   );
 }
 
@@ -69,7 +86,7 @@ export default function DashboardPage() {
   const [invite, setInvite] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
-  const [sheet, setSheet] = useState<"fund" | "invite" | "plan" | "withdraw" | null>(null);
+  const [sheet, setSheet] = useState<"fund" | "invite" | "plan" | "withdraw" | "alerts" | null>(null);
   const [wAmount, setWAmount] = useState("");
   const [wTo, setWTo] = useState<"me" | "other">("me");
   const [wAddress, setWAddress] = useState("");
@@ -146,6 +163,16 @@ export default function DashboardPage() {
       setStep(null);
     }
   }
+  // Her notifications (receipts, Mama's requests, limits, anything that needs her): opening the
+  // list marks them read.
+  function openAlerts() {
+    setSheet("alerts");
+    if (purse?.unread) {
+      setPurse((p) => (p ? { ...p, unread: 0 } : p));
+      api("POST", "notifications-read").catch(() => {});
+    }
+  }
+
   // Older purses: one approval gives Mama's purse its own Mhasibu AI wallet (`set_agent`).
   async function ownWallet() {
     setError(null);
@@ -246,11 +273,17 @@ export default function DashboardPage() {
           <p className="text-sm text-muted">Dashboard</p>
           <h1 className="mt-1 text-2xl font-medium tracking-[-0.01em]">Mama {purse.mama.name}’s purse</h1>
         </div>
-        {purse.paused ? (
-          <span className="inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-muted" />Paused</span>
-        ) : (
-          <span className="inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>
-        )}
+        <div className="flex items-center gap-2">
+          <button onClick={openAlerts} aria-label={`Notifications${purse.unread ? `, ${purse.unread} new` : ""}`} className="relative flex h-8 w-8 items-center justify-center rounded-full bg-surface text-secondary transition-colors duration-150 hover:text-foreground">
+            <Icon d={ICONS.bell} className="h-[18px] w-[18px]" />
+            {purse.unread ? <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[11px] font-medium leading-none text-background">{purse.unread > 9 ? "9+" : purse.unread}</span> : null}
+          </button>
+          {purse.paused ? (
+            <span className="inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-muted" />Paused</span>
+          ) : (
+            <span className="inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 text-sm text-secondary"><span className="h-1.5 w-1.5 rounded-full bg-live" />Active</span>
+          )}
+        </div>
       </header>
 
       {(purse.rulesBehind || purse.planOutdated) && (
@@ -514,6 +547,26 @@ export default function DashboardPage() {
             })}
           </div>
           {error && <p className="mt-4 rounded-[10px] bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
+        </Sheet>
+      )}
+
+      {sheet === "alerts" && (
+        <Sheet title="Notifications" onClose={() => setSheet(null)}>
+          {purse.notifications.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted">Nothing yet. Receipts and anything Mama asks for will show here.</p>
+          ) : (
+            <ul className="-mx-2 max-h-[60vh] divide-y divide-line overflow-y-auto">
+              {purse.notifications.map((n, i) => (
+                <li key={`${n.at}-${i}`} className="px-2 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium">{ALERT_LABEL[n.kind] ?? "Update"}</span>
+                    <span className="shrink-0 text-xs text-muted">{when(n.at)}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-secondary">{linkify(n.text)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </Sheet>
       )}
 

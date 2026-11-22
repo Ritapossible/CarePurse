@@ -60,6 +60,8 @@ async function handle(request: Request, path: string[]) {
       return passThrough(await mhasibuFetch("/v1/family/action/complete", { method: "POST", body: { privyId, signature: body.signature } }));
     case "POST test-usdc":
       return passThrough(await mhasibuFetch("/v1/family/test-usdc", { method: "POST", body: { privyId } }));
+    case "POST notifications-read":
+      return passThrough(await mhasibuFetch("/v1/family/notifications/read", { method: "POST", body: { privyId } }));
     case "POST invite":
       return passThrough(await mhasibuFetch("/v1/family/invite", { method: "POST", body: { privyId } }));
     default:

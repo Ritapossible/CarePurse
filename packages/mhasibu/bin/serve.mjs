@@ -233,6 +233,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/v1/family/agent") return send(res, 200, await families.prepareAgentMove(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/action/complete") return send(res, 200, await families.completeAction(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/test-usdc") return send(res, 200, await families.testUsdc(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/notifications/read") return send(res, 200, await families.readNotifications(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/invite") return send(res, 200, await families.sendNewInvite(await readJson(req)));
     // ── Mama's invite and sign-in ───────────────────────────────
     const inv = url.pathname.match(/^\/v1\/invites\/([A-Za-z0-9_-]{16,64})(\/code|\/verify)?$/);

@@ -425,7 +425,8 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
         spends: [...p.spends].reverse().slice(0, 20),
         monthNgn: spentSince(p.spends, periodStart("month", now())),
         rate: { ngnPerUsdc: config.ngnPerUsdc, asOf: config.rate?.asOf ?? null, live: Boolean(config.rate?.live) },
-        notifications: [...(p.notifications ?? [])].reverse().slice(0, 20),
+        notifications: [...(p.notifications ?? [])].reverse().slice(0, 30).map(({ at, kind, text, read }) => ({ at, kind, text, read: Boolean(read) })),
+        unread: (p.notifications ?? []).filter((n) => !n.read).length,
         testUsdcLeft: TEST_USDC_TIMES - (p.testUsdc ?? 0),
         withdrawals: [...(p.withdrawals ?? [])].reverse().slice(0, 10),
         rulesBehind: behind,
@@ -457,6 +458,14 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
       },
       mama: { name: p.mama.name },
     };
+  }
+
+  // She has seen her notifications (the dashboard bell): mark them all read.
+  async function readNotifications({ privyId }) {
+    const p = mine(privyId);
+    purses.update(p.id, (x) => { for (const n of x.notifications ?? []) n.read = true; });
+    await purses.flush?.();
+    return { unread: 0 };
   }
 
   async function sendNewInvite({ privyId }) {
@@ -529,5 +538,5 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   // The purse a guardian (Privy user) owns, or null.
   const guardianPurse = (privyId) => byGuardian(privyId)?.id ?? null;
 
-  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, prepareAgentMove, testUsdc, dashboard, activity, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
+  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, prepareAgentMove, testUsdc, dashboard, activity, readNotifications, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
 }

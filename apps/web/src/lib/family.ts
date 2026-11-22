@@ -29,7 +29,8 @@ export type Purse = {
   limits?: Record<string, { perTopup?: number; perDay?: number; perWeek?: number; perMonth?: number }>;
   planOutdated?: boolean; // her plan gained a new limit since it was saved: approve to apply it // the on-chain caps are behind today’s naira rate: re-save the plan
   rate?: { ngnPerUsdc: number; asOf: string | null; live: boolean };
-  notifications: { at: string; kind: string; text: string }[];
+  notifications: { at: string; kind: string; text: string; read: boolean }[];
+  unread?: number;
   testUsdcLeft: number;
 };
 

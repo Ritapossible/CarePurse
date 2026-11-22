@@ -356,3 +356,21 @@ test("own agent wallet: an older purse moves with one approval, never mid top-up
   assert.equal(p.notifications.at(-1).kind, "agent");
   await assert.rejects(families.prepareAgentMove({ privyId: GUARDIAN.privyId }), /already has its own wallet/);
 });
+
+test("notifications: the dashboard shows them with an unread count; reading clears it", async () => {
+  const { families, purses } = setup();
+  const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  purses.update(prep.purseId, (p) => {
+    p.notifications.push({ at: new Date(NOW).toISOString(), kind: "change-request", text: "Mama asked: \"raise my limit\"", read: false });
+    p.notifications.push({ at: new Date(NOW + 1000).toISOString(), kind: "receipt", text: "Mama bought ₦500 of airtime. https://stellar.expert/explorer/testnet/tx/abc", read: false });
+  });
+  let { purse } = await families.dashboard({ privyId: GUARDIAN.privyId });
+  assert.equal(purse.unread, 2);
+  assert.equal(purse.notifications[0].kind, "receipt"); // newest first
+  assert.equal(purse.notifications[0].read, false);
+  await families.readNotifications({ privyId: GUARDIAN.privyId });
+  ({ purse } = await families.dashboard({ privyId: GUARDIAN.privyId }));
+  assert.equal(purse.unread, 0);
+  assert.ok(purse.notifications.every((n) => n.read));
+});
