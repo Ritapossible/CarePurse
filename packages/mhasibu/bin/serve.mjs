@@ -139,6 +139,18 @@ setInterval(async () => {
   }
 }, 60 * 60_000).unref();
 
+// Simple sliding-window limits (one instance): chat per purse, and the demo's attack buttons.
+const hits = new Map();
+function tooMany(key, max, windowMs) {
+  const now = Date.now();
+  const list = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (list.length >= max) { hits.set(key, list); return true; }
+  list.push(now);
+  hits.set(key, list);
+  return false;
+}
+setInterval(() => { const now = Date.now(); for (const [k, v] of hits) if (!v.some((t) => now - t < 3_600_000)) hits.delete(k); }, 10 * 60_000).unref();
+
 const send = (res, status, body) => {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
@@ -250,6 +262,7 @@ const server = http.createServer(async (req, res) => {
       const { purse = "demo", text } = await readJson(req);
       if (typeof text !== "string" || !text.trim()) return send(res, 400, { error: "text is required" });
       if (!purses.get(purse)) return send(res, 404, { error: "no such purse" });
+      if (tooMany(`chat:${purse}`, 30, 60_000)) return send(res, 429, { error: "That’s a lot of messages. Please wait a minute." });
       const reply = await forPurse(purse, () => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500))));
       return send(res, 200, { reply });
     }
@@ -292,6 +305,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/v1/demo/overspend") {
       if (!demoMode) return send(res, 404, { error: "demo mode is off" });
+      if (tooMany("demo:overspend", 1, 15_000)) return send(res, 429, { error: "One try every 15 seconds." });
       if (!config.purseContractId) return send(res, 409, { error: "no purse contract deployed" });
       // A fixed amount, never from the request: one base unit over the on-chain per-top-up cap,
       // so the contract must refuse it. If it ever didn't, refund that order straight away.
@@ -318,6 +332,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/v1/demo/wrong-destination") {
       if (!demoMode) return send(res, 404, { error: "demo mode is off" });
+      if (tooMany("demo:wrong-destination", 1, 15_000)) return send(res, 429, { error: "One try every 15 seconds." });
       if (!config.purseContractId) return send(res, 409, { error: "no purse contract deployed" });
       const purse = purses.get("demo");
       if (!purse) return send(res, 409, { error: "no demo purse" });

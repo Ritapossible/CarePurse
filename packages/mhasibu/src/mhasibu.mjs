@@ -29,7 +29,7 @@ const MENU_CHOICES = [null, "electricity", "airtime", "data", "check_balance", "
 // A purse's wallet settings: its own contract and agent key, layered ON the live config (not a
 // copy). Wallets are cached, so a copy would keep the rate it was made with.
 export function walletConfig(config, purse) {
-  return Object.assign(Object.create(config), { purseContractId: purse.contractId, ...(purse.agent ? { agentSecret: openAgentKey(purse.agent.sealed, config.agentSecret) } : {}) });
+  return Object.assign(Object.create(config), { purseContractId: purse.contractId, ...(purse.agent ? { agentSecret: openAgentKey(purse.agent.sealed, config) } : {}) });
 }
 
 export function createMhasibu({

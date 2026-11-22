@@ -28,6 +28,9 @@ export const config = {
   allowedHost: new URL(gatewayUrl).host,
   gatewayRecipient: env("GATEWAY_RECIPIENT"),
   agentSecret: env("AGENT_SECRET_KEY"),
+  // Seals each family's agent wallet key (agent-keys.mjs). Optional; recommended in production so the
+  // operator key isn't also the sealing key. Set it once and keep it: keys sealed with it need it.
+  agentSealKey: env("AGENT_SEAL_KEY"),
   // Key for the meter/phone fingerprints on-chain (see destHash). DEST_HASH_KEY if set, otherwise
   // derived from the agent secret (rotating that key means re-running npm run sync-purse).
   destHashKey: env("DEST_HASH_KEY") || (env("AGENT_SECRET_KEY") ? createHash("sha256").update(`carepurse/dest-hash-key/v1:${env("AGENT_SECRET_KEY")}`).digest("hex") : ""),

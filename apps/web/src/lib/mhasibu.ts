@@ -1,32 +1,41 @@
 // The Mhasibu API (packages/mhasibu, npm run serve) holds the agent wallet, so it is a separate
 // server. The browser talks only to this web app's relay (/api/mhasibu/...), which adds the API key
-// on the server side. If the demo link has ?code=…, it is kept and sent with every call.
+// on the server side. A demo link's ?code=… is read once, kept, and taken out of the address bar
+// (so it isn't left in history or screenshots); the relay then also remembers it in an httpOnly cookie.
 export const MHASIBU_URL = "/api/mhasibu";
 
+let memoryCode = "";
 function accessCode(): string {
   if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  const fromLink = url.searchParams.get("code");
+  if (fromLink) {
+    memoryCode = fromLink;
+    try { localStorage.setItem("carepurse-code", fromLink); } catch { /* private mode: kept in memory */ }
+    url.searchParams.delete("code");
+    window.history.replaceState(window.history.state, "", url.toString());
+    return fromLink;
+  }
   try {
-    const fromLink = new URLSearchParams(window.location.search).get("code");
-    if (fromLink) localStorage.setItem("carepurse-code", fromLink);
-    return fromLink ?? localStorage.getItem("carepurse-code") ?? "";
+    return localStorage.getItem("carepurse-code") ?? memoryCode;
   } catch {
-    return new URLSearchParams(window.location.search).get("code") ?? "";
+    return memoryCode;
   }
 }
 // For someone who opened a page without the full link: save the code they type, then reload.
 export function saveAccessCode(code: string) {
+  memoryCode = code.trim();
   try {
-    localStorage.setItem("carepurse-code", code.trim());
+    localStorage.setItem("carepurse-code", memoryCode);
   } catch {
-    /* private mode: fall back to the URL */
+    /* private mode: kept in memory for this page */
   }
-  const url = new URL(window.location.href);
-  url.searchParams.set("code", code.trim());
-  window.location.href = url.toString();
+  window.location.reload();
 }
 const withCode = (headers: Record<string, string> = {}) => ({ ...headers, "x-access-code": accessCode() });
-// EventSource can't send headers, so the live log carries the code in its URL.
-export const eventsUrl = () => `${MHASIBU_URL}/v1/events?code=${encodeURIComponent(accessCode())}`;
+// EventSource can't send headers: the live log relies on the relay's cookie (set by the first call
+// that carried the code, see AgentLog), never on a code in its URL.
+export const eventsUrl = () => `${MHASIBU_URL}/v1/events`;
 
 export type ChatLine = { from: "mama" | "mhasibu"; text: string; at?: string };
 

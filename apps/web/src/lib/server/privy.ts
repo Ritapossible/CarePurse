@@ -28,8 +28,9 @@ export async function privyUser(request: Request): Promise<string | null> {
 const APP_SECRET = process.env.PRIVY_APP_SECRET ?? "";
 export const privyWalletCheckConfigured = () => Boolean(APP_ID && APP_SECRET);
 
-type LinkedAccount = { type?: string; chain_type?: string; address?: string };
-export async function privyStellarWallets(userId: string): Promise<string[] | null> {
+type LinkedAccount = { type?: string; chain_type?: string; address?: string; email?: string };
+// Her Stellar wallets and her email, as Privy has them (never as the browser says).
+export async function privyAccount(userId: string): Promise<{ wallets: string[]; email: string | null } | null> {
   if (!privyWalletCheckConfigured()) return null;
   const res = await fetch(`https://api.privy.io/v1/users/${encodeURIComponent(userId)}`, {
     headers: { authorization: `Basic ${Buffer.from(`${APP_ID}:${APP_SECRET}`).toString("base64")}`, "privy-app-id": APP_ID },
@@ -38,5 +39,8 @@ export async function privyStellarWallets(userId: string): Promise<string[] | nu
   });
   if (!res.ok) throw new Error(`Privy answered ${res.status}`);
   const user = (await res.json()) as { linked_accounts?: LinkedAccount[] };
-  return (user.linked_accounts ?? []).filter((a) => a.type === "wallet" && a.chain_type === "stellar" && a.address).map((a) => a.address!);
+  const linked = user.linked_accounts ?? [];
+  const wallets = linked.filter((a) => a.type === "wallet" && a.chain_type === "stellar" && a.address).map((a) => a.address!);
+  const email = linked.find((a) => a.type === "email" && a.address)?.address ?? linked.find((a) => a.type === "google_oauth" && a.email)?.email ?? null;
+  return { wallets, email };
 }

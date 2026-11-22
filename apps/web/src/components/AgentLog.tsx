@@ -74,12 +74,18 @@ export default function AgentLog() {
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadStatus().then(setStatus).catch(() => {});
-    const source = new EventSource(eventsUrl());
-    source.onopen = () => setLive(true);
-    source.onerror = () => setLive(false);
-    source.onmessage = (m) => setEvents((list) => [...list.slice(-150), JSON.parse(m.data)]);
-    return () => source.close();
+    // The status call carries the access code, so the relay sets its cookie first; the live log
+    // (which can't send headers) then opens with that cookie.
+    let source: EventSource | null = null;
+    let closed = false;
+    loadStatus().then(setStatus).catch(() => {}).finally(() => {
+      if (closed) return;
+      source = new EventSource(eventsUrl());
+      source.onopen = () => setLive(true);
+      source.onerror = () => setLive(false);
+      source.onmessage = (m) => setEvents((list) => [...list.slice(-150), JSON.parse(m.data)]);
+    });
+    return () => { closed = true; source?.close(); };
   }, []);
 
   useEffect(() => {

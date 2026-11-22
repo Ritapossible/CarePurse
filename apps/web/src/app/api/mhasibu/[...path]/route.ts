@@ -11,6 +11,7 @@ import { MAMA_COOKIE, UPSTREAM, purseForSession } from "@/lib/server/mhasibu";
 
 const KEY = process.env.MHASIBU_API_KEY ?? "";
 const ACCESS_CODE = process.env.WEB_ACCESS_CODE ?? "";
+const DEMO_COOKIE = "cp_demo";
 const DEMO_ONLY = new Set(["POST v1/demo/overspend", "POST v1/demo/wrong-destination"]);
 const ALLOWED = new Set(["GET v1/status", "GET v1/history", "GET v1/tokens", "GET v1/purchases", "GET v1/events", "POST v1/chat", "POST v1/tokens/seen", ...DEMO_ONLY]);
 const PER_PURSE = new Set(["GET v1/history", "GET v1/tokens", "GET v1/purchases", "GET v1/events", "POST v1/chat", "POST v1/tokens/seen"]);
@@ -26,10 +27,20 @@ async function relay(request: Request, path: string[]) {
   if (!ALLOWED.has(route)) return Response.json({ error: "not found" }, { status: 404 });
   const url = new URL(request.url);
 
+  // The demo's access code: from the page (a header, once from the link) or this browser's cookie.
+  const jar = await cookies();
+  const offered = request.headers.get("x-access-code") || url.searchParams.get("code") || "";
+  const remembered = jar.get(DEMO_COOKIE)?.value ?? "";
+  const codeOk = (c: string) => Boolean(ACCESS_CODE && c && sameText(c, ACCESS_CODE));
+  // A correct code is remembered in an httpOnly cookie, so the live log never needs it in a URL.
+  if (codeOk(offered) && offered !== remembered) {
+    jar.set(DEMO_COOKIE, offered, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/api/mhasibu", maxAge: 7 * 86_400 });
+  }
+
   // Who is asking: Mama (her session) or the demo (the access code).
   let purse: string | null = null;
   if (route !== "GET v1/status") {
-    const mama = await purseForSession((await cookies()).get(MAMA_COOKIE)?.value);
+    const mama = await purseForSession(jar.get(MAMA_COOKIE)?.value);
     if (mama && !DEMO_ONLY.has(route)) {
       purse = mama;
     } else {
@@ -37,10 +48,7 @@ async function relay(request: Request, path: string[]) {
       if (!ACCESS_CODE && process.env.NODE_ENV === "production") {
         return Response.json({ error: "WEB_ACCESS_CODE is not set on the web app, so the demo is closed." }, { status: 503 });
       }
-      if (ACCESS_CODE) {
-        const given = request.headers.get("x-access-code") ?? url.searchParams.get("code") ?? "";
-        if (!sameText(given, ACCESS_CODE)) return Response.json({ error: "access code needed" }, { status: 401 });
-      }
+      if (ACCESS_CODE && !codeOk(offered) && !codeOk(remembered)) return Response.json({ error: "access code needed" }, { status: 401 });
       purse = "demo";
     }
   }

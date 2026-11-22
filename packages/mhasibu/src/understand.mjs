@@ -206,7 +206,14 @@ export function createUnderstander(llm, client, { privacy = null, log = console 
   const self = {
     name,
     lastVia: "model",
+    // Re-checked hourly on NEAR (openUnderstander): if the model stops being private, Mama's words
+    // stop going to it at once.
+    paused: null,
     async understand(text) {
+      if (self.paused) {
+        self.lastVia = `scripted: ${self.paused}`;
+        return understandScripted(text);
+      }
       try {
         const parsed = Intent.parse(await model(text));
         self.lastVia = "model";
@@ -224,5 +231,17 @@ export function createUnderstander(llm, client, { privacy = null, log = console 
 export async function openUnderstander(llm, { log = console, fetchImpl = fetch } = {}) {
   const near = llm?.apiKey && llm.api === "openai" && /near\.ai/.test(llm.baseURL ?? "");
   const privacy = near ? await nearPrivacy(llm, fetchImpl) : null;
-  return createUnderstander(llm, undefined, { privacy, log });
+  // The OpenAI-style model call uses the same fetch (the global one in production; a fake in tests).
+  const understander = createUnderstander(llm, llm?.api === "openai" && llm?.apiKey ? fetchImpl : undefined, { privacy, log });
+  if (near && privacy === true) {
+    understander.recheck = async () => {
+      const now = await nearPrivacy(llm, fetchImpl);
+      const was = understander.paused;
+      understander.paused = now === true ? null : now === false ? "the model is no longer private on NEAR" : "privacy not confirmed by NEAR";
+      if (understander.paused && !was) log.warn?.(`⚠ ${llm.model}: ${understander.paused}. Using the scripted parser until NEAR confirms it again.`);
+      if (!understander.paused && was) log.info?.(`${llm.model}: private again on NEAR; using the model.`);
+    };
+    setInterval(() => understander.recheck().catch(() => {}), 60 * 60_000).unref();
+  }
+  return understander;
 }

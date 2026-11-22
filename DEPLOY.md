@@ -58,6 +58,8 @@ The gateway and Mhasibu run together in **one** Pxxl Web Service (`Dockerfile`, 
    - `LLM_API_KEY` (NEAR AI)
    - `TERMII_API_KEY` (optional until SMS is live): Mama's sign-in code and electricity token go by text. Without it, sign-in needs `SHOW_MAMA_CODE=1` (demo only: the code is shown on screen)
    - `DATABASE_URL` (Neon)
+   - `DATA_ENCRYPTION_KEY` is **required**: in production the backend refuses to start without it.
+   - Optional, recommended: `AGENT_SEAL_KEY` (seals family wallet keys) and `DEST_HASH_KEY` (meter/phone fingerprints), so the operator key isn't used for them. Set once; never change.
    - `MHASIBU_API_KEY`, `GATEWAY_API_KEY`, `DATA_ENCRYPTION_KEY`: long random strings you make up (e.g. a password manager's generator, 40+ characters). Keep `MHASIBU_API_KEY` and `DATA_ENCRYPTION_KEY` in your password manager too.
 6. **Deploy.** Every push to `main` redeploys automatically.
 

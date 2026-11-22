@@ -112,12 +112,12 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   async function ensureAgentWallet(purseId, field) {
     if (!purses.get(purseId)[field]) {
       const kp = Keypair.random();
-      purses.update(purseId, (x) => { x[field] = { address: kp.publicKey(), sealed: sealAgentKey(kp.secret(), config.agentSecret), ready: false }; });
+      purses.update(purseId, (x) => { x[field] = { address: kp.publicKey(), sealed: sealAgentKey(kp.secret(), config), ready: false }; });
       await purses.flush?.();
     }
     const rec = purses.get(purseId)[field];
     if (!rec.ready) {
-      await signup.createAgentWallet({ secret: openAgentKey(rec.sealed, config.agentSecret) });
+      await signup.createAgentWallet({ secret: openAgentKey(rec.sealed, config) });
       purses.update(purseId, (x) => { x[field].ready = true; });
       await purses.flush?.();
     }
@@ -465,7 +465,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     for (const field of ["agent", "nextAgent"]) {
       const w = p[field];
       if (!w?.sealed || !signup.closeAgentWallet) continue;
-      await signup.closeAgentWallet({ secret: openAgentKey(w.sealed, config.agentSecret) }).catch((err) => { throw new FamilyError(409, err.message); });
+      await signup.closeAgentWallet({ secret: openAgentKey(w.sealed, config) }).catch((err) => { throw new FamilyError(409, err.message); });
     }
     purses.remove(p.id);
     await purses.flush?.();

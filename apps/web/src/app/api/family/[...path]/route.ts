@@ -1,6 +1,6 @@
 // The daughter's sign-up and dashboard. Every call needs her Privy login: we verify the access
 // token here and pass Mhasibu the Privy user id from the token, never one from the browser.
-import { privyConfigured, privyStellarWallets, privyUser, privyWalletCheckConfigured } from "@/lib/server/privy";
+import { privyAccount, privyConfigured, privyUser, privyWalletCheckConfigured } from "@/lib/server/privy";
 import { mhasibuFetch, passThrough } from "@/lib/server/mhasibu";
 
 type Ctx = { params: Promise<{ path: string[] }> };
@@ -33,13 +33,13 @@ async function handle(request: Request, path: string[]) {
       // The guardian must be her own Privy Stellar wallet, confirmed with Privy on our server, not
       // whatever address the browser sends. Without the check configured, sign-up stays closed.
       if (!privyWalletCheckConfigured()) return Response.json({ error: "Sign-up is paused: the server can’t confirm your wallet yet (PRIVY_APP_SECRET)." }, { status: 503 });
-      const wallets = await privyStellarWallets(privyId).catch(() => null);
-      if (!wallets) return Response.json({ error: "We couldn’t confirm your wallet with Privy. Please try again." }, { status: 502 });
-      if (!wallets.includes(String(body.guardian?.address ?? ""))) return Response.json({ error: "That wallet isn’t the CarePurse wallet on your account. Please reload and try again." }, { status: 403 });
+      const account = await privyAccount(privyId).catch(() => null);
+      if (!account) return Response.json({ error: "We couldn’t confirm your wallet with Privy. Please try again." }, { status: 502 });
+      if (!account.wallets.includes(String(body.guardian?.address ?? ""))) return Response.json({ error: "That wallet isn’t the CarePurse wallet on your account. Please reload and try again." }, { status: 403 });
       return passThrough(await mhasibuFetch("/v1/family/prepare", {
         method: "POST",
         body: {
-          guardian: { privyId, address: body.guardian?.address, name: body.guardian?.name, email: body.guardian?.email },
+          guardian: { privyId, address: body.guardian?.address, name: body.guardian?.name, email: account.email }, // her email from Privy, not the browser
           mama: body.mama, meter: body.meter, disco: body.disco, network: body.network, preset: body.preset,
         },
       }));
