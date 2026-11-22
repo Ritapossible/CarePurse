@@ -204,8 +204,8 @@ flowchart LR
 |---|---|
 | Payments | [x402](https://www.x402.org) v2 (`exact` scheme) on Stellar · `@x402/express`, `@x402/stellar` · x402.org facilitator |
 | Money | USDC (Circle, Stellar testnet), 7 decimals |
-| Limits | Soroban smart contract in Rust (`contracts/purse`, 20 tests) |
-| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 95 tests) |
+| Limits | Soroban smart contract in Rust (`contracts/purse`, 21 tests) |
+| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 102 tests) |
 | Understanding | `deepseek-ai/DeepSeek-V4.1-Flash-1017` on NEAR AI Cloud (private, TEE); keyword parser as fallback |
 | Gateway | Express (`services/gateway`, 23 tests) · VTpass sandbox for electricity, airtime and data |
 | Web | Next.js 16 · Tailwind CSS v4 · Privy (email/Google login, embedded Stellar wallet) · relay rules tested (5 tests) |
@@ -284,8 +284,9 @@ CarePurse moves money for an elderly user, so no single mistake, crash or attack
 | **Mid-flight money is never lost or paid twice** | Orders are written down before release, refunded on failure, and settled from the chain after a crash |
 | **Accounts** | One purse per account; a pending sign-up is reused (no new contract per click) and capped at 5 a day; Mama's sessions expire after 30 days |
 | **Mama's sign-in** | The invite link shows only the last 4 digits of her number, so she types it in full. Wrong numbers are limited (5 an hour; 10 in all locks the link and tells the daughter); codes are limited too (30 s apart, 5 an hour, 15 wrong an hour). Codes go by SMS once Termii is on (mainnet); on testnet they're shown on screen |
-| **Abuse limits** | Chat is limited per purse; the demo's attack buttons once every 15 s; the demo's access code lives in an httpOnly cookie, never in URLs |
+| **Abuse limits** | Chat is limited per purse (the shared demo purse per visitor, and overall); the demo's attack buttons once every 15 s; the demo's access code lives in an httpOnly cookie, never in URLs |
 | **Data at rest** | Every row is sealed (AES-256-GCM); the backend refuses to start in production without `DATA_ENCRYPTION_KEY`; family wallet keys are sealed again (optionally under a separate `AGENT_SEAL_KEY`) |
+| **Purses never go stale** | Every call, the daughter's included, extends the contract's lifetime on Stellar (v7); if storage was ever archived, Mhasibu restores it first and retries |
 | **Testnet only** | The gateway and Mhasibu AI refuse any other network, and any non-sandbox VTpass URL. No secrets in the repo |
 
 Reviewed by six rounds of external review, each finding checked against the code before changing anything ([`MEMORY.md`](MEMORY.md)).

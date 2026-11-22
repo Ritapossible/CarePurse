@@ -2,7 +2,7 @@
 
 **Current production:** backend (gateway + Mhasibu in one container) on **Pxxl**, web app on **Vercel**, database on **Neon**, uptime on **UptimeRobot**. Pxxl auto-deploy is **off**: after pushing to `main`, redeploy the backend from the Pxxl dashboard (Vercel redeploys on push). The Render Blueprint below is kept as an alternative.
 
-**Before each backend redeploy, check on Pxxl:** `DATA_ENCRYPTION_KEY` is set (the backend refuses to start without it in production), `PURSE_WASM_HASH` matches `deploy/backend/settings.env`, and `AGENT_SECRET_KEY` has not changed (family wallet keys and meter fingerprints depend on it). On Vercel: `PRIVY_APP_SECRET` is set (without it, sign-up is closed).
+**Before each backend redeploy, check on Pxxl:** `DATA_ENCRYPTION_KEY` is set (the backend refuses to start without it in production), `PURSE_WASM_HASH` matches `deploy/backend/settings.env` (contract v7, `5fc9ac61…`, since 22 Nov), and `AGENT_SECRET_KEY` has not changed (family wallet keys and meter fingerprints depend on it). On Vercel: `PRIVY_APP_SECRET` is set (without it, sign-up is closed).
 
 Stellar **testnet** and the VTpass **sandbox** only. Three services from one Blueprint (`render.yaml`):
 

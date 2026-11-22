@@ -255,3 +255,9 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - The invite hint is the last 4 digits only (`•••• 4567`); wrong numbers are checked first and limited per invite (5 an hour; 10 in all burns the link and notifies the daughter). A guesser faces ~40,000 numbers with at most 10 tries.
 - The demo access code is no longer stored in localStorage: read once from the link, kept in page memory, remembered by the relay's httpOnly cookie.
 - SMS (Termii) is built and tested but stays off until mainnet (decision). Testnet keeps `SHOW_MAMA_CODE=1` on Pxxl; `render.yaml` defaults to 0. One number serves Mama's sign-in, her SMS and her airtime/data, on testnet and on mainnet (decision: no split). On testnet that is the VTpass sandbox number, so no real SMS can arrive; SMS is switched on at mainnet with her real number.
+
+## 2026-11-22: Second audit, every finding fixed
+- Contract v7 (wasm `5fc9ac61…`): pause, unpause, set_agent and withdraw extend the purse lifetime too; Mhasibu restores archived storage before a call (agent or guardian) and retries. Tested live (v7 purse deployed, paused, resumed).
+- Chat recovery finds her message by an id the page sends (never by its text) and says whether it reached the server; the dashboard shows "Balance unavailable" instead of a false ₦0.
+- Deleting retries the record removal; updates to a removed purse do nothing; the bell shows only for active purses; failed photo writes retry; a 413 closes the connection; unread counts only notifications marked unread.
+- Dashboard and bell refresh on their own (tab visible, every minute); demo chat limited per visitor (15/min) and overall (120/min), tested through the relay; Termii uses the dnd channel; guardian misses remembered until a purse is added; XLM checks in parallel; SIGNUP.md invite steps updated.
