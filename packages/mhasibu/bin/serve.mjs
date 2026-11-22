@@ -264,6 +264,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/v1/family/pause") return send(res, 200, await families.preparePause(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/withdraw") return send(res, 200, await families.prepareWithdraw(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/agent") return send(res, 200, await families.prepareAgentMove(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/destinations") return send(res, 200, await families.prepareDestinations(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/action/cancel") return send(res, 200, await families.cancelApproval(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/action/complete") return send(res, 200, await families.completeAction(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/test-usdc") return send(res, 200, await families.testUsdc(await readJson(req)));

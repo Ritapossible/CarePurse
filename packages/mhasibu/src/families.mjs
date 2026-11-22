@@ -299,6 +299,36 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     return { status: "pending", kind: "withdraw", hash: pending.hash, usdc: amount, to: dest };
   }
 
+  // ── Mama's meter and phone ───────────────────────────────
+  // Only the guardian changes where top-ups go. One approval: `configure` with her saved limits and
+  // the new destinations (keyed fingerprints). The new meter is checked with the electricity company
+  // first; nothing changes here until the chain has accepted it.
+  async function prepareDestinations({ privyId, meter, disco, phone, network }) {
+    const p = mine(privyId);
+    if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
+    oneAtATime(p, "destinations");
+    if (p.openOrder) throw new FamilyError(409, "A top-up is still being settled. Try again in a few minutes.");
+    const m = String(meter ?? p.destinations.electricity).replace(/\D/g, "");
+    if (!/^\d{11,13}$/.test(m)) throw new FamilyError(400, "A meter number has 11 to 13 digits.");
+    const ph = phone === undefined ? p.mama.phone : normalisePhone(phone);
+    if (!ph) throw new FamilyError(400, "Mama’s phone number should look like 0803 123 4567.");
+    const nextDisco = disco ?? p.providers?.disco ?? "ikeja-electric";
+    const nextNetwork = network ?? p.providers?.network ?? "mtn";
+    if (!["mtn", "glo", "airtel", "etisalat"].includes(nextNetwork)) throw new FamilyError(400, "Pick Mama’s network.");
+    if (m === p.destinations.electricity && ph === p.mama.phone && nextDisco === p.providers?.disco && nextNetwork === p.providers?.network) {
+      throw new FamilyError(400, "Nothing has changed.");
+    }
+    if (m !== p.destinations.electricity || nextDisco !== p.providers?.disco) {
+      const check = await verifyMeter(m, nextDisco);
+      if (!check?.ok) throw new FamilyError(400, check?.reason ?? "The electricity company didn’t recognise this meter.");
+    }
+    const destinations = { electricity: m, airtime: ph, data: ph };
+    const pending = await signup.prepareLimits({ contractId: p.contractId, guardianAddress: p.guardian.address, limits: p.limits, destinations });
+    purses.update(p.id, (x) => { x.action = { kind: "destinations", pending, next: { destinations, phone: ph, disco: nextDisco, network: nextNetwork }, createdAt: iso() }; });
+    await purses.flush?.();
+    return { status: "pending", kind: "destinations", hash: pending.hash };
+  }
+
   // ── Her family's own agent wallet ───────────────────────────
   // Purses made before per-family wallets use the shared one. One approval (`set_agent`) moves the
   // purse to a wallet of its own. Not while a top-up is open or a signed payment may still settle:
@@ -364,10 +394,18 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
         (x.notifications ??= []).push({ at: iso(), kind: "agent", text: `Mama’s purse now has its own Mhasibu AI wallet (tx ${done.hash}).` });
         return;
       }
+      if (a.kind === "destinations") {
+        x.destinations = a.next.destinations;
+        x.mama = { ...x.mama, phone: a.next.phone };
+        x.providers = { ...x.providers, disco: a.next.disco, network: a.next.network };
+        (x.notifications ??= []).push({ at: iso(), kind: "meter-changed", text: `Mama’s details changed: meter •••${a.next.destinations.electricity.slice(-4)}, phone ${maskPhone(a.next.phone)} (tx ${done.hash}).` });
+        return;
+      }
       if (a.kind === "pause" || a.kind === "unpause") x.paused = a.kind === "pause";
       if (a.kind === "withdraw") (x.withdrawals ??= []).push({ at: iso(), usdc: a.usdc, to: a.to, tx: done.hash });
       (x.notifications ??= []).push({ at: iso(), kind: a.kind, text: a.kind === "withdraw" ? `Withdrew ${a.usdc} USDC to ${a.to.slice(0, 6)}…${a.to.slice(-4)} (tx ${done.hash}).` : `Purse ${a.kind === "pause" ? "paused" : "resumed"} (tx ${done.hash}).` });
     });
+    if (a.kind === "destinations") for (const k of behindCache.keys()) if (k.startsWith(`${p.contractId}:`)) behindCache.delete(k);
     await purses.flush?.();
     return { status: "done", kind: a.kind, tx: done.hash };
   }
@@ -484,6 +522,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
         mama: p.mama,
         guardian: { name: p.guardian.name, address: p.guardian.address },
         destinations: p.destinations,
+        providers: p.providers ?? { disco: "ikeja-electric", network: "mtn" },
         preset: p.preset,
         limits: p.limits,
         monthlyCap: p.monthlyCap,
@@ -630,5 +669,5 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   // The purse a guardian (Privy user) owns, or null.
   const guardianPurse = (privyId) => byGuardian(privyId)?.id ?? null;
 
-  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, cancelApproval, prepareAgentMove, testUsdc, dashboard, activity, readNotifications, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
+  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, cancelApproval, prepareDestinations, prepareAgentMove, testUsdc, dashboard, activity, readNotifications, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
 }

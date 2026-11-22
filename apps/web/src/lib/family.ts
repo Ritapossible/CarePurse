@@ -11,6 +11,7 @@ export type Purse = {
   mama: { name: string; phone: string; language: "en" | "pcm" };
   guardian: { name: string; address: string };
   destinations: { electricity: string; airtime: string; data: string };
+  providers?: { disco: string; network: string };
   preset: "light" | "standard";
   monthlyCap: number;
   contractId: string;

@@ -465,3 +465,24 @@ test("trustline check: a Stellar error is an error, not a 'no'", async () => {
   const no = createSignup({ config: { agentSecret: Keypair.random().secret(), rpcUrl: "https://rpc.invalid", horizonUrl: "https://horizon.invalid", usdc: { issuer: "GISSUER" } }, fetchImpl: async () => ({ status: 404, ok: false }) });
   assert.equal(await no.hasUsdcTrustline("GADDR"), false);
 });
+
+test("Mama's meter and phone: changed only with the guardian's approval, after the meter is checked", async () => {
+  const { families, purses, calls } = setup();
+  const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  await assert.rejects(families.prepareDestinations({ privyId: GUARDIAN.privyId }), /Nothing has changed/);
+  await assert.rejects(families.prepareDestinations({ privyId: GUARDIAN.privyId, phone: "12345" }), /should look like/);
+  const r = await families.prepareDestinations({ privyId: GUARDIAN.privyId, meter: "1111111111111", phone: "0801 111 1111", network: "glo" });
+  assert.deepEqual([r.status, r.kind], ["pending", "destinations"]);
+  assert.deepEqual(calls.filter((c) => c[0] === "limits").at(-1)[2], { electricity: "1111111111111", airtime: "08011111111", data: "08011111111" });
+  assert.equal(purses.get(prep.purseId).destinations.electricity, "45012345678"); // nothing changes before she signs
+  await assert.rejects(families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xbad" }), /didn’t match/);
+  assert.equal(purses.get(prep.purseId).mama.phone, "08031234567");
+  await families.completeAction({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const p = purses.get(prep.purseId);
+  assert.deepEqual(p.destinations, { electricity: "1111111111111", airtime: "08011111111", data: "08011111111" });
+  assert.equal(p.mama.phone, "08011111111");
+  assert.equal(p.providers.network, "glo");
+  assert.equal(p.notifications.at(-1).kind, "meter-changed");
+  assert.ok(!p.notifications.at(-1).text.includes("08011111111")); // masked
+});

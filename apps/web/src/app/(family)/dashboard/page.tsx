@@ -8,7 +8,7 @@ import QRCode from "qrcode";
 import AuthCard from "@/components/AuthCard";
 import Link from "next/link";
 import ActivityRow, { UTILITY, when } from "@/components/ActivityRow";
-import { PRESETS, type Purse, type Spend, explorer, inviteUrl, naira, useFamilyApi, useStellarWallet, whatsappUrl } from "@/lib/family";
+import { DISCOS, NETWORKS, PRESETS, type Purse, type Spend, explorer, inviteUrl, naira, useFamilyApi, useStellarWallet, whatsappUrl } from "@/lib/family";
 
 const INVITE = { none: "Not invited", waiting: "Invite sent", joined: "Active", expired: "Link expired" } as const;
 
@@ -86,7 +86,8 @@ export default function DashboardPage() {
   const [invite, setInvite] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
-  const [sheet, setSheet] = useState<"fund" | "invite" | "plan" | "withdraw" | "alerts" | null>(null);
+  const [sheet, setSheet] = useState<"fund" | "invite" | "plan" | "withdraw" | "alerts" | "details" | null>(null);
+  const [details, setDetails] = useState({ meter: "", disco: "ikeja-electric", phone: "", network: "mtn" });
   const [wAmount, setWAmount] = useState("");
   const [wTo, setWTo] = useState<"me" | "other">("me");
   const [wAddress, setWAddress] = useState("");
@@ -136,6 +137,7 @@ export default function DashboardPage() {
     trustline: "Approve 1 of 2: let your wallet receive USDC",
     withdraw: "Approve the withdrawal",
     agent: "Approve Mama’s own wallet",
+    destinations: "Approve Mama’s new details",
   };
   async function approveSteps(first: { status: string; kind?: string; hash?: string }) {
     let r = first;
@@ -173,6 +175,31 @@ export default function DashboardPage() {
     if (purse?.unread) {
       setPurse((p) => (p ? { ...p, unread: 0 } : p));
       api("POST", "notifications-read").catch(() => {});
+    }
+  }
+
+  // Mama's meter, phone and providers: checked, then one approval saves them on her purse.
+  function openDetails() {
+    if (!purse) return;
+    setError(null);
+    setDetails({ meter: purse.destinations.electricity, disco: purse.providers?.disco ?? "ikeja-electric", phone: purse.mama.phone, network: purse.providers?.network ?? "mtn" });
+    setSheet("details");
+  }
+  async function saveDetails() {
+    setError(null);
+    setBusy("details");
+    try {
+      const r = await approveSteps(await api("POST", "destinations", details));
+      if (r.status === "done") {
+        setNotice("Mama’s details are saved on her purse.");
+        setSheet(null);
+      }
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+      setStep(null);
     }
   }
 
@@ -367,9 +394,9 @@ export default function DashboardPage() {
               <span className={`${rowIcon} text-base font-medium`}>{purse.mama.name.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0 flex-1">
                 <div className="font-medium">Mama {purse.mama.name}</div>
-                <div className="truncate text-sm text-muted">{maskPhone(purse.mama.phone)} · Meter •••{purse.destinations.electricity.slice(-4)}</div>
+                <div className="truncate text-sm text-muted">{maskPhone(purse.mama.phone)} · Meter •••{purse.destinations.electricity.slice(-4)} · {INVITE[purse.invite.status]}</div>
               </div>
-              <span className="shrink-0 text-sm text-secondary">{INVITE[purse.invite.status]}</span>
+              <button onClick={openDetails} className={rowButton}>Edit</button>
             </div>
             <div className="flex items-center gap-4 p-4">
               <span className={rowIcon}><Icon d={ICONS.invite} className="h-[18px] w-[18px]" /></span>
@@ -553,6 +580,30 @@ export default function DashboardPage() {
             })}
           </div>
           {error && <p className="mt-4 rounded-[10px] bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
+        </Sheet>
+      )}
+
+      {sheet === "details" && (
+        <Sheet title={`Mama ${purse.mama.name}’s details`} onClose={() => setSheet(null)}>
+          <p className="text-sm text-secondary">Where Mhasibu AI sends her light, airtime and data. A new meter is checked with the electricity company, then you approve once.</p>
+          <div className="mt-5 grid gap-4">
+            <label className="block text-sm text-secondary">Meter number
+              <input value={details.meter} onChange={(e) => setDetails((d) => ({ ...d, meter: e.target.value.replace(/\D/g, "") }))} inputMode="numeric" className="mt-2 h-12 w-full rounded-[10px] border border-line px-4 font-mono outline-none focus:border-foreground" />
+            </label>
+            <label className="block text-sm text-secondary">Electricity company
+              <select value={details.disco} onChange={(e) => setDetails((d) => ({ ...d, disco: e.target.value }))} className="mt-2 h-12 w-full rounded-[10px] border border-line bg-white px-4 outline-none focus:border-foreground">{DISCOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            </label>
+            <label className="block text-sm text-secondary">Her phone number
+              <input value={details.phone} onChange={(e) => setDetails((d) => ({ ...d, phone: e.target.value }))} inputMode="tel" className="mt-2 h-12 w-full rounded-[10px] border border-line px-4 outline-none focus:border-foreground" />
+            </label>
+            <label className="block text-sm text-secondary">Her network
+              <select value={details.network} onChange={(e) => setDetails((d) => ({ ...d, network: e.target.value }))} className="mt-2 h-12 w-full rounded-[10px] border border-line bg-white px-4 outline-none focus:border-foreground">{NETWORKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            </label>
+          </div>
+          {error && <p className="mt-4 rounded-[10px] bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
+          <button disabled={Boolean(busy) || !details.meter || !details.phone} onClick={saveDetails} className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-foreground font-medium text-background disabled:opacity-40">
+            {busy === "details" ? step ?? "Checking…" : "Save"}
+          </button>
         </Sheet>
       )}
 
