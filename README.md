@@ -16,6 +16,8 @@
 
 </div>
 
+<p align="center"><img src="docs/screenshots/landing.jpg" alt="The CarePurse landing page: Keep Mama's utilities on" width="860" /></p>
+
 ---
 
 ## Contents
@@ -223,7 +225,18 @@ flowchart LR
 | Demo purse contract | [`CCJMZQ…B3XC`](https://stellar.expert/explorer/testnet/contract/CCJMZQ47JXY3CT6OKWGD4AUQFSRDHRMPOBHOGCCXXVKVFG5RTLQ3B3XC) |
 | Gateway wallet (receives x402 payments) | [`GDFFLJ…7CAA`](https://stellar.expert/explorer/testnet/account/GDFFLJ7SQVYJDH7RB7JYIBRLHRHOP7IV4XILUMHS5WPOJ5DAJCTO7CAA) |
 
-**Testing the sandbox:** use meter `1111111111111` (Ikeja Electric) and phone `08011111111` (MTN), the VTpass sandbox test numbers. Other numbers are refused by the sandbox.
+### Try it in 5 minutes
+
+1. Open **https://care-purse.vercel.app** and tap **Launch App**. Sign in with your email or Google (Privy makes you a Stellar wallet).
+2. Set up a purse for Mama: any name, phone **`08011111111`** (MTN) and meter **`1111111111111`** (Ikeja Electric). These are the VTpass sandbox test numbers; other numbers are refused by the sandbox. Pick a plan and approve once.
+3. On the dashboard, **Add money → Add test money** (10 test USDC, up to 3 times).
+4. **Invite Mama → Create invite link**, and open the link (another browser or your phone works). Type the phone number, tap **Send code**: on testnet the code is shown on screen. Enter it, and Mama's chat opens.
+5. In Mama's chat, tap **Light don almost finish** and pick an amount. The token arrives in seconds; on your dashboard you'll see the receipt with the fee and its Stellar transaction.
+6. Try asking for more than the plan allows (*"buy airtime of #2000"*): Mhasibu AI explains which limit stops it.
+
+For the judges' view, `/demo?code=…` (code from the team) shows the chat beside the live **Agent & x402 Log**.
+
+**Testnet resets on 16 December 2026 (17:00 UTC):** every Stellar testnet account, contract and transaction is erased then, including the links in this README. If you read this afterwards, the links are gone; the app is redeployed on the fresh testnet.
 
 <details>
 <summary>A full end-to-end run on testnet (chat → contract → x402 → VTpass)</summary>
