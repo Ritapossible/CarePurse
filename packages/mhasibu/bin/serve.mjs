@@ -224,8 +224,19 @@ const server = http.createServer(async (req, res) => {
       const purse = purses.get(url.searchParams.get("purse") ?? "demo");
       if (!purse) return send(res, 404, { error: "no such purse" });
       const tokens = purse.spends.filter((s) => s.utility === "electricity" && s.token).reverse().slice(0, 10)
-        .map((s) => ({ at: s.at, ngn: s.ngn, token: s.token, units: s.units ?? null, meter: purse.destinations.electricity }));
+        .map((s) => ({ at: s.at, ngn: s.ngn, token: s.token, units: s.units ?? null, meter: purse.destinations.electricity, copied: Boolean(s.copiedAt) }));
       return send(res, 200, { tokens });
+    }
+    // Mama copied a token: remembered with the purchase, so it stays out of the way on every phone.
+    if (req.method === "POST" && url.pathname === "/v1/tokens/seen") {
+      const { purse: id = "demo", at, token } = await readJson(req);
+      const purse = purses.get(id);
+      if (!purse) return send(res, 404, { error: "no such purse" });
+      const spend = purse.spends.find((s) => s.at === at && s.token === token);
+      if (!spend) return send(res, 404, { error: "no such token" });
+      purses.update(id, () => { spend.copiedAt = spend.copiedAt ?? new Date().toISOString(); });
+      await purses.flush?.();
+      return send(res, 200, { copied: true });
     }
     if (req.method === "GET" && url.pathname === "/v1/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });

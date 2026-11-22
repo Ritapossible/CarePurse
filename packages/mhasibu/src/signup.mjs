@@ -107,6 +107,27 @@ export function createSignup({ config, fetchImpl = fetch }) {
     return Number(amount);
   }
 
+  // Close a family's agent wallet (her account is being deleted): remove its USDC trustline and
+  // merge every XLM back to the operator. Refused if it still holds USDC (it holds 0 between
+  // top-ups; anything else is an order to settle first). Already gone: nothing to do.
+  async function closeAgentWallet({ secret }) {
+    const kp = Keypair.fromSecret(secret);
+    const res = await fetchImpl(`${config.horizonUrl}/accounts/${kp.publicKey()}`);
+    if (res.status === 404) return { closed: false, reason: "not on the ledger" };
+    if (!res.ok) throw new Error(`Stellar didn’t answer (HTTP ${res.status}). Please try again.`);
+    const usdc = ((await res.json()).balances ?? []).find((b) => b.asset_code === "USDC" && b.asset_issuer === config.usdc.issuer);
+    if (usdc && Number(usdc.balance) > 0) throw new Error(`Mhasibu’s wallet for this purse still holds ${usdc.balance} USDC from a top-up being settled. Try again in a few minutes.`);
+    await withAccount(kp.publicKey(), () => retryOnBadSeq(async () => {
+      const account = await server.getAccount(kp.publicKey());
+      const tx = new TransactionBuilder(account, { fee: String(Number(BASE_FEE) * 2), networkPassphrase: passphrase });
+      if (usdc) tx.addOperation(Operation.changeTrust({ asset: new Asset("USDC", config.usdc.issuer), limit: "0" }));
+      const built = tx.addOperation(Operation.accountMerge({ destination: agent.publicKey() })).setTimeout(120).build();
+      built.sign(kp);
+      return soroban.submit(built);
+    }));
+    return { closed: true };
+  }
+
   // Move an existing purse to its own agent wallet: `set_agent`, which only the guardian can call.
   async function prepareSetAgent({ contractId, guardianAddress, agentAddress }) {
     return prepareGuardianCall({ contractId, guardianAddress, method: "set_agent", args: [addressVal(agentAddress)] });
@@ -273,5 +294,5 @@ export function createSignup({ config, fetchImpl = fetch }) {
     return BigInt(purseCap ?? 0) < capBaseUnits(monthlyCap(limits), config.ngnPerUsdc, 100, d, fee);
   }
 
-  return { capsBehind, createAgentWallet, latestLedger, prepareSetAgent, topUpAgentXlm, prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
+  return { capsBehind, closeAgentWallet, createAgentWallet, latestLedger, prepareSetAgent, topUpAgentXlm, prepareSetup, prepareLimits, prepareWithdraw, hasUsdcTrustline, prepareTrustline, completeTrustline, prepareGuardianCall, completeGuardianCall, sendTestUsdc, purseBalance, ensureAccount };
 }

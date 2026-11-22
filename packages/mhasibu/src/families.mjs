@@ -460,6 +460,13 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
       const balance = await signup.purseBalance(p.contractId);
       if (balance > 0) throw new FamilyError(409, `Mama’s purse still holds ${balance} USDC. Withdraw it first, then delete your account.`);
     }
+    // Her family's agent wallet(s): the XLM goes back to the operator, the key is forgotten with the
+    // record. A wallet that was never created needs nothing.
+    for (const field of ["agent", "nextAgent"]) {
+      const w = p[field];
+      if (!w?.sealed || !signup.closeAgentWallet) continue;
+      await signup.closeAgentWallet({ secret: openAgentKey(w.sealed, config.agentSecret) }).catch((err) => { throw new FamilyError(409, err.message); });
+    }
     purses.remove(p.id);
     await purses.flush?.();
     return { deleted: true };

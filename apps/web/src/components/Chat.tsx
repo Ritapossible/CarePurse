@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import MhasibuAvatar from "./MhasibuAvatar";
 import TokenCard from "./TokenCard";
-import { type ChatLine, type TokenRecord, loadHistory, loadTokens, saveAccessCode, sendMessage } from "@/lib/mhasibu";
+import { ChatError, type ChatLine, type TokenRecord, loadHistory, loadTokens, markTokenCopied, saveAccessCode, sendMessage } from "@/lib/mhasibu";
 
 const LAGOS = "Africa/Lagos";
 const LINK = /(https:\/\/stellar\.expert\/\S+)/;
@@ -16,11 +16,13 @@ const QUICK = ["Light don almost finish", "Buy airtime", "Buy data", "How much i
 const time = (at?: string) => (at ? new Date(at).toLocaleTimeString("en-NG", { timeZone: LAGOS, hour: "numeric", minute: "2-digit" }) : "");
 
 // Her latest electricity token, pinned under the header so it never scrolls away.
-// Once she copies it, the pinned token steps aside (remembered on this phone, per purchase, so the
-// next new token shows again). Every token stays on her Purchases page.
+// Once she copies it, the pinned token steps aside (remembered on the server for all her phones,
+// and on this phone too, per purchase, so the next new token shows again). Every token stays on her
+// Purchases page.
 const COPIED_KEY = "carepurse:copied-token";
 const tokenId = (r: TokenRecord) => `${r.at}|${r.token}`;
 function wasCopied(r: TokenRecord) {
+  if (r.copied) return true;
   try {
     return localStorage.getItem(COPIED_KEY) === tokenId(r);
   } catch {
@@ -28,7 +30,7 @@ function wasCopied(r: TokenRecord) {
   }
 }
 
-function LastToken({ record, onDone }: { record: TokenRecord; onDone: () => void }) {
+function LastToken({ record, purse, onDone }: { record: TokenRecord; purse: string; onDone: () => void }) {
   const [copied, setCopied] = useState(false);
   const when = new Date(record.at).toLocaleString("en-NG", { timeZone: LAGOS, day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
   function copy() {
@@ -36,6 +38,7 @@ function LastToken({ record, onDone }: { record: TokenRecord; onDone: () => void
       ?.writeText(record.token.replace(/\s/g, ""))
       .then(() => {
         setCopied(true);
+        markTokenCopied(record, purse);
         try {
           localStorage.setItem(COPIED_KEY, tokenId(record));
         } catch {
@@ -161,11 +164,30 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
       const reply = await sendMessage(t, purse);
       setLines((l) => [...l, { from: "mhasibu", text: reply, at: new Date().toISOString() }]);
       refreshToken();
-    } catch {
-      setError("Mhasibu AI could not answer. Please try again.");
+    } catch (err) {
+      // No answer in time (or a server error): the reply may still be on its way, since a top-up takes a
+      // while. Read it from her history rather than tell her to try again (that could buy twice).
+      if (err instanceof ChatError && err.retryable && (await recover(t))) return;
+      setError(err instanceof ChatError && !err.retryable ? err.message : "Mhasibu AI is taking long to answer. Your message is safe: please check again in a minute.");
     } finally {
       setWaiting(false);
     }
+  }
+
+  // Up to ~90 s: find her message in the saved chat and the reply after it.
+  async function recover(sent: string) {
+    for (let i = 0; i < 18; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const h = await loadHistory(purse).catch(() => null);
+      if (!h) continue;
+      const mine = h.history.map((l) => l.from === "mama" && l.text === sent).lastIndexOf(true);
+      if (mine >= 0 && h.history.slice(mine + 1).some((l) => l.from === "mhasibu")) {
+        setLines(h.history.slice(-30));
+        refreshToken();
+        return true;
+      }
+    }
+    return false;
   }
 
   return (
@@ -185,7 +207,7 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
         </Link>
       </header>
 
-      {lastToken && <LastToken key={tokenId(lastToken)} record={lastToken} onDone={() => setLastToken(null)} />}
+      {lastToken && <LastToken key={tokenId(lastToken)} purse={purse} record={lastToken} onDone={() => setLastToken(null)} />}
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5" aria-live="polite">
         {lines.length === 0 && !error && (

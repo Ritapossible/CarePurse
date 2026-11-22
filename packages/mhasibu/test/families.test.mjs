@@ -486,3 +486,23 @@ test("Mama's meter and phone: changed only with the guardian's approval, after t
   assert.equal(p.notifications.at(-1).kind, "meter-changed");
   assert.ok(!p.notifications.at(-1).text.includes("08011111111")); // masked
 });
+
+test("delete account: the family's agent wallet is closed (XLM back to the operator) before the record goes", async () => {
+  const { createFamilies } = await import("../src/families.mjs");
+  const { families: base, purses } = setup();
+  const prep = await base.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await base.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const closed = [];
+  let fail = true;
+  const signup = {
+    purseBalance: async () => 0,
+    closeAgentWallet: async ({ secret }) => { if (fail) throw new Error("still holds 0.5 USDC from a top-up being settled"); closed.push(Keypair.fromSecret(secret).publicKey()); return { closed: true }; },
+  };
+  const f = createFamilies({ purses, signup, config: { agentSecret: OPERATOR }, verifyMeter: async () => ({ ok: true }) });
+  await assert.rejects(f.deleteAccount({ privyId: GUARDIAN.privyId }), /still holds 0\.5 USDC/);
+  assert.ok(purses.get(prep.purseId)); // not deleted: the wallet must be closed first
+  fail = false;
+  assert.deepEqual(await f.deleteAccount({ privyId: GUARDIAN.privyId }), { deleted: true });
+  assert.deepEqual(closed, [purses.get(prep.purseId)?.agent?.address ?? closed[0]]);
+  assert.equal(purses.get(prep.purseId), null);
+});

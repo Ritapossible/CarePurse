@@ -70,15 +70,31 @@ export type Status = {
   demoMode: boolean;
 };
 
+// A top-up can take 10 to 30 seconds. After a minute (or a server error) the reply may still come:
+// the chat then reads it from her history instead (see Chat). `retryable` marks those cases.
+export class ChatError extends Error {
+  constructor(message: string, public retryable: boolean) { super(message); }
+}
 export async function sendMessage(text: string, purse = "demo"): Promise<string> {
-  const res = await fetch(`${MHASIBU_URL}/v1/chat`, {
-    method: "POST",
-    headers: withCode({ "content-type": "application/json" }),
-    body: JSON.stringify({ purse, text }),
-  });
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error ?? "Mhasibu could not answer");
+  let res: Response;
+  try {
+    res = await fetch(`${MHASIBU_URL}/v1/chat`, {
+      method: "POST",
+      headers: withCode({ "content-type": "application/json" }),
+      body: JSON.stringify({ purse, text }),
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch {
+    throw new ChatError("no answer yet", true); // timed out or the connection dropped
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ChatError(body.error ?? "Mhasibu could not answer", res.status >= 500);
   return body.reply;
+}
+
+// She copied this token: remembered on the server, for all her phones.
+export async function markTokenCopied(record: TokenRecord, purse = "demo") {
+  await fetch(`${MHASIBU_URL}/v1/tokens/seen`, { method: "POST", headers: withCode({ "content-type": "application/json" }), body: JSON.stringify({ purse, at: record.at, token: record.token }) }).catch(() => {});
 }
 
 export async function loadHistory(purse = "demo") {
@@ -88,7 +104,7 @@ export async function loadHistory(purse = "demo") {
   return (await res.json()) as { mama: { name: string; language: string }; guardian: string; history: ChatLine[] };
 }
 
-export type TokenRecord = { at: string; ngn: number; token: string; units: string | null; meter: string };
+export type TokenRecord = { at: string; ngn: number; token: string; units: string | null; meter: string; copied?: boolean };
 
 export async function loadTokens(purse = "demo"): Promise<TokenRecord[]> {
   const res = await fetch(`${MHASIBU_URL}/v1/tokens?purse=${purse}`, { headers: withCode() });
