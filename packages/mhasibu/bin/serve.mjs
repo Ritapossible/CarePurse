@@ -175,6 +175,11 @@ const readJson = (req, max = 10_000) => new Promise((resolve, reject) => {
 // Chat queues. One message at a time per purse (two taps can't race a payment). Purses still on the
 // shared agent wallet also share one wallet queue (their payment holds depend on it); a family with
 // its own wallet never waits for another family.
+// Messages that have arrived but aren't answered yet (waiting in the purse's queue, or running), by
+// the page's message id. The history lists them as `pending`, so a page that lost its answer knows
+// the message reached us and is still being handled, and never tells Mama to send it again.
+const inFlight = new Map(); // purse id → Set of message ids
+
 const forPurse = (purseId, fn) => {
   const own = purses.get(purseId)?.agent?.address;
   return own ? inOrder(`purse:${purseId}`, fn) : inOrder("wallet:shared", () => inOrder(`purse:${purseId}`, fn));
@@ -215,7 +220,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/v1/history") {
       const purse = purses.get(url.searchParams.get("purse") ?? "demo");
       if (!purse) return send(res, 404, { error: "no such purse" });
-      return send(res, 200, { mama: { name: purse.mama.name, language: purse.mama.language }, guardian: purse.guardian.name, history: purse.history.slice(-50) });
+      return send(res, 200, { mama: { name: purse.mama.name, language: purse.mama.language }, guardian: purse.guardian.name, history: purse.history.slice(-50), pending: [...(inFlight.get(purse.id) ?? [])] });
     }
     // Mama's purchase history for her Purchases page, newest first. Face value only: the service
     // fee is her daughter's and is never shown to Mama.
@@ -272,8 +277,15 @@ const server = http.createServer(async (req, res) => {
         ? tooMany(`chat:demo:${visitor}`, 15, 60_000) || tooMany("chat:demo:all", 120, 60_000)
         : tooMany(`chat:${purse}`, 30, 60_000);
       if (limited) return send(res, 429, { error: "That’s a lot of messages. Please wait a minute." });
-      const reply = await forPurse(purse, () => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500), { cid })));
-      return send(res, 200, { reply });
+      // Acknowledged on arrival, before it waits in the queue (see inFlight).
+      const id = typeof cid === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(cid) ? cid : null;
+      if (id) { if (!inFlight.has(purse)) inFlight.set(purse, new Set()); inFlight.get(purse).add(id); }
+      try {
+        const reply = await forPurse(purse, () => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500), { cid })));
+        return send(res, 200, { reply });
+      } finally {
+        if (id) { inFlight.get(purse)?.delete(id); if (!inFlight.get(purse)?.size) inFlight.delete(purse); }
+      }
     }
     // ── Sign-up (the daughter) ──────────────────────────────────
     if (req.method === "POST" && url.pathname === "/v1/meters/verify") {

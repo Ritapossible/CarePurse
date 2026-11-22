@@ -261,3 +261,6 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - Chat recovery finds her message by an id the page sends (never by its text) and says whether it reached the server; the dashboard shows "Balance unavailable" instead of a false ₦0.
 - Deleting retries the record removal; updates to a removed purse do nothing; the bell shows only for active purses; failed photo writes retry; a 413 closes the connection; unread counts only notifications marked unread.
 - Dashboard and bell refresh on their own (tab visible, every minute); demo chat limited per visitor (15/min) and overall (120/min), tested through the relay; Termii uses the dnd channel; guardian misses remembered until a purse is added; XLM checks in parallel; SIGNUP.md invite steps updated.
+
+## 2026-11-22: No double buy from a queued message (review)
+- A message waiting behind a running top-up isn't in the history yet, so the page used to say "send it again" after 15 s. Now the server acknowledges each message (by its id) on arrival and lists it as `pending` with the history until it's answered; the page keeps waiting while it's pending or unanswered, and says "send it again" only if the server never saw it during the whole ~2-minute wait. Tested live: a queued message shows as pending, then answered.

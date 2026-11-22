@@ -184,26 +184,27 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
       const found = await recover(cid);
       if (found === "replied") return;
       setError(found === "received"
-        ? "Mhasibu AI is still working on your message. Please check again in a minute."
+        ? "Mhasibu AI got your message and is still working on it. No need to send it again: check back in a minute."
         : "Your message didn’t reach Mhasibu AI. Please send it again.");
     } finally {
       setWaiting(false);
     }
   }
 
-  // Up to ~90 s: find THIS message (by its id) in the saved chat, and the reply after it. If it never
-  // reached the server, it isn't there, and she is told to try again.
+  // Up to ~2 minutes: find THIS message (by its id). The server lists a message as pending from the
+  // moment it arrives (even while it waits behind a top-up), so:
+  //   answered in the chat  → show it
+  //   pending, or in the chat without an answer yet → it is being handled: keep waiting, never resend
+  //   never seen at all, after the whole wait → only then: send it again
   async function recover(cid: string): Promise<"replied" | "received" | "missing"> {
     let received = false;
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 24; i++) {
       await new Promise((r) => setTimeout(r, 5000));
       const h = await loadHistory(purse).catch(() => null);
       if (!h) continue;
+      if (h.pending?.includes(cid)) received = true;
       const mine = h.history.findIndex((l) => l.from === "mama" && l.cid === cid);
-      if (mine < 0) {
-        if (i >= 2) return "missing"; // ~15 s and the server never got it
-        continue;
-      }
+      if (mine < 0) continue;
       received = true;
       if (h.history.slice(mine + 1).some((l) => l.from === "mhasibu")) {
         setLines(h.history.slice(-30));

@@ -103,7 +103,8 @@ export async function loadHistory(purse = "demo") {
   const res = await fetch(`${MHASIBU_URL}/v1/history?purse=${purse}`, { headers: withCode() });
   if (res.status === 401) throw new Error("access code needed");
   if (!res.ok) throw new Error("could not load the chat");
-  return (await res.json()) as { mama: { name: string; language: string }; guardian: string; history: ChatLine[] };
+  // `pending`: ids of her messages that reached Mhasibu and are still waiting or being handled.
+  return (await res.json()) as { mama: { name: string; language: string }; guardian: string; history: ChatLine[]; pending?: string[] };
 }
 
 export type TokenRecord = { at: string; ngn: number; token: string; units: string | null; meter: string; copied?: boolean };
