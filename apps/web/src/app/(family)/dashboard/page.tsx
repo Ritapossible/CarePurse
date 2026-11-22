@@ -382,13 +382,21 @@ export default function DashboardPage() {
                 <Icon d={hidden ? ICONS.eyeOff : ICONS.eye} className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-3 text-[40px] font-medium leading-none tracking-[-0.02em] tabular-nums sm:text-[44px]">{hidden ? "₦ ••••••" : naira(purse.spendableNgn ?? purse.balanceNgn ?? 0)}</div>
-            {!hidden && (
+            {purse.balanceUsdc == null ? (
+              // Stellar couldn't be read just now: never show a false ₦0.
+              <div className="mt-3">
+                <div className="text-2xl font-medium leading-tight">Balance unavailable</div>
+                <p className="mt-1 text-sm text-background/70">We couldn’t reach Stellar just now. <button onClick={() => load()} className="font-medium text-background underline underline-offset-4">Try again</button></p>
+              </div>
+            ) : (
+              <div className="mt-3 text-[40px] font-medium leading-none tracking-[-0.02em] tabular-nums sm:text-[44px]">{hidden ? "₦ ••••••" : naira(purse.spendableNgn ?? purse.balanceNgn ?? 0)}</div>
+            )}
+            {!hidden && purse.balanceUsdc != null && (
               <p className="mt-2 text-sm text-background/70 tabular-nums">
                 {naira(purse.balanceNgn ?? 0)} in the purse{purse.feeBps ? ` · includes a ${purse.feeBps / 100}% service fee` : ""}
               </p>
             )}
-            {purse.rate && !hidden && (
+            {purse.rate && !hidden && purse.balanceUsdc != null && (
               <p className="mt-1 text-xs text-background/40 tabular-nums">{Number(purse.balanceUsdc ?? 0).toFixed(2)} USDC · ₦{purse.rate.ngnPerUsdc.toLocaleString("en-NG")} per USDC{purse.rate.live ? " today" : ""}</p>
             )}
             <div className="mt-6">

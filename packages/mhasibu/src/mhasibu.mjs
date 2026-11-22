@@ -68,7 +68,8 @@ export function createMhasibu({
     purses.update(purse.id, (p) => p.notifications.push({ at: new Date(clock()).toISOString(), kind, text, read: false }));
     baseLog({ purse: purse.id, type: "notify-guardian", kind, text });
   };
-  const remember = (purse, from, text) => purses.update(purse.id, (p) => p.history.push({ at: new Date(clock()).toISOString(), from, text }));
+  // `cid`: the browser's id for her message, so a page that lost the answer can find it again.
+  const remember = (purse, from, text, cid) => purses.update(purse.id, (p) => p.history.push({ at: new Date(clock()).toISOString(), from, text, ...(cid ? { cid } : {}) }));
 
   // askedNgn: an amount she named ("buy airtime of #2000"). Code decides what is possible.
   async function offer(purse, utility, lang, askedNgn = null) {
@@ -416,14 +417,14 @@ export function createMhasibu({
       return clear;
     },
 
-    async handle(purseId, text) {
+    async handle(purseId, text, { cid } = {}) {
       const purse = purses.get(purseId);
       if (!purse) throw new Error(`no purse ${purseId}`);
       // Answer in the language she just wrote in; a message with no sign ("1") keeps her last one.
       const seen = detectLanguage(text);
       if (seen && seen !== purse.mama.language) purses.update(purseId, (p) => { p.mama.language = seen; });
       const lang = seen ?? purse.mama.language ?? "en";
-      remember(purse, "mama", text);
+      remember(purse, "mama", text, typeof cid === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(cid) ? cid : undefined);
       log({ type: "mama", text });
       await settleOpenOrder(purses.get(purseId));
       const reply = await respond(purse, text, lang);

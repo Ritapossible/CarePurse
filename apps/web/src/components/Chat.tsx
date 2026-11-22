@@ -158,36 +158,55 @@ export default function Chat({ purse = "demo" }: { purse?: string }) {
     if (!t || waiting) return;
     setText("");
     setError(null);
-    setLines((l) => [...l, { from: "mama", text: t, at: new Date().toISOString() }]);
+    // An id for this message: if the answer is lost on the way, it is found again by this id (not by
+    // its text, which she may have sent before).
+    const cid = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().replace(/-/g, "")
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`; // older phones
+    setLines((l) => [...l, { from: "mama", text: t, at: new Date().toISOString(), cid }]);
     setWaiting(true);
     try {
-      const reply = await sendMessage(t, purse);
+      const reply = await sendMessage(t, purse, cid);
       setLines((l) => [...l, { from: "mhasibu", text: reply, at: new Date().toISOString() }]);
       refreshToken();
     } catch (err) {
       // No answer in time (or a server error): the reply may still be on its way, since a top-up takes a
       // while. Read it from her history rather than tell her to try again (that could buy twice).
-      if (err instanceof ChatError && err.retryable && (await recover(t))) return;
-      setError(err instanceof ChatError && !err.retryable ? err.message : "Mhasibu AI is taking long to answer. Your message is safe: please check again in a minute.");
+      if (!(err instanceof ChatError) || !err.retryable) {
+        setError(err instanceof ChatError ? err.message : "Mhasibu AI could not answer. Please try again.");
+        return;
+      }
+      const found = await recover(cid);
+      if (found === "replied") return;
+      setError(found === "received"
+        ? "Mhasibu AI is still working on your message. Please check again in a minute."
+        : "Your message didn’t reach Mhasibu AI. Please send it again.");
     } finally {
       setWaiting(false);
     }
   }
 
-  // Up to ~90 s: find her message in the saved chat and the reply after it.
-  async function recover(sent: string) {
+  // Up to ~90 s: find THIS message (by its id) in the saved chat, and the reply after it. If it never
+  // reached the server, it isn't there, and she is told to try again.
+  async function recover(cid: string): Promise<"replied" | "received" | "missing"> {
+    let received = false;
     for (let i = 0; i < 18; i++) {
       await new Promise((r) => setTimeout(r, 5000));
       const h = await loadHistory(purse).catch(() => null);
       if (!h) continue;
-      const mine = h.history.map((l) => l.from === "mama" && l.text === sent).lastIndexOf(true);
-      if (mine >= 0 && h.history.slice(mine + 1).some((l) => l.from === "mhasibu")) {
+      const mine = h.history.findIndex((l) => l.from === "mama" && l.cid === cid);
+      if (mine < 0) {
+        if (i >= 2) return "missing"; // ~15 s and the server never got it
+        continue;
+      }
+      received = true;
+      if (h.history.slice(mine + 1).some((l) => l.from === "mhasibu")) {
         setLines(h.history.slice(-30));
         refreshToken();
-        return true;
+        return "replied";
       }
     }
-    return false;
+    return received ? "received" : "missing";
   }
 
   return (

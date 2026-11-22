@@ -259,11 +259,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === "POST" && url.pathname === "/v1/chat") {
-      const { purse = "demo", text } = await readJson(req);
+      const { purse = "demo", text, cid } = await readJson(req);
       if (typeof text !== "string" || !text.trim()) return send(res, 400, { error: "text is required" });
       if (!purses.get(purse)) return send(res, 404, { error: "no such purse" });
       if (tooMany(`chat:${purse}`, 30, 60_000)) return send(res, 429, { error: "That’s a lot of messages. Please wait a minute." });
-      const reply = await forPurse(purse, () => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500))));
+      const reply = await forPurse(purse, () => currentPurse.run(purse, () => mhasibu.handle(purse, text.trim().slice(0, 500), { cid })));
       return send(res, 200, { reply });
     }
     // ── Sign-up (the daughter) ──────────────────────────────────

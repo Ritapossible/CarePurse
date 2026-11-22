@@ -30,7 +30,7 @@ const withCode = (headers: Record<string, string> = {}) => ({ ...headers, "x-acc
 // that carried the code, see AgentLog), never on a code in its URL.
 export const eventsUrl = () => `${MHASIBU_URL}/v1/events`;
 
-export type ChatLine = { from: "mama" | "mhasibu"; text: string; at?: string };
+export type ChatLine = { from: "mama" | "mhasibu"; text: string; at?: string; cid?: string };
 
 export type LogEvent = {
   at: string;
@@ -77,13 +77,13 @@ export type Status = {
 export class ChatError extends Error {
   constructor(message: string, public retryable: boolean) { super(message); }
 }
-export async function sendMessage(text: string, purse = "demo"): Promise<string> {
+export async function sendMessage(text: string, purse = "demo", cid?: string): Promise<string> {
   let res: Response;
   try {
     res = await fetch(`${MHASIBU_URL}/v1/chat`, {
       method: "POST",
       headers: withCode({ "content-type": "application/json" }),
-      body: JSON.stringify({ purse, text }),
+      body: JSON.stringify({ purse, text, cid }),
       signal: AbortSignal.timeout(60_000),
     });
   } catch {

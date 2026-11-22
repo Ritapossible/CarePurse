@@ -892,3 +892,14 @@ test("events name their own purse: settling another family's order is logged und
   assert.ok(!events.some((e) => e.type === "committed" && e.purse === undefined));
   assert.equal(await mhasibu.settle("a"), true); // nothing left to settle
 });
+
+test("a message id from the page is kept on her history line, so a lost answer can be found by it", async () => {
+  const { mhasibu, purses } = setup();
+  await mhasibu.handle("demo", "1", { cid: "abc123def456" });
+  await mhasibu.handle("demo", "1", { cid: "<script>bad" }); // not an id: ignored
+  const h = purses.get("demo").history;
+  const mine = h.filter((l) => l.from === "mama");
+  assert.equal(mine.at(-2).cid, "abc123def456");
+  assert.equal(mine.at(-1).cid, undefined);
+  assert.equal(h[h.indexOf(mine.at(-2)) + 1].from, "mhasibu"); // its answer right after it
+});
