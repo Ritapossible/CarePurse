@@ -186,6 +186,15 @@ export default function DashboardPage() {
     window.addEventListener("carepurse:open-alerts", open);
     return () => window.removeEventListener("carepurse:open-alerts", open);
   }, []);
+  // From Account settings: /dashboard?edit=details opens Mama's details form.
+  const openDetailsRef = useRef<() => void>(() => {});
+  useEffect(() => { openDetailsRef.current = openDetails; });
+  useEffect(() => {
+    if (!purse || new URLSearchParams(window.location.search).get("edit") !== "details") return;
+    window.history.replaceState(window.history.state, "", "/dashboard");
+    const t = setTimeout(() => openDetailsRef.current(), 0);
+    return () => clearTimeout(t);
+  }, [purse]);
   useEffect(() => {
     if (!purse || new URLSearchParams(window.location.search).get("alerts") !== "1") return;
     window.history.replaceState(window.history.state, "", "/dashboard");

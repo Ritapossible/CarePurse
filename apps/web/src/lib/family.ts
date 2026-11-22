@@ -44,6 +44,7 @@ export type Profile = {
   purseStatus: string;
   contractId: string;
   unread?: number; // notifications she hasn't opened (the header bell)
+  mama?: { name: string; phone: string; meter: string }; // shown in Account settings
 };
 
 export const PRESETS = {

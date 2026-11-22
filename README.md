@@ -173,7 +173,7 @@ flowchart LR
 - **Notifications:** a bell with an unread count: receipts, anything Mama asks her for (*"raise my data limit"*), limits reached, payments being checked.
 - **Mama's details:** change her meter, phone, electricity company or network; the new meter is checked, then one approval saves it on the purse.
 - **Invite Mama** by link (WhatsApp share), one use, 7 days; a new link signs Mama out everywhere.
-- **Account settings:** photo, name (Mama sees it), wallet address, sign out, and **delete account** (only with an empty purse, so no money is ever stranded).
+- **Account settings:** photo, name (Mama sees it), Mama's phone and meter (with **Change**), wallet address, sign out, and **delete account** (only with an empty purse, so no money is ever stranded).
 
 </details>
 

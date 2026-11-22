@@ -165,6 +165,25 @@ export default function AccountPage() {
         )}
       </section>
 
+      {/* Mama's details: shown here, changed with the same checked, one-approval form as the dashboard */}
+      {profile?.mama && profile.purseStatus === "active" && (
+        <section className={card}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="font-medium">Mama {profile.mama.name}’s details</h2>
+              <p className="mt-1 text-sm text-muted">Where Mhasibu AI sends her light, airtime and data. Only you can change them.</p>
+            </div>
+            <Link href="/dashboard?edit=details" className={`${button} shrink-0`}>Change</Link>
+          </div>
+          <dl className="mt-4 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
+            <dt className="text-muted">Phone</dt>
+            <dd className="tabular-nums">{profile.mama.phone.replace(/^(\d{4})(\d{3})(\d{4})$/, "$1 $2 $3")}</dd>
+            <dt className="text-muted">Meter</dt>
+            <dd className="font-mono">{profile.mama.meter}</dd>
+          </dl>
+        </section>
+      )}
+
       {/* Wallet */}
       {profile && (
         <section className={card}>

@@ -425,7 +425,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   function profile({ privyId }) {
     const p = byGuardian(privyId);
     if (!p) return { profile: null };
-    return { profile: { name: p.guardian.name, avatar: p.guardian.avatar ?? null, address: p.guardian.address, email: p.guardian.email ?? null, purseStatus: p.setup?.status ?? "active", contractId: p.contractId, unread: (p.notifications ?? []).filter((n) => !n.read).length } };
+    return { profile: { name: p.guardian.name, avatar: p.guardian.avatar ?? null, address: p.guardian.address, email: p.guardian.email ?? null, purseStatus: p.setup?.status ?? "active", contractId: p.contractId, unread: (p.notifications ?? []).filter((n) => !n.read).length, mama: { name: p.mama.name, phone: p.mama.phone, meter: p.destinations.electricity } } };
   }
 
   async function updateProfile({ privyId, name, avatar }) {
