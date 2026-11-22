@@ -56,6 +56,8 @@ async function handle(request: Request, path: string[]) {
       return passThrough(await mhasibuFetch("/v1/family/withdraw", { method: "POST", body: { privyId, usdc: body.usdc, to: body.to } }));
     case "POST agent-move":
       return passThrough(await mhasibuFetch("/v1/family/agent", { method: "POST", body: { privyId } }));
+    case "POST action-cancel":
+      return passThrough(await mhasibuFetch("/v1/family/action/cancel", { method: "POST", body: { privyId } }));
     case "POST action-complete":
       return passThrough(await mhasibuFetch("/v1/family/action/complete", { method: "POST", body: { privyId, signature: body.signature } }));
     case "POST test-usdc":

@@ -431,3 +431,37 @@ test("lookups are remembered but always re-checked: a signed-out session or a ne
   purses.remove(purseId);
   assert.equal(families.guardianPurse(GUARDIAN.privyId), null);
 });
+
+test("one approval at a time: a different one waits, the same kind is prepared again, dismissing frees it", async () => {
+  const { families, tick } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  await families.preparePause({ privyId: GUARDIAN.privyId, paused: true });
+  await assert.rejects(families.prepareLimits({ privyId: GUARDIAN.privyId, preset: "light" }), /finish approving pausing the purse first/);
+  await assert.rejects(families.prepareWithdraw({ privyId: GUARDIAN.privyId, usdc: 1 }), /finish approving pausing the purse/);
+  await families.preparePause({ privyId: GUARDIAN.privyId, paused: true }); // same kind: fine
+  await families.cancelApproval({ privyId: GUARDIAN.privyId });
+  await families.prepareLimits({ privyId: GUARDIAN.privyId, preset: "light" });
+  await assert.rejects(families.preparePause({ privyId: GUARDIAN.privyId, paused: true }), /finish approving your plan first/);
+  tick(11 * 60_000); // expired: no longer blocks
+  await families.preparePause({ privyId: GUARDIAN.privyId, paused: true });
+});
+
+test("the dashboard lists what changed in her plan, in words", async () => {
+  const { families, purses } = setup();
+  const prep = await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  purses.update(prep.purseId, (p) => { p.limits = structuredClone(p.limits); p.limits.data.perTopup = 500; });
+  const { purse } = await families.dashboard({ privyId: GUARDIAN.privyId });
+  assert.equal(purse.planOutdated, true);
+  assert.deepEqual(purse.planChanges, ["Data: ₦1,000 a time (was ₦500)"]);
+});
+
+test("trustline check: a Stellar error is an error, not a 'no'", async () => {
+  const { createSignup } = await import("../src/signup.mjs");
+  const { Keypair } = await import("@stellar/stellar-sdk");
+  const signup = createSignup({ config: { agentSecret: Keypair.random().secret(), rpcUrl: "https://rpc.invalid", horizonUrl: "https://horizon.invalid", usdc: { issuer: "GISSUER" } }, fetchImpl: async () => ({ status: 503, ok: false, json: async () => ({}) }) });
+  await assert.rejects(signup.hasUsdcTrustline("GADDR"), /didn’t answer/);
+  const no = createSignup({ config: { agentSecret: Keypair.random().secret(), rpcUrl: "https://rpc.invalid", horizonUrl: "https://horizon.invalid", usdc: { issuer: "GISSUER" } }, fetchImpl: async () => ({ status: 404, ok: false }) });
+  assert.equal(await no.hasUsdcTrustline("GADDR"), false);
+});

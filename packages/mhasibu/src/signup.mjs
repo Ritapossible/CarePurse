@@ -217,6 +217,8 @@ export function createSignup({ config, fetchImpl = fetch }) {
   async function hasUsdcTrustline(address) {
     const res = await fetchImpl(`${config.horizonUrl}/accounts/${address}`);
     if (res.status === 404) return false;
+    // Any other failure is not a "no": stop, rather than ask her for an opt-in she may not need.
+    if (!res.ok) throw new Error(`Stellar didn’t answer (HTTP ${res.status}). Please try again.`);
     const account = await res.json();
     return (account.balances ?? []).some((b) => b.asset_code === "USDC" && b.asset_issuer === config.usdc.issuer);
   }

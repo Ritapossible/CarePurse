@@ -203,6 +203,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
     if (!PRESETS[preset]) throw new FamilyError(400, "Pick Light or Standard.");
+    oneAtATime(p, "plan");
     // The same plan may be saved again: that rewrites the on-chain caps at today's naira rate.
     const pending = await signup.prepareLimits({ contractId: p.contractId, guardianAddress: p.guardian.address, limits: PRESETS[preset], destinations: p.destinations });
     purses.update(p.id, (x) => { x.limitsChange = { preset, pending, createdAt: iso() }; });
@@ -230,6 +231,33 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     return { status: "active", preset: change.preset, tx: done.hash };
   }
 
+  // ── One approval at a time ─────────────────────────────────
+  // Plan, pause, withdraw, wallet opt-in and Upgrade each wait for one signature. Starting a
+  // different one while another is still open would silently drop it, so she's asked to finish (or
+  // dismiss) the open one first. The same kind may be prepared again. A request expires after
+  // ~10 minutes (its signature can't land after that); only the server holds it, so dropping it is
+  // safe either way.
+  const APPROVAL_MS = 10 * 60_000;
+  const APPROVAL_LABEL = { plan: "your plan", pause: "pausing the purse", unpause: "resuming the purse", withdraw: "the withdrawal", trustline: "the withdrawal", agent: "the wallet upgrade", destinations: "Mama’s new details" };
+  function openApproval(p) {
+    const fresh = (x) => x && now() - Date.parse(x.createdAt) < APPROVAL_MS;
+    if (fresh(p.limitsChange)) return "plan";
+    if (fresh(p.action)) return p.action.kind;
+    return null;
+  }
+  function oneAtATime(p, kind) {
+    const open = openApproval(p);
+    const same = open === kind || (kind === "withdraw" && open === "trustline") || ((kind === "pause" || kind === "unpause") && (open === "pause" || open === "unpause"));
+    if (open && !same) throw new FamilyError(409, `Please finish approving ${APPROVAL_LABEL[open] ?? "the last change"} first, or dismiss it and try again.`);
+  }
+  // She dismissed the approval in her wallet: forget it, so she can start something else.
+  async function cancelApproval({ privyId }) {
+    const p = mine(privyId);
+    purses.update(p.id, (x) => { x.action = null; x.limitsChange = null; });
+    await purses.flush?.();
+    return { cancelled: true };
+  }
+
   // ── Pause and withdraw: one signature each, like the plan ───────────────────
   // One pending approval at a time (p.action). completeAction finishes whichever it is.
   const STELLAR_ADDRESS = /^[GC][A-Z2-7]{55}$/;
@@ -238,6 +266,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
     const method = paused ? "pause" : "unpause";
+    oneAtATime(p, method);
     const pending = await signup.prepareGuardianCall({ contractId: p.contractId, guardianAddress: p.guardian.address, method, args: [] });
     purses.update(p.id, (x) => { x.action = { kind: method, pending, createdAt: iso() }; });
     await purses.flush?.();
@@ -249,6 +278,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   async function prepareWithdraw({ privyId, usdc, to }) {
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
+    oneAtATime(p, "withdraw");
     const dest = String(to || p.guardian.address).trim();
     if (!STELLAR_ADDRESS.test(dest)) throw new FamilyError(400, "That isn’t a Stellar address (it starts with G or C and has 56 characters).");
     if (dest === p.contractId) throw new FamilyError(400, "That’s Mama’s purse itself.");
@@ -288,6 +318,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
     if (p.agent) throw new FamilyError(409, "Mama’s purse already has its own wallet.");
+    oneAtATime(p, "agent");
     const blocked = moveBlocked(p);
     if (blocked) throw new FamilyError(409, blocked);
     // A move she started whose approval is still valid on-chain is offered again as it is.
@@ -397,6 +428,9 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   }
 
   async function testUsdc({ privyId }) {
+    return once(privyId, () => testUsdcOnce({ privyId }));
+  }
+  async function testUsdcOnce({ privyId }) {
     const p = mine(privyId);
     if (p.setup?.status !== "active") throw new FamilyError(409, "finish setting up first");
     if ((p.testUsdc ?? 0) >= TEST_USDC_TIMES) throw new FamilyError(429, "That’s enough test USDC for this purse.");
@@ -416,6 +450,24 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
     const value = await signup.capsBehind({ contractId: p.contractId, limits: p.limits }).catch(() => false);
     behindCache.set(key, { at: clock(), value });
     return value;
+  }
+
+  // What changed in her plan since it was saved: "Data: ₦1,000 a time (was ₦500)".
+  const LIMIT_WORDS = { perTopup: "a time", perDay: "a day", perWeek: "a week", perMonth: "a month" };
+  const UTILITY_WORDS = { electricity: "Electricity", airtime: "Airtime", data: "Data" };
+  const ngnText = (n) => `₦${Number(n).toLocaleString("en-NG")}`;
+  function planChanges(p) {
+    const plan = PRESETS[p.preset];
+    if (!plan) return [];
+    const lines = [];
+    for (const [u, limits] of Object.entries(plan)) {
+      for (const [field, words] of Object.entries(LIMIT_WORDS)) {
+        const was = p.limits?.[u]?.[field];
+        const next = limits[field];
+        if (was !== next && (was || next)) lines.push(`${UTILITY_WORDS[u] ?? u}: ${next ? `${ngnText(next)} ${words}` : `no limit ${words}`}${was ? ` (was ${ngnText(was)})` : ""}`);
+      }
+    }
+    return lines;
   }
 
   async function dashboard({ privyId }) {
@@ -455,6 +507,7 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
         // Her plan has changed since it was saved (e.g. Standard data ₦500 → ₦1,000 a time): her purse
         // keeps the old limits, on-chain and here, until she approves the new ones.
         planOutdated: Boolean(PRESETS[p.preset]) && JSON.stringify(p.limits) !== JSON.stringify(PRESETS[p.preset]),
+        planChanges: planChanges(p),
       },
     };
   }
@@ -577,5 +630,5 @@ export function createFamilies({ purses, signup, config, verifyMeter, sms = null
   // The purse a guardian (Privy user) owns, or null.
   const guardianPurse = (privyId) => byGuardian(privyId)?.id ?? null;
 
-  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, prepareAgentMove, testUsdc, dashboard, activity, readNotifications, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
+  return { profile, updateProfile, deleteAccount, checkMeter, prepare, complete, prepareLimits, completeLimits, preparePause, prepareWithdraw, completeAction, cancelApproval, prepareAgentMove, testUsdc, dashboard, activity, readNotifications, sendNewInvite, invite, sendCode, verifyCode, sessionPurse, guardianPurse };
 }

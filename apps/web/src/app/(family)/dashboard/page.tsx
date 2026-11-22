@@ -142,7 +142,10 @@ export default function DashboardPage() {
     const address = wallet.address ?? (await wallet.ensure());
     while (r.status === "pending" && r.hash) {
       setStep(STEP_LABEL[r.kind ?? ""] ?? "Approve in your wallet");
-      const { signature } = await wallet.sign(address, r.hash);
+      const { signature } = await wallet.sign(address, r.hash).catch((err) => {
+        api("POST", "action-cancel").catch(() => {}); // dismissed: free it for her next change
+        throw err;
+      });
       setStep("Saving on Stellar…");
       r = await api<{ status: string; kind?: string; hash?: string }>("POST", "action-complete", { signature });
     }
@@ -215,7 +218,10 @@ export default function DashboardPage() {
       const prep = await api<{ status: string; hash?: string }>("POST", "limits-prepare", { preset: next });
       if (prep.status === "pending" && prep.hash) {
         const address = wallet.address ?? (await wallet.ensure());
-        const { signature } = await wallet.sign(address, prep.hash);
+        const { signature } = await wallet.sign(address, prep.hash).catch((err) => {
+          api("POST", "action-cancel").catch(() => {});
+          throw err;
+        });
         await api("POST", "limits-complete", { signature });
       }
       await load();
@@ -292,7 +298,7 @@ export default function DashboardPage() {
             {purse.planOutdated ? (
               <>
                 <p className="font-medium">Apply the updated {preset.label} plan</p>
-                <p className="mt-0.5 text-sm text-secondary">Data now goes up to ₦1,000 a time, so Mama can get MTN’s 1.5GB for 30 days. Her purse keeps the old limits until you approve.</p>
+                <p className="mt-0.5 text-sm text-secondary">{purse.planChanges?.length ? `${purse.planChanges.join(" · ")}. ` : ""}Her purse keeps the old limits until you approve.</p>
               </>
             ) : (
               <>

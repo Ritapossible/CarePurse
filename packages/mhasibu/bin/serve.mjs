@@ -107,8 +107,8 @@ const families = createFamilies({
 // after the daughter approves "Update rules" (that path updates both). Never looser than the chain.
 // Checked against today's live rate only (fetched in the background at start), so a fallback rate
 // can't make old caps look big enough.
-setTimeout(async () => {
-  if (!config.rate?.live) return console.warn("Plan: no live rate yet; purses keep their saved limits");
+async function adoptPlans() {
+  if (!config.rate?.live) return false;
   for (const p of purses.all?.() ?? []) {
     const plan = PRESETS[p.preset];
     const contractId = p.contractId ?? (p.id === "demo" ? config.purseContractId : null);
@@ -119,7 +119,15 @@ setTimeout(async () => {
     console.log(`Plan: ${p.id} now uses the current ${p.preset} limits (its on-chain caps allow them)`);
   }
   await purses.flush?.();
-}, 90_000).unref();
+  return true;
+}
+// Every 2 minutes until a live rate is in, then hourly (catches a purse synced on-chain later).
+(function scheduleAdopt(delay) {
+  setTimeout(async () => {
+    const ran = await adoptPlans().catch((err) => { console.warn(`Plan check failed: ${err.message}`); return false; });
+    scheduleAdopt(ran ? 60 * 60_000 : 2 * 60_000);
+  }, delay).unref();
+})(90_000);
 
 // Each family's own agent wallet pays its network fees: check hourly, top up from the operator
 // below 2 XLM. One failure is logged and retried next hour.
@@ -135,10 +143,18 @@ const send = (res, status, body) => {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
 };
+// A JSON body of at most `max` characters. Too large, broken or cut off: answered, never left hanging.
 const readJson = (req, max = 10_000) => new Promise((resolve, reject) => {
   let data = "";
-  req.on("data", (c) => { data += c; if (data.length > max) req.destroy(); });
-  req.on("end", () => { try { resolve(JSON.parse(data || "{}")); } catch { reject(new Error("bad json")); } });
+  let done = false;
+  const fail = (status, message) => { if (!done) { done = true; reject(new FamilyError(status, message)); } };
+  req.on("data", (c) => {
+    data += c;
+    if (data.length > max) { fail(413, "That request is too large."); req.pause(); }
+  });
+  req.on("end", () => { if (done) return; done = true; try { resolve(JSON.parse(data || "{}")); } catch { reject(new FamilyError(400, "That request isn’t valid JSON.")); } });
+  req.on("error", () => fail(400, "The request was cut off."));
+  req.on("aborted", () => fail(400, "The request was cut off."));
 });
 
 // Chat queues. One message at a time per purse (two taps can't race a payment). Purses still on the
@@ -248,6 +264,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/v1/family/pause") return send(res, 200, await families.preparePause(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/withdraw") return send(res, 200, await families.prepareWithdraw(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/agent") return send(res, 200, await families.prepareAgentMove(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/v1/family/action/cancel") return send(res, 200, await families.cancelApproval(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/action/complete") return send(res, 200, await families.completeAction(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/test-usdc") return send(res, 200, await families.testUsdc(await readJson(req)));
     if (req.method === "POST" && url.pathname === "/v1/family/notifications/read") return send(res, 200, await families.readNotifications(await readJson(req)));

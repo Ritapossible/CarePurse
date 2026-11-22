@@ -27,7 +27,8 @@ export type Purse = {
   rulesBehind?: boolean;
   // The limits saved on her purse (naira): what Mhasibu AI and the contract actually allow.
   limits?: Record<string, { perTopup?: number; perDay?: number; perWeek?: number; perMonth?: number }>;
-  planOutdated?: boolean; // her plan gained a new limit since it was saved: approve to apply it // the on-chain caps are behind today’s naira rate: re-save the plan
+  planOutdated?: boolean;
+  planChanges?: string[]; // what changed in her plan, in words // her plan gained a new limit since it was saved: approve to apply it // the on-chain caps are behind today’s naira rate: re-save the plan
   rate?: { ngnPerUsdc: number; asOf: string | null; live: boolean };
   notifications: { at: string; kind: string; text: string; read: boolean }[];
   unread?: number;
