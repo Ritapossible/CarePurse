@@ -38,7 +38,16 @@ const PENDING_SETUP_MS = 9 * 60_000; // the guardian signature request is valid 
 const MAX_SETUPS_PER_DAY = 5; // each one deploys a contract, paid by the agent
 const SESSION_DAYS = 30; // Mama stays signed in on her phone this long
 
-export function createFamilies({ purses, signup, config, verifyMeter, clock = () => Date.now() }) {
+// Sign-in codes: a short wait between codes, and caps per invite per hour, so a leaked link can't
+// be brute-forced (each new code would otherwise reset the 5 tries).
+const CODE_GAP_MS = 30_000;
+const CODES_PER_HOUR = 5;
+const FAILS_PER_HOUR = 15;
+const HOUR = 3_600_000;
+// "0801 ••• 1111": enough for Mama to recognise her number, not enough to learn it from the link.
+export const maskPhone = (p) => String(p ?? "").replace(/^(\d{4})\d+(\d{4})$/, "$1 ••• $2");
+
+export function createFamilies({ purses, signup, config, verifyMeter, sms = null, clock = () => Date.now() }) {
   const now = () => clock();
   const iso = (t = now()) => new Date(t).toISOString();
   const all = () => purses.all();
@@ -488,18 +497,33 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
   // M1: what the invite page shows (her phone is filled in).
   function invite(t) {
     const p = findInvite(t);
-    return { mamaName: p.mama.name, guardianName: p.guardian.name, phone: p.mama.phone, language: p.mama.language };
+    // Her number is never sent to whoever holds the link, only a hint: she types it in full.
+    return { mamaName: p.mama.name, guardianName: p.guardian.name, phoneHint: maskPhone(p.mama.phone), language: p.mama.language, codeBySms: Boolean(sms?.configured) };
   }
 
-  // A 6-digit code for the number on the invite. No SMS in the hackathon build: shown on screen.
+  // A 6-digit code for the number on the invite, by text message (Termii). In the demo
+  // (SHOW_MAMA_CODE=1) it is also returned to the page. Rate-limited per invite.
+  const recentTimes = (list) => (list ?? []).filter((t) => now() - Date.parse(t) < HOUR);
   async function sendCode(t, phoneRaw) {
     const p = findInvite(t);
     const phone = normalisePhone(phoneRaw);
     if (phone !== p.mama.phone) throw new FamilyError(403, "That isn’t the number your child entered.");
+    if (!sms?.configured && !config.showMamaCode) throw new FamilyError(503, "Sign-in by text message isn’t set up yet. Please ask your child.");
+    const sends = recentTimes(p.codeSends);
+    if (sends.length && now() - Date.parse(sends.at(-1)) < CODE_GAP_MS) throw new FamilyError(429, "Please wait a moment before asking for another code.");
+    if (sends.length >= CODES_PER_HOUR) throw new FamilyError(429, "Too many codes for now. Please try again in an hour.");
+    if (recentTimes(p.codeFails).length >= FAILS_PER_HOUR) throw new FamilyError(429, "Too many wrong codes. Please try again in an hour.");
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
-    purses.update(p.id, (x) => { x.mamaCode = { hash: sha(`${p.id}:${code}`), expiresAt: iso(now() + CODE_MINUTES * 60_000), tries: 0 }; });
+    purses.update(p.id, (x) => {
+      x.mamaCode = { hash: sha(`${p.id}:${code}`), expiresAt: iso(now() + CODE_MINUTES * 60_000), tries: 0 };
+      x.codeSends = [...recentTimes(x.codeSends), iso()];
+    });
     await purses.flush?.();
-    return config.showMamaCode ? { sent: true, code } : { sent: true };
+    if (sms?.configured) {
+      await sms.send(phone, `CarePurse: your code is ${code}. It expires in ${CODE_MINUTES} minutes. Don't share it with anyone.`)
+        .catch((err) => { throw new FamilyError(502, err.message); });
+    }
+    return config.showMamaCode ? { sent: true, code, via: sms?.configured ? "sms" : "screen" } : { sent: true, via: "sms" };
   }
 
   async function verifyCode(t, phoneRaw, codeRaw) {
@@ -508,8 +532,9 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     const c = p.mamaCode;
     if (!c || Date.parse(c.expiresAt) < now()) throw new FamilyError(410, "The code has expired. Tap Send code again.");
     if (c.tries >= CODE_TRIES) throw new FamilyError(429, "Too many tries. Tap Send code again.");
+    if (recentTimes(p.codeFails).length >= FAILS_PER_HOUR) throw new FamilyError(429, "Too many wrong codes. Please try again in an hour.");
     if (sha(`${p.id}:${String(codeRaw ?? "").trim()}`) !== c.hash) {
-      purses.update(p.id, (x) => { x.mamaCode.tries += 1; });
+      purses.update(p.id, (x) => { x.mamaCode.tries += 1; x.codeFails = [...recentTimes(x.codeFails), iso()]; });
       await purses.flush?.();
       throw new FamilyError(401, "That code isn’t right. Please check and try again.");
     }
@@ -520,6 +545,8 @@ export function createFamilies({ purses, signup, config, verifyMeter, clock = ()
     purses.update(p.id, (x) => {
       x.invite.usedAt = iso();
       x.mamaCode = null;
+      x.codeSends = [];
+      x.codeFails = [];
       x.mamaSessions = [...(x.mamaSessions ?? []).slice(-4), { hash: sha(session), createdAt: iso() }];
       x.history.push({ at: iso(), from: "mhasibu", text: welcome });
       x.notifications = [...(x.notifications ?? []), { at: iso(), kind: "joined", text: `Mama ${p.mama.name} joined CarePurse.` }];

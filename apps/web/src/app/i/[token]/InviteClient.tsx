@@ -1,11 +1,11 @@
 "use client";
-// Mama's invite (M1): her phone is filled in, she taps Send code, types the 6 digits, and her chat
-// opens. In the hackathon build the code is shown on screen (no SMS).
+// Mama's invite (M1): she types her phone number (the link shows only how it ends), taps Send code,
+// types the 6 digits from her text message, and her chat opens. In the demo the code is also shown.
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import LogoMark from "@/components/LogoMark";
 
-type Invite = { mamaName: string; guardianName: string; phone: string; language: "en" | "pcm" };
+type Invite = { mamaName: string; guardianName: string; phoneHint: string; language: "en" | "pcm"; codeBySms: boolean };
 
 const input = "mt-2 h-14 w-full rounded-[10px] border border-line bg-background px-4 text-xl outline-none transition-colors duration-150 focus:border-foreground";
 const primary = "inline-flex h-14 w-full items-center justify-center rounded-[10px] bg-foreground px-5 text-lg font-medium text-background transition-colors duration-150 hover:bg-[#2b2825] disabled:opacity-40";
@@ -23,6 +23,7 @@ export default function InviteClient({ token }: { token: string }) {
   const [phone, setPhone] = useState("");
   const [shown, setShown] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [bySms, setBySms] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,7 +33,6 @@ export default function InviteClient({ token }: { token: string }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) return setError(d.error ?? "This link isn’t valid. Ask your child to send a new one.");
       setInvite(d);
-      setPhone(d.phone);
     }).catch(() => setError("Mhasibu AI is not reachable right now."));
   }, [token]);
 
@@ -42,8 +42,9 @@ export default function InviteClient({ token }: { token: string }) {
     setError(null);
     setBusy(true);
     try {
-      const r = await post<{ code?: string }>(`/api/invite/${token}/code`, { phone });
+      const r = await post<{ code?: string; via?: string }>(`/api/invite/${token}/code`, { phone });
       setShown(r.code ?? null);
+      setBySms(r.via === "sms");
       setSent(true);
     } catch (e) {
       setError((e as Error).message);
@@ -76,12 +77,14 @@ export default function InviteClient({ token }: { token: string }) {
             {pcm ? `${invite.guardianName} don set up CarePurse for you. Confirm your phone number to start.` : `${invite.guardianName} has set up CarePurse for you. Confirm your phone number to start.`}
           </p>
           <label className="mt-10 block text-secondary">{pcm ? "Your phone number" : "Your phone number"}
-            <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" disabled={sent} />
+            <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="0803 123 4567" disabled={sent} />
           </label>
+          <p className="mt-2 text-sm text-muted">{pcm ? `The number wey end with ${invite.phoneHint.slice(-4)}` : `The number ending in ${invite.phoneHint.slice(-4)}`}</p>
           {!sent ? (
             <button className={`${primary} mt-6`} disabled={busy || !phone} onClick={sendCode}>{busy ? "Sending…" : "Send code"}</button>
           ) : (
             <>
+              {bySms && <p className="mt-6 text-secondary">{pcm ? "We don send code to your phone by text message." : "We sent a code to your phone by text message."}</p>}
               {shown && (
                 <div className="mt-6 rounded-[10px] border border-foreground px-4 py-3">
                   <div className="text-sm text-muted">Your code (shown here in the demo)</div>
@@ -92,6 +95,7 @@ export default function InviteClient({ token }: { token: string }) {
                 <input className={`${input} font-mono tracking-[0.3em]`} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" />
               </label>
               <button className={`${primary} mt-6`} disabled={busy || code.length !== 6} onClick={verify}>{busy ? "Opening…" : "Continue"}</button>
+              <button className="mt-3 w-full py-2 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-40" disabled={busy} onClick={() => { setSent(false); setCode(""); setShown(null); }}>{pcm ? "Send another code" : "Send another code"}</button>
             </>
           )}
           {error && <p className="mt-5 rounded-[10px] bg-danger-soft px-4 py-3 text-danger">{error}</p>}

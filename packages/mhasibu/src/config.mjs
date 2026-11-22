@@ -40,7 +40,10 @@ export const config = {
   // Testnet only: the wallet that sends "Get test USDC" to a new purse. Defaults to the demo guardian.
   treasurySecret: env("TREASURY_SECRET") || env("GUARDIAN_SECRET"),
   // Mama's sign-in code is shown on screen (no SMS provider in the hackathon build).
-  showMamaCode: env("SHOW_MAMA_CODE", "1") !== "0",
+  // Demo only: Mama's sign-in code is returned to the page instead of (or as well as) by SMS. Off
+  // unless SHOW_MAMA_CODE=1. In production, set TERMII_API_KEY so the code goes by text message.
+  showMamaCode: env("SHOW_MAMA_CODE", "0") === "1",
+  sms: { apiKey: env("TERMII_API_KEY", ""), senderId: env("TERMII_SENDER_ID", "CarePurse"), baseUrl: env("TERMII_BASE_URL", "https://v3.api.termii.com") },
   ngnPerUsdc: Number(env("NGN_PER_USDC", "1470")),
   // Room in the on-chain caps for the naira rate moving after setup (2000 = 20%). See capRate().
   capRateMarginBps: Number(env("CAP_RATE_MARGIN_BPS", "2000")),

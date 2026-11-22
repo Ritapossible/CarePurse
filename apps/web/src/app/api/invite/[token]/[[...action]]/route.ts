@@ -1,5 +1,5 @@
 // Mama's invite link: read it, ask for a code, check the code. A correct code sets her session
-// cookie (httpOnly, a year), so she stays signed in and her chat only ever reaches her purse.
+// cookie (httpOnly, 30 days, like the session), so she stays signed in and her chat only ever reaches her purse.
 import { cookies } from "next/headers";
 import { MAMA_COOKIE, mhasibuFetch, passThrough } from "@/lib/server/mhasibu";
 
@@ -22,6 +22,6 @@ export async function POST(request: Request, { params }: Ctx) {
   const res = await mhasibuFetch(`/v1/invites/${token}/verify`, { method: "POST", body: { phone: body.phone, code: body.code } });
   const data = await res.json().catch(() => ({ error: "Mhasibu is not reachable right now." }));
   if (!res.ok) return Response.json(data, { status: res.status });
-  (await cookies()).set(MAMA_COOKIE, data.session, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 365 * 86_400 });
+  (await cookies()).set(MAMA_COOKIE, data.session, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 30 * 86_400 /* the session lasts 30 days on the server */ });
   return Response.json({ ok: true });
 }

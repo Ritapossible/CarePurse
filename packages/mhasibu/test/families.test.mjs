@@ -72,7 +72,8 @@ test("Mama: code only for her number, invite works once, sessions map to her pur
   const { families, tick } = setup();
   const { purseId } = await families.prepare({ ...SIGNUP, guardian: GUARDIAN });
   const { invite } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
-  assert.equal(families.invite(invite).phone, "08031234567");
+  assert.equal(families.invite(invite).phone, undefined); // never her full number to whoever holds the link
+  assert.equal(families.invite(invite).phoneHint, "0803 ••• 4567");
   await assert.rejects(families.sendCode(invite, "08099999999"), /isn’t the number/);
   const { code } = await families.sendCode(invite, "0803 123 4567");
   assert.match(code, /^\d{6}$/);
@@ -373,4 +374,44 @@ test("notifications: the dashboard shows them with an unread count; reading clea
   ({ purse } = await families.dashboard({ privyId: GUARDIAN.privyId }));
   assert.equal(purse.unread, 0);
   assert.ok(purse.notifications.every((n) => n.read));
+});
+
+test("sign-in codes: a short gap between codes, caps per hour, and a lock after many wrong tries", async () => {
+  const { families, tick } = setup();
+  await families.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { invite } = await families.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  await families.sendCode(invite, "08031234567");
+  await assert.rejects(families.sendCode(invite, "08031234567"), /wait a moment/); // under 30 s
+  for (let i = 0; i < 4; i++) { tick(31_000); await families.sendCode(invite, "08031234567"); }
+  tick(31_000);
+  await assert.rejects(families.sendCode(invite, "08031234567"), /Too many codes/); // 5 an hour
+  tick(3_600_000);
+  // Wrong codes add up across new codes: 15 an hour, then locked even with a fresh code.
+  for (let round = 0; round < 3; round++) {
+    tick(31_000);
+    await families.sendCode(invite, "08031234567");
+    for (let i = 0; i < 5; i++) await assert.rejects(families.verifyCode(invite, "08031234567", "000000x"), /isn’t right/);
+  }
+  tick(31_000);
+  await assert.rejects(families.sendCode(invite, "08031234567"), /Too many wrong codes/);
+});
+
+test("sign-in codes go by SMS when Termii is set; without SMS or the demo setting, sign-in is closed", async () => {
+  const { createFamilies } = await import("../src/families.mjs");
+  const { createSms } = await import("../src/sms.mjs");
+  const sent = [];
+  const fakeFetch = async (url, init) => { sent.push({ url, body: JSON.parse(init.body) }); return { ok: true, status: 200, json: async () => ({ code: "ok", message_id: "m1" }) }; };
+  const sms = createSms({ apiKey: "TL-test", fetchImpl: fakeFetch });
+  const { families: base, purses } = setup();
+  await base.prepare({ ...SIGNUP, guardian: GUARDIAN, preset: "standard" });
+  const { invite } = await base.complete({ privyId: GUARDIAN.privyId, signature: "0xgood" });
+  const withSms = createFamilies({ purses, signup: {}, config: { agentSecret: OPERATOR, showMamaCode: false }, sms, verifyMeter: async () => ({ ok: true }) });
+  assert.equal(withSms.invite(invite).codeBySms, true);
+  const r = await withSms.sendCode(invite, "08031234567");
+  assert.deepEqual(r, { sent: true, via: "sms" }); // the code is NOT returned to the page
+  assert.equal(sent[0].url, "https://v3.api.termii.com/api/sms/send");
+  assert.equal(sent[0].body.to, "2348031234567");
+  assert.match(sent[0].body.sms, /your code is \d{6}/);
+  const closed = createFamilies({ purses, signup: {}, config: { agentSecret: OPERATOR, showMamaCode: false }, verifyMeter: async () => ({ ok: true }) });
+  await assert.rejects(closed.sendCode(invite, "08031234567"), /isn’t set up yet/);
 });

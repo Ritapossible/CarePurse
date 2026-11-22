@@ -24,6 +24,7 @@ import { openPurseStore } from "../src/purses.mjs";
 import { PRESETS, monthlyCap } from "../src/limits.mjs";
 import { ContractRefused, buyArgs, createSoroban, refundArgs, symbol } from "../src/purse-contract.mjs";
 import { maskNumbers } from "../src/replies.mjs";
+import { createSms } from "../src/sms.mjs";
 
 const port = Number(process.env.PORT) || Number(process.env.MHASIBU_PORT ?? 4022); // Render sets PORT
 const demoMode = process.env.DEMO_MODE === "1";
@@ -79,7 +80,9 @@ setInterval(async () => {
 
 const purses = await openPurseStore({ file: config.pursesFile, databaseUrl: config.databaseUrl });
 console.log(config.databaseUrl ? "Purses: Postgres (DATABASE_URL)" : `Purses: ${config.pursesFile} (set DATABASE_URL to keep them across restarts)`);
-const mhasibu = createMhasibu({ purses, log: emit, understander: await openUnderstander(config.llm) });
+const sms = createSms(config.sms);
+console.log(sms.configured ? "SMS: Termii" : `SMS: off${config.showMamaCode ? " (demo: Mama's code is shown on screen)" : " (set TERMII_API_KEY)"}`);
+const mhasibu = createMhasibu({ purses, log: emit, sms, understander: await openUnderstander(config.llm) });
 const agentAddress = Keypair.fromSecret(config.agentSecret).publicKey();
 
 // Sign-up, invites and Mama's sign-in. The web app's server checks who is calling (the daughter's
@@ -90,6 +93,7 @@ const families = createFamilies({
   purses,
   signup,
   config,
+  sms,
   verifyMeter: async (meter, disco) => {
     const u = new URL(`/v1/meters/${meter}`, config.gatewayUrl);
     if (disco) u.searchParams.set("disco", disco);

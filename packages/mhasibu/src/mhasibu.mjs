@@ -45,6 +45,7 @@ export function createMhasibu({
   clock = () => Date.now(),
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log = () => {},
+  sms = null, // Termii: Mama's electricity token also goes to her phone by text
 } = {}) {
   // The wallet for a purse: its own contract (families who signed up) and, once it has one, its own
   // agent wallet; otherwise the default (the demo purse, PURSE_CONTRACT_ID, on the shared wallet).
@@ -209,6 +210,7 @@ export function createMhasibu({
       // Close the order on-chain. If that fails, it's retried on the next message (the order is
       // already marked paid, so it will be committed, never refunded).
       if (release) await commitOpen(purses.get(purse.id));
+      textToken(purse, { ngn, token: result.token, units: result.units, utility });
       return say.delivered(lang, { utility, ngn, token: result.token, units: result.units });
     } catch (err) {
       log({ type: "payment-failed", message: err.message });
@@ -226,6 +228,14 @@ export function createMhasibu({
       notifyGuardian(purse, "check-payment", `A ₦${ngn.toLocaleString("en-NG")} ${utility} top-up (order ${order.id}) isn't settled yet. Mhasibu keeps retrying on Mama's next message; no action needed unless this repeats.`);
       return say.checking(lang, { guardian: purse.guardian.name });
     }
+  }
+
+  // Her token by text as well, so it survives a lost chat or a dead phone screen. Never blocks the
+  // reply; a failure is logged (the token is also kept on her Purchases page).
+  function textToken(purse, { ngn, token, units, utility }) {
+    if (!sms?.configured || utility !== "electricity" || !token) return;
+    sms.send(purse.mama.phone, `CarePurse: ${naira(ngn)} light for meter ${purse.destinations.electricity}. Token: ${token}${units ? ` (${units})` : ""}`)
+      .catch((err) => log({ type: "sms-failed", message: err.message }));
   }
 
   // The fee on an order, for the purchase record and Adaeze's receipt (never Mama's chat).
