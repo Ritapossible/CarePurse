@@ -8,13 +8,11 @@
 import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { MAMA_COOKIE, UPSTREAM, purseForSession } from "@/lib/server/mhasibu";
+import { decide, pin } from "@/lib/server/relay-policy";
 
 const KEY = process.env.MHASIBU_API_KEY ?? "";
 const ACCESS_CODE = process.env.WEB_ACCESS_CODE ?? "";
 const DEMO_COOKIE = "cp_demo";
-const DEMO_ONLY = new Set(["POST v1/demo/overspend", "POST v1/demo/wrong-destination"]);
-const ALLOWED = new Set(["GET v1/status", "GET v1/history", "GET v1/tokens", "GET v1/purchases", "GET v1/events", "POST v1/chat", "POST v1/tokens/seen", ...DEMO_ONLY]);
-const PER_PURSE = new Set(["GET v1/history", "GET v1/tokens", "GET v1/purchases", "GET v1/events", "POST v1/chat", "POST v1/tokens/seen"]);
 
 function sameText(a: string, b: string) {
   const x = Buffer.from(a);
@@ -24,7 +22,6 @@ function sameText(a: string, b: string) {
 
 async function relay(request: Request, path: string[]) {
   const route = `${request.method} ${path.join("/")}`;
-  if (!ALLOWED.has(route)) return Response.json({ error: "not found" }, { status: 404 });
   const url = new URL(request.url);
 
   // The demo's access code: from the page (a header, once from the link) or this browser's cookie.
@@ -32,35 +29,24 @@ async function relay(request: Request, path: string[]) {
   const offered = request.headers.get("x-access-code") || url.searchParams.get("code") || "";
   const remembered = jar.get(DEMO_COOKIE)?.value ?? "";
   const codeOk = (c: string) => Boolean(ACCESS_CODE && c && sameText(c, ACCESS_CODE));
+
+  const decision = decide({
+    route,
+    mamaPurse: route === "GET v1/status" ? null : await purseForSession(jar.get(MAMA_COOKIE)?.value),
+    codeOk: codeOk(offered) || codeOk(remembered),
+    accessCodeSet: Boolean(ACCESS_CODE),
+    production: process.env.NODE_ENV === "production",
+  });
+  if (!decision.ok) return Response.json({ error: decision.error }, { status: decision.status });
   // A correct code is remembered in an httpOnly cookie, so the live log never needs it in a URL.
   if (codeOk(offered) && offered !== remembered) {
     jar.set(DEMO_COOKIE, offered, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/api/mhasibu", maxAge: 7 * 86_400 });
   }
 
-  // Who is asking: Mama (her session) or the demo (the access code).
-  let purse: string | null = null;
-  if (route !== "GET v1/status") {
-    const mama = await purseForSession(jar.get(MAMA_COOKIE)?.value);
-    if (mama && !DEMO_ONLY.has(route)) {
-      purse = mama;
-    } else {
-      // Fail closed: a public (production) site with no access code would hand Mhasibu's key to anyone.
-      if (!ACCESS_CODE && process.env.NODE_ENV === "production") {
-        return Response.json({ error: "WEB_ACCESS_CODE is not set on the web app, so the demo is closed." }, { status: 503 });
-      }
-      if (ACCESS_CODE && !codeOk(offered) && !codeOk(remembered)) return Response.json({ error: "access code needed" }, { status: 401 });
-      purse = "demo";
-    }
-  }
-
+  const json = request.method === "POST" ? await request.json().catch(() => ({})) : null;
+  const { query, body } = pin(route, decision.purse, url.searchParams, json);
   const target = new URL(`${UPSTREAM}/${path.join("/")}`);
-  url.searchParams.forEach((v, k) => { if (k !== "code" && k !== "purse") target.searchParams.set(k, v); });
-  if (purse && PER_PURSE.has(route) && request.method === "GET") target.searchParams.set("purse", purse);
-  let body: string | undefined;
-  if (request.method === "POST") {
-    const json = await request.json().catch(() => ({}));
-    body = JSON.stringify(PER_PURSE.has(route) ? { ...json, purse } : json);
-  }
+  target.search = query.toString();
   const upstream = await fetch(target, {
     method: request.method,
     headers: { "content-type": "application/json", ...(KEY ? { authorization: `Bearer ${KEY}` } : {}) },

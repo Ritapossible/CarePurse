@@ -2,6 +2,7 @@
 // token here and pass Mhasibu the Privy user id from the token, never one from the browser.
 import { privyAccount, privyConfigured, privyUser, privyWalletCheckConfigured } from "@/lib/server/privy";
 import { mhasibuFetch, passThrough } from "@/lib/server/mhasibu";
+import { guardianCheck } from "@/lib/server/relay-policy";
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
@@ -34,8 +35,8 @@ async function handle(request: Request, path: string[]) {
       // whatever address the browser sends. Without the check configured, sign-up stays closed.
       if (!privyWalletCheckConfigured()) return Response.json({ error: "Sign-up is paused: the server can’t confirm your wallet yet (PRIVY_APP_SECRET)." }, { status: 503 });
       const account = await privyAccount(privyId).catch(() => null);
-      if (!account) return Response.json({ error: "We couldn’t confirm your wallet with Privy. Please try again." }, { status: 502 });
-      if (!account.wallets.includes(String(body.guardian?.address ?? ""))) return Response.json({ error: "That wallet isn’t the CarePurse wallet on your account. Please reload and try again." }, { status: 403 });
+      const check = guardianCheck(account, body.guardian?.address);
+      if (!check.ok || !account) return Response.json({ error: check.ok ? "Please try again." : check.error }, { status: check.ok ? 502 : check.status });
       return passThrough(await mhasibuFetch("/v1/family/prepare", {
         method: "POST",
         body: {

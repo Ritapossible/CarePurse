@@ -1,4 +1,8 @@
-# Deploying CarePurse (Pxxl or Render for the backend, Vercel for the web app)
+# Deploying CarePurse
+
+**Current production:** backend (gateway + Mhasibu in one container) on **Pxxl**, web app on **Vercel**, database on **Neon**, uptime on **UptimeRobot**. Pxxl auto-deploy is **off**: after pushing to `main`, redeploy the backend from the Pxxl dashboard (Vercel redeploys on push). The Render Blueprint below is kept as an alternative.
+
+**Before each backend redeploy, check on Pxxl:** `DATA_ENCRYPTION_KEY` is set (the backend refuses to start without it in production), `PURSE_WASM_HASH` matches `deploy/backend/settings.env`, and `AGENT_SECRET_KEY` has not changed (family wallet keys and meter fingerprints depend on it). On Vercel: `PRIVY_APP_SECRET` is set (without it, sign-up is closed).
 
 Stellar **testnet** and the VTpass **sandbox** only. Three services from one Blueprint (`render.yaml`):
 
@@ -23,7 +27,7 @@ Stellar **testnet** and the VTpass **sandbox** only. Three services from one Blu
 
 Why Neon: Render's free Postgres is deleted after 30 days (mid-December, around Demo Day); Supabase's free tier pauses after a week without use.
 
-## Steps
+## Alternative: Render Blueprint
 
 1. Render dashboard → **New → Blueprint** → connect GitHub → pick `Ritapossible/CarePurse` → it reads `render.yaml`.
 2. Fill in the `sync: false` values it asks for. Use placeholders for the URLs on the first pass; Render shows each service's URL (`https://carepurse-gateway-xxxx.onrender.com`) once created.
@@ -61,7 +65,7 @@ The gateway and Mhasibu run together in **one** Pxxl Web Service (`Dockerfile`, 
    - `DATA_ENCRYPTION_KEY` is **required**: in production the backend refuses to start without it.
    - Optional, recommended: `AGENT_SEAL_KEY` (seals family wallet keys) and `DEST_HASH_KEY` (meter/phone fingerprints), so the operator key isn't used for them. Set once; never change.
    - `MHASIBU_API_KEY`, `GATEWAY_API_KEY`, `DATA_ENCRYPTION_KEY`: long random strings you make up (e.g. a password manager's generator, 40+ characters). Keep `MHASIBU_API_KEY` and `DATA_ENCRYPTION_KEY` in your password manager too.
-6. **Deploy.** Every push to `main` redeploys automatically.
+6. **Deploy.** Auto-deploy is off on our Pxxl project: redeploy by hand after each push to `main`.
 
 **Then**
 1. Open `https://<your-pxxl-address>/v1/status`: you should see `{"phase":2,…`.
@@ -71,13 +75,13 @@ The gateway and Mhasibu run together in **one** Pxxl Web Service (`Dockerfile`, 
 
 ## Web app on Vercel (recommended)
 
-The landing page, Mama's chat and the demo can run on Vercel instead of Render (faster pages, no cold start). The gateway and Mhasibu stay on Render: they hold wallets and need to stay up.
+The landing page, the dashboard, Mama's chat and the demo run on Vercel. The gateway and Mhasibu stay on the backend host (Pxxl; Render as an alternative): they hold wallets and need to stay up.
 
 1. Vercel → **Add New → Project** → import `Ritapossible/CarePurse`.
 2. **Root Directory: `apps/web`**. Vercel detects Next.js; leave the build settings as they are (`npm run build`).
 3. Environment Variables (see `apps/web/.env.example`):
-   - `MHASIBU_URL` = Mhasibu's Render URL
-   - `MHASIBU_API_KEY` = copy it from the Render dashboard (carepurse-mhasibu → Environment). It stays on Vercel's server; browsers never get it
+   - `MHASIBU_URL` = Mhasibu's URL (the Pxxl address)
+   - `MHASIBU_API_KEY` = the same key as on the backend. It stays on Vercel's server; browsers never get it
    - `WEB_ACCESS_CODE` (**required**) = the code for the demo link
 4. Deploy, then share `https://<project>.vercel.app/demo?code=<code>`. A visitor without the code sees a box to type it.
 5. Remove the `carepurse-web` service from Render (or don't create it), so only one web app holds the key.
@@ -90,7 +94,7 @@ The live log is a stream (Server-Sent Events). On Vercel a function runs for at 
 2. **Login methods:** Email and Google on.
 3. **Allowed domains:** your Vercel address (e.g. `https://care-purse.vercel.app`) and `http://localhost:3000`.
 4. Copy the **App ID** (public) into Vercel as `NEXT_PUBLIC_PRIVY_APP_ID`, and the **App secret** as `PRIVY_APP_SECRET` (server only, never `NEXT_PUBLIC_`), then redeploy. Logins are checked with Privy's public keys; the secret is used only to confirm at sign-up that the guardian address is her own Privy wallet. Without it, sign-up stays closed.
-5. On Render (carepurse-mhasibu): `PURSE_WASM_HASH` is already in `render.yaml`. Set `TREASURY_SECRET` to the testnet wallet that hands out test USDC (the demo guardian's secret works). The agent wallet needs test XLM: it pays the fee to create each family's purse.
+5. On the backend (Pxxl, or Render's carepurse-mhasibu): `PURSE_WASM_HASH` is in `deploy/backend/settings.env` (and `render.yaml`). Set `TREASURY_SECRET` to the testnet wallet that hands out test USDC (the demo guardian's secret works). The agent wallet needs test XLM: it pays the fee to create each family's purse.
 
 Try it: open `/start`, sign in, fill in Mama, check the meter (VTpass sandbox: `1111111111111`), choose Standard, approve once in Privy, get test USDC, copy Mama's link and open it on a phone.
 
@@ -105,4 +109,4 @@ Add three HTTP(s) monitors, every 5 minutes: the gateway's `/health`, Mhasibu's 
 - **Set `DATABASE_URL`** on the gateway and on Mhasibu (the same database is fine). Render's free plan wipes files on every restart; with the database, orders, purchases, Mama's tokens and her chat survive. Without it they'd reset after each restart.
 - **Mhasibu is not public.** Every route except `/v1/status` needs `MHASIBU_API_KEY`; only the web app's server holds it. Mama's chat and tokens are reachable only through the web app (and its access code, if set).
 - **No secrets in `render.yaml`.** The gateway only needs its public address; only Mhasibu holds a secret key.
-- **Testnet resets on 16 Dec 2026:** run `npm run setup`, `npm run get-usdc` and `npm run deploy-purse` locally again, then update `PURSE_CONTRACT_ID` on Render.
+- **Testnet resets on 16 Dec 2026:** run `npm run setup`, `npm run get-usdc` and `npm run deploy-purse` locally again, then update `PURSE_CONTRACT_ID` (and `PURSE_WASM_HASH` after `npm run install-wasm`) on the backend.
