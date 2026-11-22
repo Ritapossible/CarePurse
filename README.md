@@ -203,10 +203,11 @@ flowchart LR
 | Payments | [x402](https://www.x402.org) v2 (`exact` scheme) on Stellar · `@x402/express`, `@x402/stellar` · x402.org facilitator |
 | Money | USDC (Circle, Stellar testnet), 7 decimals |
 | Limits | Soroban smart contract in Rust (`contracts/purse`, 20 tests) |
-| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 75 tests) |
+| Agent | Node.js 22 · Mhasibu AI (`packages/mhasibu`, 94 tests) |
 | Understanding | `deepseek-ai/DeepSeek-V4.1-Flash-1017` on NEAR AI Cloud (private, TEE); keyword parser as fallback |
 | Gateway | Express (`services/gateway`, 23 tests) · VTpass sandbox for electricity, airtime and data |
-| Web | Next.js 16 · Tailwind CSS v4 · Privy (email/Google login, embedded Stellar wallet) |
+| Web | Next.js 16 · Tailwind CSS v4 · Privy (email/Google login, embedded Stellar wallet) · relay rules tested (5 tests) |
+| SMS | Termii, for Mama's sign-in code and her electricity token (when `TERMII_API_KEY` is set) |
 | Data | Postgres (Neon), rows sealed with AES-256-GCM |
 | Hosting | Vercel (web) · Pxxl (backend container) · UptimeRobot |
 
@@ -280,11 +281,14 @@ CarePurse moves money for an elderly user, so no single mistake, crash or attack
 | **Private API** | Only `GET /v1/status` is public. Browsers never call the backend; the web app's server relays the routes its pages use and adds the key |
 | **Mid-flight money is never lost or paid twice** | Orders are written down before release, refunded on failure, and settled from the chain after a crash |
 | **Accounts** | One purse per account; a pending sign-up is reused (no new contract per click) and capped at 5 a day; Mama's sessions expire after 30 days |
+| **Mama's sign-in** | The invite link shows only the last digits of her number (she types it); codes are rate-limited per invite (30 s apart, 5 an hour, 15 wrong tries an hour) and go by SMS (Termii) |
+| **Abuse limits** | Chat is limited per purse; the demo's attack buttons once every 15 s; the demo's access code lives in an httpOnly cookie, never in URLs |
+| **Data at rest** | Every row is sealed (AES-256-GCM); the backend refuses to start in production without `DATA_ENCRYPTION_KEY`; family wallet keys are sealed again (optionally under a separate `AGENT_SEAL_KEY`) |
 | **Testnet only** | The gateway and Mhasibu AI refuse any other network, and any non-sandbox VTpass URL. No secrets in the repo |
 
 Reviewed by six rounds of external review, each finding checked against the code before changing anything ([`MEMORY.md`](MEMORY.md)).
 
-**Known limits (hackathon):** Mama's sign-in code is shown on screen until SMS is connected (Termii); purses made before 21 Nov stay on the shared agent wallet until the daughter taps **Upgrade** on her dashboard; one instance per service. Each is on the [roadmap](#status-and-roadmap).
+**Known limits (hackathon):** the live demo shows Mama's sign-in code on screen (`SHOW_MAMA_CODE=1`) until a Termii key is set (the SMS code path is built and tested); purses made before 21 Nov stay on the shared agent wallet until the daughter taps **Upgrade**; state is held in memory by one backend instance (Postgres keeps it across restarts, but two replicas can't share it yet); Stellar testnet and the VTpass sandbox only. Each is on the [roadmap](#status-and-roadmap).
 
 ## Privacy
 

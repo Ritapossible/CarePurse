@@ -241,3 +241,12 @@ Contract **v4** `CBWQ4EQSCNTDRQFJ6YLZT2GOUEHKA6N233IKZBGOVHKMZDQ5R2AG5OBV` (v1, 
 - MTN sells no ₦500 internet bundle (its ₦500 item is call time), so ₦500 a time only reached ₦200 (200MB, 2 days). Standard data is now ₦1,000 a time (MTN 1.5GB, 30 days); ₦1,000 a day and ₦120,000 a month are unchanged.
 - Data prices now include ₦600, ₦800, ₦1,500, ₦2,500, ₦3,000; Mama sees only those her network sells, each with its bundle ("₦600 · 2.5GB, 2 days"), and a ₦500 request is explained ("MTN doesn't sell a ₦500 data bundle").
 - Existing purses keep their saved limits (here and on-chain) until the daughter approves the dashboard banner ("Apply the updated Standard plan"). At start, the backend adopts the new plan only for purses whose on-chain caps already allow it (the demo purse, synced 22 Nov with `npm run sync-purse`).
+
+## 2026-11-22: Full audit, every finding fixed
+- Chain: one transaction at a time per source account (`inOrder`/`withAccount`), rebuilt on a stale sequence, busy/duplicate sends handled, one RPC client per address. Tested live: three concurrent operator transactions all landed.
+- Daughter: notifications shown (bell, unread count, mark read); change Mama's meter/phone/providers with one approval (meter checked first); one approval at a time with cancel on dismiss; plan changes listed in words.
+- Mama: invite shows only the end of her number; code rate limits; Termii SMS for codes and tokens; `SHOW_MAMA_CODE` now off by default (production sets it for the demo); 30-day cookie; slow replies recovered from history; "token copied" stored on the server.
+- Storage: writes coalesced per record, history (300) and notifications (100) capped, photo in its own row, encryption key required in production.
+- Server: per-purse chat queues (shared-wallet purses share one), background settler, cached lookups, events tagged with their purse, body size/abort handled, rate limits, NEAR privacy re-checked hourly, optional `AGENT_SEAL_KEY` (v2 sealing; v1 still opens).
+- Delete account closes the family wallet (trustline removed, XLM merged back to the operator). Tested live.
+- Web relay rules extracted (`relay-policy.ts`) and tested; production build verified.
