@@ -25,6 +25,7 @@
 
 - [The problem](#the-problem)
 - [What CarePurse does](#what-carepurse-does)
+- [Screenshots](#screenshots)
 - [Architecture](#architecture)
 - [How a top-up works](#how-a-top-up-works)
 - [How the money moves](#how-the-money-moves)
@@ -51,6 +52,23 @@ Nigerian women living abroad support elderly parents at home, and keeping the li
 | Sets limits per top-up, day, week and month, saved **on-chain** with one signature | Asks in her own words: *"Abeg, light don almost finish"* | The **AI only understands**; amounts and limits are decided by code and by the contract |
 | Funds the purse, invites Mama, sees every receipt and the fee | Taps an amount and gets her token in seconds | Pays the gateway over **x402** (HTTP 402 → sign → retry → settle) |
 | Can change the plan, pause, withdraw or close her account any time | Never sees a wallet, a fee or the word "crypto" | A **Soroban purse contract** refuses anything over the limits, even if the agent asks |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td valign="top" width="68%">
+      <img src="docs/screenshots/dashboard.jpg" alt="The daughter's dashboard: what Mama can spend, her last top-up and recent activity with fees and receipts" />
+      <p><b>The daughter's dashboard.</b> What Mama can spend is the big number; the last top-up sits right under it; every purchase shows its fee and Stellar receipt.</p>
+    </td>
+    <td valign="top" width="32%">
+      <img src="docs/screenshots/chat.jpg" alt="Mama's chat on her phone: data bundles with what each gives, her balance, and a light token delivered in seconds" />
+      <p><b>Mama's chat, on her phone.</b> Data shows what each bundle gives, she asks her balance in her own words, and a ₦5,000 light token arrives in seconds.</p>
+    </td>
+  </tr>
+</table>
+
+<sub>Real screenshots from the live testnet app (VTpass sandbox numbers).</sub>
 
 ## Architecture
 
